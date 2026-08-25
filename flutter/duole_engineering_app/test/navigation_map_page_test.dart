@@ -7,6 +7,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+    'mapping buttons stay clickable and blocked preparation has no bypass',
+    (tester) async {
+      final manager = _BlockedMapManagementManager();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NavigationMapPage(
+            reader: _MismatchReader(),
+            mapManagementManager: manager,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final manual = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, '手动建图'),
+      );
+      final autonomous = tester.widget<OutlinedButton>(
+        find.widgetWithText(OutlinedButton, '自主建图'),
+      );
+      expect(manual.onPressed, isNotNull);
+      expect(autonomous.onPressed, isNotNull);
+
+      await tester.tap(find.widgetWithText(FilledButton, '手动建图'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('手动建图准备'), findsOneWidget);
+      for (final label in const [
+        '回到充电桩',
+        '电量',
+        '活动任务',
+        '传感器',
+        '存储空间',
+        '软件版本'
+      ]) {
+        await tester.scrollUntilVisible(find.text(label), 120);
+        expect(find.text(label), findsOneWidget);
+      }
+      final start = tester.widget<FilledButton>(
+        find.byKey(const Key('mapping-scan-start')),
+      );
+      expect(start.onPressed, isNull);
+      expect(manager.requestedMode, MappingChallengePurpose.manualMapping);
+    },
+  );
+
   testWidgets('task map keeps the emergency stop control visible',
       (tester) async {
     await tester.pumpWidget(
@@ -81,6 +127,65 @@ void main() {
       expect(find.textContaining('可用 9.7 KB'), findsOneWidget);
     },
   );
+
+  testWidgets('available map switches only after on-site presence scan',
+      (tester) async {
+    final mapManager = _RecordingSwitchMapManager();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NavigationMapPage(
+          reader: _MismatchReader(),
+          catalogReader: _CatalogReader(),
+          mapManagementManager: mapManager,
+          mapChallengeScanner: (_, purpose) async {
+            expect(purpose, MappingChallengePurpose.mapManagement);
+            return '{"screen":"map-management"}';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('switch-map-map_available')),
+      300,
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('switch-map-map_available')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('switch-map-map_available')));
+    await tester.pumpAndSettle();
+
+    expect(mapManager.scannedPayload, '{"screen":"map-management"}');
+    expect(mapManager.switchedMapId, 'map_available');
+    expect(mapManager.switchedRevision, 1);
+    expect(mapManager.presenceToken, 'presence-secret');
+    expect(
+      mapManager.recoveredOperationId,
+      'map_switch_0123456789abcdef0123456789abcdef',
+    );
+    expect(find.text('地图切换完成'), findsOneWidget);
+  });
+
+  testWidgets('app background invalidates any active map management presence',
+      (tester) async {
+    final mapManager = _RecordingSwitchMapManager();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NavigationMapPage(
+          reader: _MismatchReader(),
+          mapManagementManager: mapManager,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    expect(mapManager.backgroundInvalidations, 1);
+  });
 
   testWidgets('authorized map manager can rename through catalog revision',
       (tester) async {
@@ -282,6 +387,161 @@ void main() {
     expect(manager.purgedRevision, 2);
     expect(manager.purgeConfirmation, 'purge-map:map_deleted:2');
   });
+}
+
+class _BlockedMapManagementManager implements MapManagementManager {
+  MappingChallengePurpose? requestedMode;
+
+  @override
+  Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
+    MappingChallengePurpose mode,
+  ) {
+    requestedMode = mode;
+    return Future.value(
+      MappingPreflightSuccessEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_mapping_preflight_ui_01',
+        'server_time': '2026-08-25T15:00:00Z',
+        'data': {
+          'mode': 'manual_mapping',
+          'observed_at': '2026-08-25T15:00:00Z',
+          'ready': false,
+          'items': [
+            for (final entry in const [
+              ('dock', 'robot_not_docked', 'return_to_dock'),
+              ('battery', 'mapping_battery_low', 'charge_robot'),
+              ('tasks', 'motion_task_active', 'stop_active_task'),
+              ('sensors', 'mapping_sensor_unready', 'check_mapping_sensors'),
+              ('storage', 'mapping_storage_insufficient', 'free_map_storage'),
+              (
+                'version',
+                'mapping_version_incompatible',
+                'update_robot_software'
+              ),
+            ])
+              {
+                'key': entry.$1,
+                'ready': false,
+                'reason_code': entry.$2,
+                'guidance_code': entry.$3,
+              },
+          ],
+        },
+      }),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _RecordingSwitchMapManager implements MapManagementManager {
+  String? scannedPayload;
+  String? switchedMapId;
+  int? switchedRevision;
+  String? presenceToken;
+  String? recoveredOperationId;
+  var backgroundInvalidations = 0;
+
+  @override
+  Future<void> invalidateMapManagementPresenceForBackground() async {
+    backgroundInvalidations += 1;
+  }
+
+  @override
+  Future<MapManagementPresenceSuccessEnvelope> exchangeMapManagementPresence(
+    String qrPayload,
+  ) {
+    scannedPayload = qrPayload;
+    return Future.value(
+      MapManagementPresenceSuccessEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_presence_ui_01',
+        'server_time': '2026-08-25T15:00:00Z',
+        'data': {
+          'presence_id': 'map_presence_0123456789abcdef0123456789abcdef',
+          'token': 'presence-secret',
+          'robot_id': 'robot-home',
+          'request_id': 'req_presence_ui_01',
+          'idempotency_key': 'idem_presence_ui_01',
+          'expires_at': '2026-08-25T15:15:00Z',
+          'audit_summary_sha256': 'b' * 64,
+          'revision': 1,
+        },
+      }),
+    );
+  }
+
+  @override
+  Future<MapSwitchOperationSuccessEnvelope> switchMap({
+    required String targetMapId,
+    required int expectedTargetRevision,
+    required String presenceToken,
+  }) {
+    switchedMapId = targetMapId;
+    switchedRevision = expectedTargetRevision;
+    this.presenceToken = presenceToken;
+    return Future.value(
+      MapSwitchOperationSuccessEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_switch_ui_01',
+        'server_time': '2026-08-25T15:00:00Z',
+        'data': {
+          'operation_id': 'map_switch_0123456789abcdef0123456789abcdef',
+          'robot_id': 'robot-home',
+          'actor_id': 'dvs_0123456789abcdef0123456789abcdef',
+          'request_id': 'req_switch_ui_01',
+          'idempotency_key': 'idem_switch_ui_01',
+          'status': 'accepted',
+          'original_map_id': 'map_active',
+          'original_map_revision': 1,
+          'target_map_id': targetMapId,
+          'target_map_revision': expectedTargetRevision,
+          'requested_at': '2026-08-25T15:00:00Z',
+          'expires_at': '2026-08-25T15:00:30Z',
+          'updated_at': '2026-08-25T15:00:00Z',
+          'audit_summary_sha256': 'c' * 64,
+          'failure_reason': null,
+          'revision': 1,
+        },
+      }),
+    );
+  }
+
+  @override
+  Future<MapSwitchOperationSuccessEnvelope> getMapSwitch(
+    String operationId,
+  ) {
+    recoveredOperationId = operationId;
+    return Future.value(
+      MapSwitchOperationSuccessEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_switch_get_ui_01',
+        'server_time': '2026-08-25T15:00:01Z',
+        'data': {
+          'operation_id': operationId,
+          'robot_id': 'robot-home',
+          'actor_id': 'dvs_0123456789abcdef0123456789abcdef',
+          'request_id': 'req_switch_ui_01',
+          'idempotency_key': 'idem_switch_ui_01',
+          'status': 'committed',
+          'original_map_id': 'map_active',
+          'original_map_revision': 1,
+          'target_map_id': switchedMapId,
+          'target_map_revision': switchedRevision,
+          'requested_at': '2026-08-25T15:00:00Z',
+          'expires_at': '2026-08-25T15:00:30Z',
+          'updated_at': '2026-08-25T15:00:01Z',
+          'audit_summary_sha256': 'c' * 64,
+          'failure_reason': null,
+          'revision': 5,
+        },
+      }),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _UnusedStopCommander implements EmergencyStopCommander {

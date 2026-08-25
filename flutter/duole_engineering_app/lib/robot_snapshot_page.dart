@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'navigation_map_page.dart';
 import 'emergency_stop_control.dart';
+import 'map_challenge_scanner.dart';
 
 class RobotSnapshotPage extends StatefulWidget {
   const RobotSnapshotPage({
@@ -15,6 +16,7 @@ class RobotSnapshotPage extends StatefulWidget {
     this.navigationMapReader,
     this.mapCatalogReader,
     this.mapCatalogManager,
+    this.mapManagementManager,
     this.emergencyStopCommander,
     super.key,
   });
@@ -24,6 +26,7 @@ class RobotSnapshotPage extends StatefulWidget {
   final NavigationMapReader? navigationMapReader;
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
+  final MapManagementManager? mapManagementManager;
   final EmergencyStopCommander? emergencyStopCommander;
 
   @override
@@ -247,6 +250,8 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
                     reader: widget.navigationMapReader!,
                     catalogReader: widget.mapCatalogReader,
                     catalogManager: widget.mapCatalogManager,
+                    mapManagementManager: widget.mapManagementManager,
+                    mapChallengeScanner: scanMapChallenge,
                     emergencyStopCommander: widget.emergencyStopCommander,
                   ),
                 ),

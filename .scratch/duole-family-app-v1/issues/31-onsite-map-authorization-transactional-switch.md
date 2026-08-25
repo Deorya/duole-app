@@ -1,6 +1,6 @@
 # 贯通现场地图授权与事务性地图切换
 
-Status: needs-triage
+Status: ready-for-human
 
 Type: HITL
 
@@ -37,3 +37,14 @@ User stories covered: 176, 181–182, 185–187, 199
 - [06 实现持久事件投影、WebSocket 补拉与重同步](06-event-projection-replay-resync.md)
 - [14 实现独立紧急停止与机器人停止确认](14-emergency-stop-confirmation.md)
 - [30 实现多地图资料库、评分、回收站与容量管理](30-multi-map-catalog-quality-trash.md)
+
+## Comments
+
+### 2026-08-26 软件验收证据
+
+- 已按 TDD 完成 App、App Gateway、OpenAPI/生成合同、一次性授权、15 分钟现场会话、六项建图预检、事务性切图状态机、回滚/重启恢复、稳定 operation/event 与受控 LAN 证明的软件纵向切片。
+- `run_issue_31_validation.py` 一键门禁通过：Python 266 项、合同消费者 24 个入口、工程客户端 35 个入口、Flutter 46 项；三个 Dart/Flutter 包静态检查均无问题。
+- `duole-workspace` 全仓回归通过：`2944 passed, 1 skipped, 4 warnings`；跳过项为既有硬件依赖测试。
+- arm64 目标调试 APK 已生成：`flutter/duole_engineering_app/build/app/outputs/flutter-apk/app-debug.apk`，111,752,466 bytes，SHA-256 `0307fa8c73bd1b93674261d14dc9076c8f4c6367f7f49334ae85139e70abafc2`。
+- 当前授权范围内没有机器人屏幕的生产接线，也没有导航板真实 SLAM/地图加载/桩锚定位适配器；Gateway 对这两条生产路径保持 fail-closed，测试 fake 不能冒充 HIL。
+- 转为 `ready-for-human`：仍需授权修改 `/home/ztl/duole-qt-runtime`（机器人屏幕二维码/6 位码），并提供或授权导航板源码/部署仓库或正式接口；随后连接两台 Android 手机、两张真实地图和安全在桩窗口，执行本工单最后一条 HIL 及前十条的实物确认。完成前不勾选验收项。

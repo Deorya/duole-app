@@ -11,6 +11,3 @@ dependencies:
   duole_app_contract:
     path: ../duole_app_contract
   multicast_dns: ^0.3.3+1
-
-dev_dependencies:
-  test: ^1.29.0

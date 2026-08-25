@@ -639,6 +639,596 @@ class EngineeringMapCatalogClient implements MapCatalogManager {
   }
 }
 
+class EngineeringMapManagementClient implements MapManagementManager {
+  EngineeringMapManagementClient({
+    required Uri robotOrigin,
+    required String robotId,
+    required String deviceSessionId,
+    required String accessToken,
+    required String clientVersion,
+    required String Function() requestIdFactory,
+    required String Function() idempotencyKeyFactory,
+    required String Function() proofNonceFactory,
+    required PairingHttpTransport transport,
+    required PairingCredentialVault credentialVault,
+    DateTime Function()? clock,
+    this.commandTtl = const Duration(seconds: 30),
+  })  : _robotOrigin = _validatePairingOrigin(robotOrigin),
+        _robotId = robotId,
+        _deviceSessionId = deviceSessionId,
+        _accessToken = accessToken,
+        _clientVersion = clientVersion,
+        _requestIdFactory = requestIdFactory,
+        _idempotencyKeyFactory = idempotencyKeyFactory,
+        _proofNonceFactory = proofNonceFactory,
+        _transport = transport,
+        _credentialVault = credentialVault,
+        _clock = clock ?? DateTime.now {
+    if (_accessToken.isEmpty || _accessToken.length > 512) {
+      throw ArgumentError.value(accessToken, 'accessToken', 'invalid token');
+    }
+    if (_robotId.isEmpty || _robotId.length > 128) {
+      throw ArgumentError.value(robotId, 'robotId', 'invalid robot id');
+    }
+    if (!RegExp(r'^dvs_[0-9a-f]{32}$').hasMatch(_deviceSessionId)) {
+      throw ArgumentError.value(
+        deviceSessionId,
+        'deviceSessionId',
+        'invalid device session id',
+      );
+    }
+    if (commandTtl <= Duration.zero ||
+        commandTtl > const Duration(seconds: 30)) {
+      throw ArgumentError.value(commandTtl, 'commandTtl', 'must be 1ms..30s');
+    }
+  }
+
+  final Uri _robotOrigin;
+  final String _robotId;
+  final String _deviceSessionId;
+  final String _accessToken;
+  final String _clientVersion;
+  final String Function() _requestIdFactory;
+  final String Function() _idempotencyKeyFactory;
+  final String Function() _proofNonceFactory;
+  final PairingHttpTransport _transport;
+  final PairingCredentialVault _credentialVault;
+  final DateTime Function() _clock;
+  final Duration commandTtl;
+  String? _activeMapManagementPresenceToken;
+
+  Future<MapManagementPresenceSuccessEnvelope> exchangeMapManagementPresence(
+    String qrPayload,
+  ) async {
+    final now = _clock().toUtc();
+    final enteredProof = qrPayload.trim();
+    late final MapChallengeExchangeRequest request;
+    if (RegExp(r'^[0-9]{6}$').hasMatch(enteredProof)) {
+      request = MapChallengeExchangeRequest.fromJson({
+        'short_code': enteredProof,
+      });
+    } else {
+      final decoded = jsonDecode(enteredProof);
+      if (decoded is! Map) {
+        throw const FormatException(
+            'map management QR payload must be an object');
+      }
+      final challenge = MapManagementChallengeQrPayload.fromJson(
+        decoded.cast<String, Object?>(),
+      );
+      if (challenge.robotId != _robotId) {
+        throw const FormatException('map management QR robot mismatch');
+      }
+      if (challenge.purpose != MappingChallengePurpose.mapManagement) {
+        throw const FormatException('map management QR purpose mismatch');
+      }
+      if (!now.isBefore(challenge.expiresAt.toUtc())) {
+        throw const FormatException('map management QR expired');
+      }
+      request = MapChallengeExchangeRequest.fromJson({
+        'challenge_id': challenge.challengeId,
+        'proof': challenge.proof,
+      });
+    }
+    const path = '/api/v1/navigation/map-management-presence/exchange';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of(
+      request.shortCode != null
+          ? {'short_code': request.shortCode}
+          : {
+              'challenge_id': request.challengeId,
+              'proof': request.proof,
+            },
+    ));
+    final requestId = _requestIdFactory();
+    final sentAt = now.toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final presence = MapManagementPresenceSuccessEnvelope.fromJson(payload);
+    if (presence.data.robotId != _robotId ||
+        presence.data.requestId != requestId ||
+        presence.data.idempotencyKey != idempotencyKey) {
+      throw EngineeringProtocolException(
+        reasonCode: 'map_management_presence_robot_mismatch',
+        requestId: requestId,
+      );
+    }
+    _activeMapManagementPresenceToken = presence.data.token;
+    return presence;
+  }
+
+  @override
+  Future<void> invalidateMapManagementPresenceForBackground() async {
+    final presenceToken = _activeMapManagementPresenceToken;
+    _activeMapManagementPresenceToken = null;
+    if (presenceToken == null) return;
+    final request = MapManagementPresenceInvalidationRequest.fromJson({
+      'presence_token': presenceToken,
+      'reason': 'app_background',
+    });
+    const path = '/api/v1/navigation/map-management-presence/invalidate';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of({
+      'presence_token': request.presenceToken,
+      'reason': request.reason,
+    }));
+    final requestId = _requestIdFactory();
+    final sentAt = _clock().toUtc().toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final invalidation =
+        MapManagementPresenceInvalidationSuccessEnvelope.fromJson(payload);
+    if (!invalidation.data.invalidated ||
+        invalidation.data.requestId != requestId ||
+        invalidation.data.idempotencyKey != idempotencyKey) {
+      throw EngineeringProtocolException(
+        reasonCode: 'map_management_presence_invalidation_unconfirmed',
+        requestId: requestId,
+      );
+    }
+  }
+
+  Future<MappingAuthorizationSuccessEnvelope> exchangeMappingAuthorization(
+    String qrPayload, {
+    required MappingChallengePurpose expectedPurpose,
+  }) async {
+    if (expectedPurpose != MappingChallengePurpose.manualMapping &&
+        expectedPurpose != MappingChallengePurpose.autonomousMapping) {
+      throw ArgumentError.value(
+        expectedPurpose,
+        'expectedPurpose',
+        'mapping start purpose required',
+      );
+    }
+    final now = _clock().toUtc();
+    final enteredProof = qrPayload.trim();
+    late final MapChallengeExchangeRequest request;
+    if (RegExp(r'^[0-9]{6}$').hasMatch(enteredProof)) {
+      request = MapChallengeExchangeRequest.fromJson({
+        'short_code': enteredProof,
+      });
+    } else {
+      final decoded = jsonDecode(enteredProof);
+      if (decoded is! Map) {
+        throw const FormatException('mapping QR payload must be an object');
+      }
+      final challenge = MapManagementChallengeQrPayload.fromJson(
+        decoded.cast<String, Object?>(),
+      );
+      if (challenge.robotId != _robotId) {
+        throw const FormatException('mapping QR robot mismatch');
+      }
+      if (challenge.purpose != expectedPurpose) {
+        throw const FormatException('mapping QR purpose mismatch');
+      }
+      if (!now.isBefore(challenge.expiresAt.toUtc())) {
+        throw const FormatException('mapping QR expired');
+      }
+      request = MapChallengeExchangeRequest.fromJson({
+        'challenge_id': challenge.challengeId,
+        'proof': challenge.proof,
+      });
+    }
+    const path = '/api/v1/navigation/mapping-authorizations/exchange';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of(
+      request.shortCode != null
+          ? {'short_code': request.shortCode}
+          : {
+              'challenge_id': request.challengeId,
+              'proof': request.proof,
+            },
+    ));
+    final requestId = _requestIdFactory();
+    final sentAt = now.toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final authorization = MappingAuthorizationSuccessEnvelope.fromJson(payload);
+    if (authorization.data.robotId != _robotId ||
+        authorization.data.purpose != expectedPurpose ||
+        authorization.data.requestId != requestId ||
+        authorization.data.idempotencyKey != idempotencyKey ||
+        authorization.data.grantedScopes.length != 1 ||
+        authorization.data.grantedScopes.single != 'mapping.start') {
+      throw EngineeringProtocolException(
+        reasonCode: 'mapping_authorization_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return authorization;
+  }
+
+  Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
+    MappingChallengePurpose mode,
+  ) async {
+    final wireMode = _mappingModeWire(mode);
+    final requestId = _requestIdFactory();
+    final path = '/api/v1/navigation/mapping-preflight/$wireMode';
+    final response = await _transport.request(
+      'GET',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final preflight = MappingPreflightSuccessEnvelope.fromJson(payload);
+    if (preflight.data.mode != mode) {
+      throw EngineeringProtocolException(
+        reasonCode: 'mapping_preflight_mode_mismatch',
+        requestId: requestId,
+      );
+    }
+    return preflight;
+  }
+
+  Future<MappingOperationSuccessEnvelope> startMapping({
+    required MappingChallengePurpose mode,
+    required String authorizationToken,
+  }) async {
+    final request = MappingOperationRequest.fromJson({
+      'authorization_token': authorizationToken,
+      'mode': _mappingModeWire(mode),
+    });
+    const path = '/api/v1/navigation/mapping-operations';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of({
+      'authorization_token': request.authorizationToken,
+      'mode': _mappingModeWire(request.mode),
+    }));
+    final requestId = _requestIdFactory();
+    final sentAt = _clock().toUtc().toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 202) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final operation = MappingOperationSuccessEnvelope.fromJson(payload);
+    if (operation.data.robotId != _robotId ||
+        operation.data.mode != mode ||
+        operation.data.requestId != requestId ||
+        operation.data.idempotencyKey != idempotencyKey) {
+      throw EngineeringProtocolException(
+        reasonCode: 'mapping_operation_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return operation;
+  }
+
+  Future<MappingOperationSuccessEnvelope> getMappingOperation(
+    String operationId,
+  ) async {
+    if (!RegExp(r'^mapping_[0-9a-f]{32}$').hasMatch(operationId)) {
+      throw ArgumentError.value(
+        operationId,
+        'operationId',
+        'invalid mapping operation id',
+      );
+    }
+    final requestId = _requestIdFactory();
+    final path = '/api/v1/navigation/mapping-operations/$operationId';
+    final response = await _transport.request(
+      'GET',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final operation = MappingOperationSuccessEnvelope.fromJson(payload);
+    if (operation.data.operationId != operationId ||
+        operation.data.robotId != _robotId ||
+        operation.data.actorId != _deviceSessionId) {
+      throw EngineeringProtocolException(
+        reasonCode: 'mapping_operation_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return operation;
+  }
+
+  Future<MapSwitchOperationSuccessEnvelope> switchMap({
+    required String targetMapId,
+    required int expectedTargetRevision,
+    required String presenceToken,
+  }) async {
+    final request = MapSwitchRequest.fromJson({
+      'target_map_id': targetMapId,
+      'expected_target_revision': expectedTargetRevision,
+      'presence_token': presenceToken,
+    });
+    const path = '/api/v1/navigation/map-switch-operations';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of({
+      'target_map_id': request.targetMapId,
+      'expected_target_revision': request.expectedTargetRevision,
+      'presence_token': request.presenceToken,
+    }));
+    final requestId = _requestIdFactory();
+    final sentAt = _clock().toUtc().toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 202) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final operation = MapSwitchOperationSuccessEnvelope.fromJson(payload);
+    if (operation.data.robotId != _robotId ||
+        operation.data.actorId != _deviceSessionId ||
+        operation.data.requestId != requestId ||
+        operation.data.idempotencyKey != idempotencyKey) {
+      throw EngineeringProtocolException(
+        reasonCode: 'map_switch_operation_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return operation;
+  }
+
+  Future<MapSwitchOperationSuccessEnvelope> getMapSwitch(
+    String operationId,
+  ) async {
+    if (!RegExp(r'^map_switch_[0-9a-f]{32}$').hasMatch(operationId)) {
+      throw ArgumentError.value(
+        operationId,
+        'operationId',
+        'invalid map switch operation id',
+      );
+    }
+    final requestId = _requestIdFactory();
+    final path = '/api/v1/navigation/map-switch-operations/$operationId';
+    final response = await _transport.request(
+      'GET',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final operation = MapSwitchOperationSuccessEnvelope.fromJson(payload);
+    if (operation.data.operationId != operationId ||
+        operation.data.robotId != _robotId ||
+        operation.data.actorId != _deviceSessionId) {
+      throw EngineeringProtocolException(
+        reasonCode: 'map_switch_operation_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return operation;
+  }
+}
+
 class _CatalogCommandResponse {
   const _CatalogCommandResponse(this.payload);
 
@@ -651,6 +1241,16 @@ String _mapRetentionWire(MapRetentionPolicy value) => switch (value) {
       MapRetentionPolicy.value7Days => '7_days',
       MapRetentionPolicy.value30Days => '30_days',
       MapRetentionPolicy.indefinite => 'indefinite',
+    };
+
+String _mappingModeWire(MappingChallengePurpose value) => switch (value) {
+      MappingChallengePurpose.manualMapping => 'manual_mapping',
+      MappingChallengePurpose.autonomousMapping => 'autonomous_mapping',
+      _ => throw ArgumentError.value(
+          value,
+          'mode',
+          'manual or autonomous mapping mode required',
+        ),
     };
 
 class EngineeringForceRefreshClient implements DeviceStatusForceRefresher {

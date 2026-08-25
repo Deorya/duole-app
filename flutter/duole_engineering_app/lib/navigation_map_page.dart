@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:duole_app_contract/app_contract.dart';
@@ -6,12 +7,19 @@ import 'package:flutter/material.dart';
 
 import 'emergency_stop_control.dart';
 
+typedef MapChallengeScanner = Future<String?> Function(
+  BuildContext context,
+  MappingChallengePurpose purpose,
+);
+
 class NavigationMapPage extends StatefulWidget {
   const NavigationMapPage({
     super.key,
     required this.reader,
     this.catalogReader,
     this.catalogManager,
+    this.mapManagementManager,
+    this.mapChallengeScanner,
     this.onTaskRequested,
     this.emergencyStopCommander,
   });
@@ -19,6 +27,8 @@ class NavigationMapPage extends StatefulWidget {
   final NavigationMapReader reader;
   final MapCatalogReader? catalogReader;
   final MapCatalogManager? catalogManager;
+  final MapManagementManager? mapManagementManager;
+  final MapChallengeScanner? mapChallengeScanner;
   final VoidCallback? onTaskRequested;
   final EmergencyStopCommander? emergencyStopCommander;
 
@@ -26,7 +36,8 @@ class NavigationMapPage extends StatefulWidget {
   State<NavigationMapPage> createState() => _NavigationMapPageState();
 }
 
-class _NavigationMapPageState extends State<NavigationMapPage> {
+class _NavigationMapPageState extends State<NavigationMapPage>
+    with WidgetsBindingObserver {
   NavigationMapViewData? _view;
   NavigationMapImageResponse? _image;
   MapCatalogData? _catalog;
@@ -35,7 +46,30 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.paused &&
+        state != AppLifecycleState.hidden) {
+      return;
+    }
+    final manager = widget.mapManagementManager;
+    if (manager != null) {
+      unawaited(
+        manager.invalidateMapManagementPresenceForBackground().catchError(
+              (_) {},
+            ),
+      );
+    }
   }
 
   Future<void> _load() async {
@@ -80,12 +114,19 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
                         ),
                         const SizedBox(height: 16),
                       ],
+                      _MappingEntry(
+                        manager: widget.mapManagementManager,
+                        scanner: widget.mapChallengeScanner,
+                      ),
+                      const SizedBox(height: 16),
                       _MapCard(view: view, image: _image),
                       if (_catalog != null) ...[
                         const SizedBox(height: 16),
                         _MapCatalogSection(
                           catalog: _catalog!,
                           manager: widget.catalogManager,
+                          mapManagementManager: widget.mapManagementManager,
+                          scanner: widget.mapChallengeScanner,
                           onChanged: _load,
                         ),
                       ],
@@ -105,15 +146,236 @@ class _NavigationMapPageState extends State<NavigationMapPage> {
   }
 }
 
+class _MappingEntry extends StatelessWidget {
+  const _MappingEntry({required this.manager, required this.scanner});
+
+  final MapManagementManager? manager;
+  final MapChallengeScanner? scanner;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('新建地图', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            const Text('选择方式后进入准备页；所有条件满足并完成机器人屏幕扫码后才能开始。'),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              key: const Key('manual-mapping-entry'),
+              onPressed: () => _open(
+                context,
+                MappingChallengePurpose.manualMapping,
+              ),
+              icon: const Icon(Icons.route_outlined),
+              label: const Text('手动建图'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('autonomous-mapping-entry'),
+              onPressed: () => _open(
+                context,
+                MappingChallengePurpose.autonomousMapping,
+              ),
+              icon: const Icon(Icons.auto_awesome_motion_outlined),
+              label: const Text('自主建图'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context, MappingChallengePurpose mode) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MappingPreparationPage(
+          mode: mode,
+          manager: manager,
+          scanner: scanner,
+        ),
+      ),
+    );
+  }
+}
+
+class MappingPreparationPage extends StatefulWidget {
+  const MappingPreparationPage({
+    super.key,
+    required this.mode,
+    required this.manager,
+    required this.scanner,
+  });
+
+  final MappingChallengePurpose mode;
+  final MapManagementManager? manager;
+  final MapChallengeScanner? scanner;
+
+  @override
+  State<MappingPreparationPage> createState() => _MappingPreparationPageState();
+}
+
+class _MappingPreparationPageState extends State<MappingPreparationPage> {
+  MappingPreflightData? _preflight;
+  Object? _error;
+  bool _starting = false;
+  MappingOperation? _operation;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final manager = widget.manager;
+    if (manager == null) {
+      setState(() => _error = StateError('map management unavailable'));
+      return;
+    }
+    try {
+      final result = await manager.getMappingPreflight(widget.mode);
+      if (!mounted) return;
+      setState(() {
+        _preflight = result.data;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error);
+    }
+  }
+
+  Future<void> _start() async {
+    final manager = widget.manager;
+    final scanner = widget.scanner;
+    if (manager == null || scanner == null || _preflight?.ready != true) return;
+    setState(() => _starting = true);
+    try {
+      final qrPayload = await scanner(context, widget.mode);
+      if (qrPayload == null) return;
+      final authorization = await manager.exchangeMappingAuthorization(
+        qrPayload,
+        expectedPurpose: widget.mode,
+      );
+      final operation = await manager.startMapping(
+        mode: widget.mode,
+        authorizationToken: authorization.data.token,
+      );
+      if (!mounted) return;
+      setState(() => _operation = operation.data);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preflight = _preflight;
+    return Scaffold(
+      appBar: AppBar(title: Text(_mappingTitle(widget.mode))),
+      body: _error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('建图准备状态暂时不可用'),
+                  const SizedBox(height: 12),
+                  OutlinedButton(onPressed: _load, child: const Text('重试')),
+                ],
+              ),
+            )
+          : preflight == null
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    for (final item in preflight.items)
+                      Card(
+                        child: ListTile(
+                          leading: Icon(
+                            item.ready
+                                ? Icons.check_circle
+                                : Icons.error_outline,
+                            color: item.ready ? const Color(0xFF136F63) : null,
+                          ),
+                          title: Text(_preflightLabel(item.key)),
+                          subtitle: Text(_guidanceLabel(item.guidanceCode)),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      key: const Key('mapping-scan-start'),
+                      onPressed: preflight.ready &&
+                              !_starting &&
+                              widget.scanner != null
+                          ? _start
+                          : null,
+                      icon: const Icon(Icons.qr_code_scanner),
+                      label: Text(_starting ? '正在启动…' : '扫描机器人二维码并开始'),
+                    ),
+                    if (!preflight.ready)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Text('请完成全部准备项；此流程不提供跳过预检。'),
+                      ),
+                    if (_operation != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Text('建图已开始 · ${_operation!.operationId}'),
+                      ),
+                  ],
+                ),
+    );
+  }
+}
+
+String _mappingTitle(MappingChallengePurpose mode) => switch (mode) {
+      MappingChallengePurpose.manualMapping => '手动建图准备',
+      MappingChallengePurpose.autonomousMapping => '自主建图准备',
+      _ => '建图准备',
+    };
+
+String _preflightLabel(String key) => switch (key) {
+      'dock' => '回到充电桩',
+      'battery' => '电量',
+      'tasks' => '活动任务',
+      'sensors' => '传感器',
+      'storage' => '存储空间',
+      'version' => '软件版本',
+      _ => '未知准备项',
+    };
+
+String _guidanceLabel(String code) => switch (code) {
+      'none' => '已满足',
+      'return_to_dock' => '请先让机器人回到充电桩',
+      'charge_robot' => '请继续充电后重试',
+      'stop_active_task' => '请先明确停止当前运动任务',
+      'check_mapping_sensors' => '请检查建图传感器状态',
+      'free_map_storage' => '请清理地图或回收站空间',
+      'update_robot_software' => '请先完成软件版本升级',
+      _ => '请按机器人提示处理',
+    };
+
 class _MapCatalogSection extends StatelessWidget {
   const _MapCatalogSection({
     required this.catalog,
     required this.manager,
+    required this.mapManagementManager,
+    required this.scanner,
     required this.onChanged,
   });
 
   final MapCatalogData catalog;
   final MapCatalogManager? manager;
+  final MapManagementManager? mapManagementManager;
+  final MapChallengeScanner? scanner;
   final Future<void> Function() onChanged;
 
   @override
@@ -138,6 +400,8 @@ class _MapCatalogSection extends StatelessWidget {
                     map: map,
                     liveMapCount: catalog.maps.length,
                     manager: manager,
+                    mapManagementManager: mapManagementManager,
+                    scanner: scanner,
                     onChanged: onChanged,
                   ),
                 if (catalog.maps.isEmpty) const Text('当前没有可用地图'),
@@ -193,12 +457,16 @@ class _CatalogMapTile extends StatelessWidget {
     required this.map,
     required this.liveMapCount,
     required this.manager,
+    required this.mapManagementManager,
+    required this.scanner,
     required this.onChanged,
   });
 
   final MapCatalogRecord map;
   final int liveMapCount;
   final MapCatalogManager? manager;
+  final MapManagementManager? mapManagementManager;
+  final MapChallengeScanner? scanner;
   final Future<void> Function() onChanged;
 
   @override
@@ -230,30 +498,98 @@ class _CatalogMapTile extends StatelessWidget {
         ],
       ),
       isThreeLine: true,
-      trailing: manager == null
+      trailing: manager == null && mapManagementManager == null
           ? null
           : Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  key: Key('rename-map-${map.mapId}'),
-                  tooltip: '重命名',
-                  onPressed: () => _rename(context),
-                  icon: const Icon(Icons.edit_outlined),
-                ),
-                IconButton(
-                  key: Key('trash-map-${map.mapId}'),
-                  tooltip: map.status == 'active' && liveMapCount > 1
-                      ? '请先切换活动地图'
-                      : '删除到回收站',
-                  onPressed: map.status == 'active' && liveMapCount > 1
-                      ? null
-                      : () => _trash(context),
-                  icon: const Icon(Icons.delete_outline),
-                ),
+                if (mapManagementManager != null &&
+                    map.status != 'active' &&
+                    map.technicalState == 'loadable')
+                  IconButton(
+                    key: Key('switch-map-${map.mapId}'),
+                    tooltip: '切换到此地图',
+                    onPressed:
+                        scanner == null ? null : () => _switchMap(context),
+                    icon: const Icon(Icons.swap_horiz),
+                  ),
+                if (manager != null) ...[
+                  IconButton(
+                    key: Key('rename-map-${map.mapId}'),
+                    tooltip: '重命名',
+                    onPressed: () => _rename(context),
+                    icon: const Icon(Icons.edit_outlined),
+                  ),
+                  IconButton(
+                    key: Key('trash-map-${map.mapId}'),
+                    tooltip: map.status == 'active' && liveMapCount > 1
+                        ? '请先切换活动地图'
+                        : '删除到回收站',
+                    onPressed: map.status == 'active' && liveMapCount > 1
+                        ? null
+                        : () => _trash(context),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ],
             ),
     );
+  }
+
+  Future<void> _switchMap(BuildContext context) async {
+    final qrPayload = await scanner!(
+      context,
+      MappingChallengePurpose.mapManagement,
+    );
+    if (qrPayload == null || !context.mounted) return;
+    try {
+      final presence =
+          await mapManagementManager!.exchangeMapManagementPresence(qrPayload);
+      final accepted = await mapManagementManager!.switchMap(
+        targetMapId: map.mapId,
+        expectedTargetRevision: map.revision,
+        presenceToken: presence.data.token,
+      );
+      MapSwitchOperationSuccessEnvelope? recovered;
+      try {
+        recovered = await mapManagementManager!.getMapSwitch(
+          accepted.data.operationId,
+        );
+      } on Object {
+        // The accepted operation remains recoverable by ID/event after a
+        // transient read failure; do not misreport it as rejected.
+      }
+      if (!context.mounted) return;
+      if (recovered?.data.status == MapSwitchStatus.committed) {
+        await onChanged();
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('地图切换完成')),
+        );
+        return;
+      }
+      if (recovered?.data.status == MapSwitchStatus.rolledBack) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('地图切换失败，已恢复原地图')),
+        );
+        return;
+      }
+      if (recovered?.data.status == MapSwitchStatus.failed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('地图切换失败，请查看机器人状态后重试')),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('地图切换已受理，正在等待机器人完成定位与提交')),
+      );
+    } on Object {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('地图切换未受理，请检查充电、静止状态和活动任务')),
+        );
+      }
+    }
   }
 
   Future<void> _rename(BuildContext context) async {

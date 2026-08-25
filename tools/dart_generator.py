@@ -369,6 +369,7 @@ def _render_object(
     reject_unknown = ""
     if schema.get("additionalProperties") is False:
         reject_unknown = f"    _rejectUnknownKeys(json, const {{{allowed}}}, path);\n"
+    one_of_check = _render_one_of_required_check(name, schema, properties)
     field_block = "\n".join(fields)
     constructor_block = "\n".join(constructor)
     decoder_block = "\n".join(decoders)
@@ -383,12 +384,51 @@ def _render_object(
   }});
 
   factory {name}.fromJson(Map<String, Object?> json, {{String path = r'$'}}) {{
-{reject_unknown}    final result = {name}(
+{reject_unknown}{one_of_check}    final result = {name}(
 {decoder_block}
     );
 {check_block}    return result;
   }}
 }}"""
+
+
+def _render_one_of_required_check(
+    name: str,
+    schema: Mapping[str, Any],
+    properties: Mapping[str, Any],
+) -> str:
+    raw_alternatives = schema.get("oneOf")
+    if raw_alternatives is None:
+        return ""
+    if not isinstance(raw_alternatives, list) or not raw_alternatives:
+        raise ValueError(f"schema {name} oneOf must be a non-empty array")
+    conditions: list[str] = []
+    for raw_alternative in raw_alternatives:
+        if not isinstance(raw_alternative, Mapping) or set(raw_alternative) != {
+            "required"
+        }:
+            raise ValueError(
+                f"schema {name} supports only required-field oneOf alternatives"
+            )
+        required_fields = raw_alternative.get("required")
+        if not isinstance(required_fields, list) or not required_fields:
+            raise ValueError(f"schema {name} oneOf required set is invalid")
+        names = tuple(str(value) for value in required_fields)
+        if len(set(names)) != len(names) or any(
+            value not in properties for value in names
+        ):
+            raise ValueError(f"schema {name} oneOf required field is invalid")
+        conditions.append(
+            " && ".join(f"json.containsKey({value!r})" for value in names)
+        )
+    match_count = " + ".join(f"(({condition}) ? 1 : 0)" for condition in conditions)
+    return (
+        f"    if ({match_count} != 1) {{\n"
+        "      throw FormatException(\n"
+        "        '$path must match exactly one allowed field combination',\n"
+        "      );\n"
+        "    }\n"
+    )
 
 
 def _render_property_constraints(

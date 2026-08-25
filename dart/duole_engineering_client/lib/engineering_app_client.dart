@@ -179,6 +179,42 @@ abstract interface class MapCatalogManager {
   });
 }
 
+abstract interface class MapManagementManager {
+  Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
+    MappingChallengePurpose mode,
+  );
+
+  Future<MappingAuthorizationSuccessEnvelope> exchangeMappingAuthorization(
+    String qrPayload, {
+    required MappingChallengePurpose expectedPurpose,
+  });
+
+  Future<MappingOperationSuccessEnvelope> startMapping({
+    required MappingChallengePurpose mode,
+    required String authorizationToken,
+  });
+
+  Future<MappingOperationSuccessEnvelope> getMappingOperation(
+    String operationId,
+  );
+
+  Future<MapManagementPresenceSuccessEnvelope> exchangeMapManagementPresence(
+    String qrPayload,
+  );
+
+  Future<void> invalidateMapManagementPresenceForBackground();
+
+  Future<MapSwitchOperationSuccessEnvelope> switchMap({
+    required String targetMapId,
+    required int expectedTargetRevision,
+    required String presenceToken,
+  });
+
+  Future<MapSwitchOperationSuccessEnvelope> getMapSwitch(
+    String operationId,
+  );
+}
+
 class NavigationMapImageResponse {
   const NavigationMapImageResponse({
     required this.bytes,

@@ -13,6 +13,7 @@ dependencies:
     path: ../../dart/duole_engineering_client
   duole_app_contract:
     path: ../../dart/duole_app_contract
+  mobile_scanner: ^7.4.0
 
 dev_dependencies:
   flutter_test:

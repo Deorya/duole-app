@@ -1,0 +1,113 @@
+{
+  "schema_version": "1.0",
+  "tests": [
+    {
+      "test": "capabilities_fixture_test.dart",
+      "fixtures": ["capabilities/real.json"]
+    },
+    {
+      "test": "current_session_fixture_test.dart",
+      "fixtures": ["pairing/current_session.json"]
+    },
+    {
+      "test": "emergency_stop_fixture_test.dart",
+      "fixtures": [
+        "emergency_stop/accepted.json",
+        "emergency_stop/unconfirmed.json"
+      ]
+    },
+    {
+      "test": "error_envelope_fixture_test.dart",
+      "fixtures": ["errors/validation_failed.json"]
+    },
+    {
+      "test": "forced_status_fixture_test.dart",
+      "fixtures": ["device_status/forced_battery.json"]
+    },
+    {
+      "test": "incompatible_major_fail_closed_test.dart",
+      "fixtures": ["versions/incompatible_major.json"]
+    },
+    {
+      "test": "map_challenge_exchange_request_test.dart",
+      "fixtures": []
+    },
+    {
+      "test": "malformed_envelope_test.dart",
+      "fixtures": ["battery_status/success.json"]
+    },
+    {
+      "test": "mock_no_motion_fail_closed_test.dart",
+      "fixtures": ["capabilities/mock_no_motion.json"]
+    },
+    {
+      "test": "navigation_map_fixture_test.dart",
+      "fixtures": [
+        "navigation/map_view.json",
+        "navigation/unavailable.json"
+      ]
+    },
+    {
+      "test": "paired_clients_fixture_test.dart",
+      "fixtures": ["pairing/clients.json"]
+    },
+    {
+      "test": "pairing_exchange_fixture_test.dart",
+      "fixtures": [
+        "pairing/exchange_success.json",
+        "pairing/refresh_success.json"
+      ]
+    },
+    {
+      "test": "refresh_challenge_fixture_test.dart",
+      "fixtures": ["pairing/refresh_challenge.json"]
+    },
+    {
+      "test": "request_metadata_policy_test.dart",
+      "fixtures": []
+    },
+    {
+      "test": "revoked_client_fixture_test.dart",
+      "fixtures": ["pairing/revoked_client.json"]
+    },
+    {
+      "test": "robot_identity_fixture_test.dart",
+      "fixtures": ["identity/real.json"]
+    },
+    {
+      "test": "robot_snapshot_fixture_test.dart",
+      "fixtures": ["snapshot/consistent.json"]
+    },
+    {
+      "test": "session_revoked_error_test.dart",
+      "fixtures": ["errors/session_revoked.json"]
+    },
+    {
+      "test": "unavailable_battery_fixture_test.dart",
+      "fixtures": ["battery_status/unavailable.json"]
+    },
+    {
+      "test": "unavailable_capability_fixture_test.dart",
+      "fixtures": ["capabilities/battery_unavailable.json"]
+    },
+    {
+      "test": "unknown_capability_key_fail_closed_test.dart",
+      "fixtures": ["forward_compatibility/unknown_capability_key.json"]
+    },
+    {
+      "test": "unknown_mode_fail_closed_test.dart",
+      "fixtures": ["forward_compatibility/unknown_mode.json"]
+    },
+    {
+      "test": "unknown_safety_enums_fail_closed_test.dart",
+      "fixtures": [
+        "forward_compatibility/unknown_health.json",
+        "forward_compatibility/unknown_capability_availability.json"
+      ]
+    },
+    {
+      "test": "valid_battery_fixture_test.dart",
+      "fixtures": ["battery_status/success.json"]
+    }
+  ]
+}

@@ -50,6 +50,7 @@ class PairedRobotSession {
     this.navigationMapReader,
     this.mapCatalogReader,
     this.mapCatalogManager,
+    this.mapManagementManager,
     this.emergencyStopCommander,
     required this.forceRefresher,
     required this.refresh,
@@ -64,6 +65,7 @@ class PairedRobotSession {
   final NavigationMapReader? navigationMapReader;
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
+  final MapManagementManager? mapManagementManager;
   final EmergencyStopCommander? emergencyStopCommander;
   final DeviceStatusForceRefresher? forceRefresher;
   final EventSyncSession? eventSync;
@@ -232,6 +234,18 @@ class SecurePairingSessionGateway
       transport: transport,
       credentialVault: _credentialVault,
     );
+    final mapManagementManager = EngineeringMapManagementClient(
+      robotOrigin: input.robotOrigin,
+      robotId: credentials.robotId,
+      deviceSessionId: credentials.deviceSessionId,
+      accessToken: credentials.accessToken,
+      clientVersion: _clientVersion,
+      requestIdFactory: _requestIdFactory,
+      idempotencyKeyFactory: _idempotencyKeyFactory,
+      proofNonceFactory: _idempotencyKeyFactory,
+      transport: transport,
+      credentialVault: _credentialVault,
+    );
     final eventSync = _createEventSync(input, credentials, api);
     return PairedRobotSession(
       credentials: credentials,
@@ -239,8 +253,10 @@ class SecurePairingSessionGateway
       snapshotReader: api,
       navigationMapReader: api,
       mapCatalogReader: api,
-      mapCatalogManager: credentials.scopes.contains('maps.manage')
-          ? mapCatalogManager
+      mapCatalogManager:
+          credentials.scopes.contains('maps.manage') ? mapCatalogManager : null,
+      mapManagementManager: credentials.scopes.contains('maps.manage')
+          ? mapManagementManager
           : null,
       emergencyStopCommander: credentials.scopes.contains('robot.stop')
           ? emergencyStopCommander
