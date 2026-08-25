@@ -1,0 +1,7 @@
+name: duole_app_contract
+description: Generated consumer models for the frozen DUOLE App v1 contract.
+publish_to: none
+version: 1.0.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"

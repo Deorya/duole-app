@@ -1,0 +1,13 @@
+name: duole_engineering_client
+description: Read-only Dart client and controller for the DUOLE Engineering App.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  crypto: ^3.0.7
+  duole_app_contract:
+    path: ../duole_app_contract
+  multicast_dns: ^0.3.3+1

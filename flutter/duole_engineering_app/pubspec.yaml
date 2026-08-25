@@ -1,0 +1,22 @@
+name: duole_engineering_app
+description: Read-only Android engineering client for the DUOLE App v1 gateway.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  duole_engineering_client:
+    path: ../../dart/duole_engineering_client
+  duole_app_contract:
+    path: ../../dart/duole_app_contract
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
