@@ -11,3 +11,5 @@
 ### Domain docs
 
 本仓库采用单上下文布局。详见 `docs/agents/domain.md`。
+
+和我交流全部用中文
