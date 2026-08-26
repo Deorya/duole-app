@@ -82,15 +82,16 @@ User stories covered: 176, 181–182, 185–187, 199
 
 - 两台真实 Android 手机均已通过无线 ADB 完成身份检查，设备型号分别为 `PHK110` 和
   `2211133C`，SDK 均为 36；HIL 门禁已强化为拒绝模拟器、非 Android 传输以及畸形 UTF-8
-  设备元数据，对应单元测试 15 项通过。
+  设备元数据，并要求每台手机安装目标 SHA-256 的 APK 且相机 AppOps 为可用；对应单元测试
+  17 项通过。
 - `PHK110` 已通过无线 ADB 安装目标 APK；`2211133C` 因 HyperOS 在无 SIM 卡时禁止开启
   “USB 安装”，改为先经无线 ADB 推送到下载目录、核对 SHA-256，再由用户从系统文件管理器
   手动安装。安装后已通过 ADB 确认包名
   `com.duole.engineering.duole_engineering_app`、版本 `0.1.0`、`versionCode=1` 和
   `targetSdk=36`。两台手机现已同时通过无线 ADB 在线，`ro.kernel.qemu` 均为空，AppOps
   显示相机权限为 `foreground`；第一台动态端口变化后也已重新连接成功。
-- 使用目标 APK 和证据模板重新运行实体门禁，已通过 APK SHA-256、两台真实 Android 和
-  evidence schema 三个阶段；当前预期停在
+- 使用目标 APK 和证据模板重新运行实体门禁，已通过 APK SHA-256、两台真实 Android、两台
+  已安装 APK 哈希与相机权限绑定，以及 evidence schema 四个阶段；当前预期停在
   `FAIL evidence.apk_sha256: does not match tested APK`，说明双机前置条件已解除，而尚未填写
   的两图在桩 HIL 模板仍按设计失败关闭。
 - 已按授权在导航板建立独立工作区 `/home/ztl/duole-issue31-nav-ws`，未修改共享源码工作区

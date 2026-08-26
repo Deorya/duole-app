@@ -9,6 +9,10 @@ import unittest
 from issue31_hil_gate import main
 
 
+_APK_FIXTURE = b"signed-apk-fixture"
+_APK_FIXTURE_DIGEST = hashlib.sha256(_APK_FIXTURE).hexdigest()
+
+
 class Issue31HilGateTest(unittest.TestCase):
     def test_gate_reports_unusable_adb_without_a_traceback(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -129,6 +133,70 @@ class Issue31HilGateTest(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
         self.assertIn("PASS android_phones: 2", output.getvalue())
+
+    def test_gate_rejects_phone_with_a_different_installed_apk(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            apk = root / "app-debug.apk"
+            apk.write_bytes(_APK_FIXTURE)
+            evidence = root / "evidence.json"
+            evidence.write_text(json.dumps({}), encoding="utf-8")
+            output = StringIO()
+
+            exit_code = main(
+                [
+                    "--apk",
+                    str(apk),
+                    "--expected-apk-sha256",
+                    _APK_FIXTURE_DIGEST,
+                    "--adb-bin",
+                    "adb",
+                    "--evidence",
+                    str(evidence),
+                ],
+                command_runner=_android_phone_runner(
+                    phone_b_apk_digest="0" * 64,
+                ),
+                stdout=output,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn(
+            "FAIL android_app_installations: found 1, need at least 2",
+            output.getvalue(),
+        )
+
+    def test_gate_rejects_phone_without_camera_access(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            apk = root / "app-debug.apk"
+            apk.write_bytes(_APK_FIXTURE)
+            evidence = root / "evidence.json"
+            evidence.write_text(json.dumps({}), encoding="utf-8")
+            output = StringIO()
+
+            exit_code = main(
+                [
+                    "--apk",
+                    str(apk),
+                    "--expected-apk-sha256",
+                    _APK_FIXTURE_DIGEST,
+                    "--adb-bin",
+                    "adb",
+                    "--evidence",
+                    str(evidence),
+                ],
+                command_runner=_android_phone_runner(
+                    phone_b_camera_mode="ignore",
+                ),
+                stdout=output,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn(
+            "FAIL android_app_installations: found 1, need at least 2",
+            output.getvalue(),
+        )
 
     def test_gate_rejects_evidence_without_the_issue_31_schema(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -542,24 +610,73 @@ def _unusable_adb(_command, **_kwargs):
     raise OSError(8, "Exec format error")
 
 
-def _two_android_phones(command, **_kwargs):
-    if command == ["adb", "devices", "-l"]:
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout=(
-                "List of devices attached\n"
-                "phone-a device product:PHK110 transport_id:1\n"
-                "phone-b device product:PHK110 transport_id:2\n"
-            ),
-            stderr="",
-        )
-    if command[:3] in (
-        ["adb", "-s", "phone-a"],
-        ["adb", "-s", "phone-b"],
-    ):
-        return subprocess.CompletedProcess(command, 0, stdout="35\n", stderr="")
-    raise AssertionError(f"unexpected command: {command}")
+def _two_android_phones(command, **kwargs):
+    return _android_phone_runner()(command, **kwargs)
+
+
+def _android_phone_runner(
+    *,
+    phone_b_apk_digest=_APK_FIXTURE_DIGEST,
+    phone_b_camera_mode="foreground",
+):
+    def run(command, **_kwargs):
+        if command == ["adb", "devices", "-l"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(
+                    "List of devices attached\n"
+                    "phone-a device product:PHK110 transport_id:1\n"
+                    "phone-b device product:PHK110 transport_id:2\n"
+                ),
+                stderr="",
+            )
+        if command[:3] not in (
+            ["adb", "-s", "phone-a"],
+            ["adb", "-s", "phone-b"],
+        ):
+            raise AssertionError(f"unexpected command: {command}")
+        serial = command[2]
+        if command[-1] == "ro.build.version.sdk":
+            return subprocess.CompletedProcess(
+                command, 0, stdout="35\n", stderr=""
+            )
+        if command[-1] == "ro.kernel.qemu":
+            return subprocess.CompletedProcess(command, 0, stdout="\n", stderr="")
+        if command[4:6] == ["pm", "path"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=f"package:/data/app/{serial}/base.apk\n",
+                stderr="",
+            )
+        if command[4] == "sha256sum":
+            digest = (
+                phone_b_apk_digest
+                if serial == "phone-b"
+                else _APK_FIXTURE_DIGEST
+            )
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=f"{digest}  {command[5]}\n",
+                stderr="",
+            )
+        if command[4:6] == ["appops", "get"]:
+            mode = (
+                phone_b_camera_mode
+                if serial == "phone-b"
+                else "foreground"
+            )
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=f"Uid mode: CAMERA: {mode}\n",
+                stderr="",
+            )
+        raise AssertionError(f"unexpected command: {command}")
+
+    return run
 
 
 def _complete_evidence(root, apk_digest):

@@ -15,6 +15,7 @@ from typing import Callable, Sequence, TextIO
 
 
 CommandRunner = Callable[..., subprocess.CompletedProcess[str]]
+ENGINEERING_APP_PACKAGE = "com.duole.engineering.duole_engineering_app"
 REQUIRED_HIL_CHECKS = (
     "screen_qr_exchange",
     "screen_short_code_exchange",
@@ -143,6 +144,99 @@ def main(
         )
         return 1
     stdout.write(f"PASS android_phones: {len(phone_serials)}\n")
+
+    app_ready_phone_serials = []
+    for serial in phone_serials:
+        try:
+            package_paths = command_runner(
+                [
+                    args.adb_bin,
+                    "-s",
+                    serial,
+                    "shell",
+                    "pm",
+                    "path",
+                    ENGINEERING_APP_PACKAGE,
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+        except OSError:
+            continue
+        base_apk_paths = [
+            line.removeprefix("package:").strip()
+            for line in package_paths.stdout.splitlines()
+            if line.startswith("package:/data/app/")
+            and line.strip().endswith("/base.apk")
+        ]
+        if package_paths.returncode != 0 or len(base_apk_paths) != 1:
+            continue
+        base_apk_path = base_apk_paths[0]
+        try:
+            installed_digest = command_runner(
+                [
+                    args.adb_bin,
+                    "-s",
+                    serial,
+                    "shell",
+                    "sha256sum",
+                    base_apk_path,
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            camera_access = command_runner(
+                [
+                    args.adb_bin,
+                    "-s",
+                    serial,
+                    "shell",
+                    "appops",
+                    "get",
+                    ENGINEERING_APP_PACKAGE,
+                    "CAMERA",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+        except OSError:
+            continue
+        digest_fields = installed_digest.stdout.split()
+        digest_matches = (
+            installed_digest.returncode == 0
+            and bool(digest_fields)
+            and digest_fields[0] == actual_digest
+        )
+        camera_ready = (
+            camera_access.returncode == 0
+            and re.search(
+                r"\bCAMERA:\s*(?:allow|foreground)\b",
+                camera_access.stdout,
+            )
+            is not None
+        )
+        if digest_matches and camera_ready:
+            app_ready_phone_serials.append(serial)
+    if len(app_ready_phone_serials) < 2:
+        stdout.write(
+            "FAIL android_app_installations: "
+            f"found {len(app_ready_phone_serials)}, need at least 2\n"
+        )
+        return 1
+    stdout.write(
+        "PASS android_app_installations: "
+        f"{len(app_ready_phone_serials)} matching APKs with camera access\n"
+    )
+    phone_serials = app_ready_phone_serials
 
     evidence = json.loads(args.evidence.read_text(encoding="utf-8"))
     if evidence.get("schema_version") != "1.0":
