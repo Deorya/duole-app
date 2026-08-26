@@ -135,3 +135,28 @@ User stories covered: 176, 181–182, 185–187, 199
   50 项通过，隔离运行时与本地 `agent.py` SHA-256 均为
   `16bb80bd9a3b45d07fbb32460895b4625b74693f412c1d33094ba0c7787fea95`；真实 `Z` 请求随后成功
   返回 `charging_confirmed=false`、底盘静止、无活动 owner。一次性探针和调试标记已清理。
+
+### 2026-08-26 导航板正式建图启动接口增量证据
+
+- 已按 TDD 在 Issue 31 隔离分支接入导航板正式建图边界：真实 ROS 预检同时检查回桩、电量、
+  活动任务、激光雷达、深度相机、存储和安装版本；Gateway 和导航板都会在启动前重新检查，
+  任一条件失败均不会调用 systemd。Gateway 使用同一固定 SSH 主机密钥边界完成预检、建图
+  启动和事务性切图，正式 CLI 新增独立建图数据库；提交为 `e8382d1`。
+- 新增手动/自主两个按需 systemd unit，二者互斥，并与正式导航栈和独立电池服务互斥；
+  `ExecStopPost` 通过非阻塞命令恢复正式导航栈，两个 unit 均无 `[Install]`，不能开机启用。
+  sudoers 只允许 `ztl` 执行精确的两个建图 unit 启停和正式导航栈启动命令，无通配符或 shell。
+  本地与导航板隔离工作区均通过 `systemd-analyze verify` 和 `visudo -cf`。
+- 已把 4 个导航板 Python 模块、2 个 unit 和 1 个 sudoers 文件部署到
+  `/home/ztl/duole-issue31-nav-ws`，逐文件 SHA-256 一致；旧 `agent.py`/`cli.py` 备份在
+  `backups/mapping-interface-before-20260826-v1/`。正式 `/etc/systemd/system` 和
+  `/etc/sudoers.d` 尚未写入，因为导航板 `sudo` 需要操作员交互式密码；没有执行
+  `daemon-reload`，也没有启停任何服务。
+- 新协议的真实只读预检返回电量 `77%`、可用存储约 `61 GiB`、版本匹配、无活动任务，
+  同时正确返回 `docked=false`、`sensors_ready=false`。只读诊断确认深度图仍有新鲜数据，
+  但 `/scan` 与 `/scan_filtered` 已约两小时没有消息；雷达进程和设备节点仍存在，属于进程
+  存活但数据流中断。在机器人未确认充电前未重启导航栈，避免越过安全窗口。
+- 增量定向测试 57 项、Issue 31 Python 门禁 335 项、全仓 Python 回归
+  `3018 passed, 1 skipped, 4 warnings`；本机仍无 Dart/Flutter SDK，因此保留同一 APK 的既有
+  移动端通过证据，没有伪称重跑。当前仍需操作员安装 systemd/sudoers、确认机器人充电、
+  恢复新鲜雷达数据并完成两图共同桩锚物理验证、切换/重启/故障回滚和双手机 HIL；所有验收
+  勾选继续保持为空。
