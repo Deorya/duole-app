@@ -87,7 +87,12 @@ User stories covered: 176, 181–182, 185–187, 199
   “USB 安装”，改为先经无线 ADB 推送到下载目录、核对 SHA-256，再由用户从系统文件管理器
   手动安装。安装后已通过 ADB 确认包名
   `com.duole.engineering.duole_engineering_app`、版本 `0.1.0`、`versionCode=1` 和
-  `targetSdk=36`。第一台手机的动态无线调试端口当前已变化，需重新连接后才能执行双机 HIL。
+  `targetSdk=36`。两台手机现已同时通过无线 ADB 在线，`ro.kernel.qemu` 均为空，AppOps
+  显示相机权限为 `foreground`；第一台动态端口变化后也已重新连接成功。
+- 使用目标 APK 和证据模板重新运行实体门禁，已通过 APK SHA-256、两台真实 Android 和
+  evidence schema 三个阶段；当前预期停在
+  `FAIL evidence.apk_sha256: does not match tested APK`，说明双机前置条件已解除，而尚未填写
+  的两图在桩 HIL 模板仍按设计失败关闭。
 - 已按授权在导航板建立独立工作区 `/home/ztl/duole-issue31-nav-ws`，未修改共享源码工作区
   `/home/ztl/elderbot_ws`，也未注册系统服务或重启导航运行时。隔离工作区已部署严格单请求
   JSON CLI、固定 SSH 边界、ROS 安全快照、主地图与禁行区成对加载、共同桩锚定位、原子提交、
