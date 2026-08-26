@@ -180,6 +180,10 @@ abstract interface class MapCatalogManager {
 }
 
 abstract interface class MapManagementManager {
+  Future<MapChallengeDisplaySuccessEnvelope> requestMapChallengeDisplay(
+    MappingChallengePurpose purpose,
+  );
+
   Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
     MappingChallengePurpose mode,
   );

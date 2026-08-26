@@ -255,6 +255,8 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
     if (manager == null || scanner == null || _preflight?.ready != true) return;
     setState(() => _starting = true);
     try {
+      await manager.requestMapChallengeDisplay(widget.mode);
+      if (!mounted) return;
       final qrPayload = await scanner(context, widget.mode);
       if (qrPayload == null) return;
       final authorization = await manager.exchangeMappingAuthorization(
@@ -537,12 +539,16 @@ class _CatalogMapTile extends StatelessWidget {
   }
 
   Future<void> _switchMap(BuildContext context) async {
-    final qrPayload = await scanner!(
-      context,
-      MappingChallengePurpose.mapManagement,
-    );
-    if (qrPayload == null || !context.mounted) return;
     try {
+      await mapManagementManager!.requestMapChallengeDisplay(
+        MappingChallengePurpose.mapManagement,
+      );
+      if (!context.mounted) return;
+      final qrPayload = await scanner!(
+        context,
+        MappingChallengePurpose.mapManagement,
+      );
+      if (qrPayload == null || !context.mounted) return;
       final presence =
           await mapManagementManager!.exchangeMapManagementPresence(qrPayload);
       final accepted = await mapManagementManager!.switchMap(

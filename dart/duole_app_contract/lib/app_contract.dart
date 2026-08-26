@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND.
 
-// contract-sha256: 322b551b3c86e27511bbd5dd05e2aafb3157c166d549e50f30cc906d21ec2f93
+// contract-sha256: 15f8e635814420acfb1a3e4ba8f196b14dadfd0fff0578114dff8c61daa388ad
 
 Object? _required(Map<String, Object?> json, String key, String path) {
   if (!json.containsKey(key)) {
@@ -1193,6 +1193,111 @@ class MapSwitchRequest {
     }
     if (result.presenceToken.length > 512) {
       throw FormatException('$path.presence_token must contain at most 512 characters');
+    }
+    return result;
+  }
+}
+
+class MapChallengeDisplayRequest {
+  final MappingChallengePurpose purpose;
+
+  const MapChallengeDisplayRequest({
+    required this.purpose,
+  });
+
+  factory MapChallengeDisplayRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'purpose'}, path);
+    final result = MapChallengeDisplayRequest(
+      purpose: _decodeMappingChallengePurpose(_required(json, 'purpose', path), '$path.purpose'),
+    );
+    return result;
+  }
+}
+
+class MapChallengeDisplaySuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final MapChallengeDisplayData data;
+
+  const MapChallengeDisplaySuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory MapChallengeDisplaySuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = MapChallengeDisplaySuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: MapChallengeDisplayData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    return result;
+  }
+}
+
+class MapChallengeDisplayData {
+  final String robotId;
+  final MappingChallengePurpose purpose;
+  final DateTime expiresAt;
+  final String requestId;
+  final String idempotencyKey;
+
+  const MapChallengeDisplayData({
+    required this.robotId,
+    required this.purpose,
+    required this.expiresAt,
+    required this.requestId,
+    required this.idempotencyKey,
+  });
+
+  factory MapChallengeDisplayData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'robot_id', 'purpose', 'expires_at', 'request_id', 'idempotency_key'}, path);
+    final result = MapChallengeDisplayData(
+      robotId: _asString(_required(json, 'robot_id', path), '$path.robot_id'),
+      purpose: _decodeMappingChallengePurpose(_required(json, 'purpose', path), '$path.purpose'),
+      expiresAt: _asDateTime(_required(json, 'expires_at', path), '$path.expires_at'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      idempotencyKey: _asString(_required(json, 'idempotency_key', path), '$path.idempotency_key'),
+    );
+    if (result.robotId.length < 1) {
+      throw FormatException('$path.robot_id must contain at least 1 characters');
+    }
+    if (result.robotId.length > 128) {
+      throw FormatException('$path.robot_id must contain at most 128 characters');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    if (result.idempotencyKey.length < 1) {
+      throw FormatException('$path.idempotency_key must contain at least 1 characters');
+    }
+    if (result.idempotencyKey.length > 128) {
+      throw FormatException('$path.idempotency_key must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.idempotencyKey)) {
+      throw FormatException('$path.idempotency_key has an invalid format');
     }
     return result;
   }

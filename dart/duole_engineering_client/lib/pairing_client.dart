@@ -697,6 +697,85 @@ class EngineeringMapManagementClient implements MapManagementManager {
   final Duration commandTtl;
   String? _activeMapManagementPresenceToken;
 
+  @override
+  Future<MapChallengeDisplaySuccessEnvelope> requestMapChallengeDisplay(
+    MappingChallengePurpose purpose,
+  ) async {
+    final purposeWire = switch (purpose) {
+      MappingChallengePurpose.manualMapping => 'manual_mapping',
+      MappingChallengePurpose.autonomousMapping => 'autonomous_mapping',
+      MappingChallengePurpose.mapManagement => 'map_management',
+      _ => throw ArgumentError.value(
+          purpose,
+          'purpose',
+          'known map challenge purpose required',
+        ),
+    };
+    final request = MapChallengeDisplayRequest.fromJson({
+      'purpose': purposeWire,
+    });
+    const path = '/api/v1/navigation/map-challenges';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of({
+      'purpose': purposeWire,
+    }));
+    final requestId = _requestIdFactory();
+    final now = _clock().toUtc();
+    final sentAt = now.toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 201) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final display = MapChallengeDisplaySuccessEnvelope.fromJson(payload);
+    if (display.data.robotId != _robotId ||
+        display.data.purpose != request.purpose ||
+        display.data.requestId != requestId ||
+        display.data.idempotencyKey != idempotencyKey ||
+        !now.isBefore(display.data.expiresAt.toUtc())) {
+      throw EngineeringProtocolException(
+        reasonCode: 'map_challenge_display_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return display;
+  }
+
   Future<MapManagementPresenceSuccessEnvelope> exchangeMapManagementPresence(
     String qrPayload,
   ) async {

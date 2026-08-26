@@ -29,6 +29,10 @@
       "fixtures": ["versions/incompatible_major.json"]
     },
     {
+      "test": "map_challenge_display_contract_test.dart",
+      "fixtures": []
+    },
+    {
       "test": "map_challenge_exchange_request_test.dart",
       "fixtures": []
     },

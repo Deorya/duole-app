@@ -48,3 +48,32 @@ User stories covered: 176, 181–182, 185–187, 199
 - arm64 目标调试 APK 已生成：`flutter/duole_engineering_app/build/app/outputs/flutter-apk/app-debug.apk`，111,752,466 bytes，SHA-256 `0307fa8c73bd1b93674261d14dc9076c8f4c6367f7f49334ae85139e70abafc2`。
 - 当前授权范围内没有机器人屏幕的生产接线，也没有导航板真实 SLAM/地图加载/桩锚定位适配器；Gateway 对这两条生产路径保持 fail-closed，测试 fake 不能冒充 HIL。
 - 转为 `ready-for-human`：仍需授权修改 `/home/ztl/duole-qt-runtime`（机器人屏幕二维码/6 位码），并提供或授权导航板源码/部署仓库或正式接口；随后连接两台 Android 手机、两张真实地图和安全在桩窗口，执行本工单最后一条 HIL 及前十条的实物确认。完成前不勾选验收项。
+
+### 2026-08-26 屏幕接入与 HIL 门禁增量证据
+
+- 已获授权修改 `/home/ztl/duole-qt-runtime`，并在改动前保存可恢复备份到
+  `backups/issue31-map-challenge-before-20260826/`。机器人屏幕现可显示严格校验的动态
+  二维码、6 位备用码、用途和倒计时；只有 QML 图片加载完成并返回匹配 request ID 的
+  `presented` ACK，Gateway 才返回 201。无屏幕、ACK 超时、篡改或过期消息均失败关闭。
+- Qt 实际部署目录复验通过：协议 3 项、中继真实 WebSocket 5 项、QML 离屏 1 项，
+  `qmllint` 通过；真实 Gateway 客户端到真实 Qt 中继再到模拟 QML ACK 的跨仓库回环通过。
+  正式 QML/bridge 进程仍是 8 月 22 日启动的旧进程，尚未在安全窗口重载，因此这些证据
+  不能替代实体屏幕确认。
+- App 在手动建图、自主建图和地图切换扫码前都会先请求机器人屏幕展示挑战；新增请求
+  只返回 robot、purpose、expiry、request ID 和 idempotency key，不向 App 泄露 proof
+  或 6 位码。一键软件门禁更新为 Python 275 项、Dart 合同 25 个入口、工程客户端 36 个
+  入口、Flutter 47 项，全部通过且三个包静态分析无问题。
+- 新 arm64 APK 为
+  `flutter/duole_engineering_app/build/app/outputs/flutter-apk/app-debug.apk`，
+  111,760,318 bytes，SHA-256
+  `c9a4be3d2b6829fd1f8031ba34ff3eb327b90af53f42df89c7236df39cdac2d8`。
+- 新增 `tools/issue31_hil_gate.py`、13 项单元测试和可填写证据模板。门禁绑定 APK 哈希、
+  robot、两台在线 Android 手机、两张不同地图、会话时间、17 项检查、真实制品 SHA-256
+  以及 operation/event ID，并拒绝未脱敏 token、proof、短码、二维码载荷和私钥。当前实机
+  执行正确保持红灯：`found 0, need at least 2`。
+- 已只读定位导航板：`ztl@172.22.205.19`（hostname `RK3588`），正式工作区
+  `/home/ztl/elderbot_ws`，存在 `my_map2` 和 `my_map3`。远端是带大量既有未提交改动的共享
+  工作树；当前桩锚仅绑定 `my_map3` 且状态为 `candidate`，没有 `my_map2` 的已验证共同桩锚。
+  在明确授权导航板改动和确认安全在桩窗口前，不修改、不构建、不重启该工作区。
+- 因仍缺两台 Android 手机、导航板改动授权、两图共同桩锚批准和安全在桩窗口，Issue 31
+  继续保持 `ready-for-human`，所有验收勾选仍为空，避免把软件 fake/回环误报为 HIL。

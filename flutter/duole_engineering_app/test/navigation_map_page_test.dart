@@ -53,6 +53,30 @@ void main() {
     },
   );
 
+  testWidgets('ready mapping requests screen display before scanning',
+      (tester) async {
+    final manager = _ReadyMapManagementManager();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MappingPreparationPage(
+          mode: MappingChallengePurpose.manualMapping,
+          manager: manager,
+          scanner: (_, purpose) async {
+            expect(purpose, MappingChallengePurpose.manualMapping);
+            manager.events.add('scan');
+            return '{"screen":"manual-mapping"}';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('mapping-scan-start')));
+    await tester.pumpAndSettle();
+
+    expect(manager.events, ['display', 'scan', 'exchange', 'start']);
+  });
+
   testWidgets('task map keeps the emergency stop control visible',
       (tester) async {
     await tester.pumpWidget(
@@ -139,6 +163,10 @@ void main() {
           mapManagementManager: mapManager,
           mapChallengeScanner: (_, purpose) async {
             expect(purpose, MappingChallengePurpose.mapManagement);
+            expect(
+              mapManager.requestedDisplayPurpose,
+              MappingChallengePurpose.mapManagement,
+            );
             return '{"screen":"map-management"}';
           },
         ),
@@ -158,6 +186,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(mapManager.scannedPayload, '{"screen":"map-management"}');
+    expect(
+      mapManager.requestedDisplayPurpose,
+      MappingChallengePurpose.mapManagement,
+    );
     expect(mapManager.switchedMapId, 'map_available');
     expect(mapManager.switchedRevision, 1);
     expect(mapManager.presenceToken, 'presence-secret');
@@ -435,13 +467,146 @@ class _BlockedMapManagementManager implements MapManagementManager {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ReadyMapManagementManager implements MapManagementManager {
+  final events = <String>[];
+
+  @override
+  Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
+    MappingChallengePurpose mode,
+  ) async {
+    return MappingPreflightSuccessEnvelope.fromJson({
+      'schema_version': '1.0',
+      'request_id': 'req_mapping_preflight_ready_ui_01',
+      'server_time': '2026-08-26T08:00:00Z',
+      'data': {
+        'mode': 'manual_mapping',
+        'observed_at': '2026-08-26T08:00:00Z',
+        'ready': true,
+        'items': [
+          for (final key in const [
+            'dock',
+            'battery',
+            'tasks',
+            'sensors',
+            'storage',
+            'version',
+          ])
+            {
+              'key': key,
+              'ready': true,
+              'reason_code': 'ready',
+              'guidance_code': 'none',
+            },
+        ],
+      },
+    });
+  }
+
+  @override
+  Future<MapChallengeDisplaySuccessEnvelope> requestMapChallengeDisplay(
+    MappingChallengePurpose purpose,
+  ) async {
+    events.add('display');
+    return MapChallengeDisplaySuccessEnvelope.fromJson({
+      'schema_version': '1.0',
+      'request_id': 'req_display_mapping_ui_01',
+      'server_time': '2026-08-26T08:00:00Z',
+      'data': {
+        'robot_id': 'robot-home',
+        'purpose': 'manual_mapping',
+        'expires_at': '2026-08-26T08:02:00Z',
+        'request_id': 'req_display_mapping_ui_01',
+        'idempotency_key': 'idem_display_mapping_ui_01',
+      },
+    });
+  }
+
+  @override
+  Future<MappingAuthorizationSuccessEnvelope> exchangeMappingAuthorization(
+    String qrPayload, {
+    required MappingChallengePurpose expectedPurpose,
+  }) async {
+    events.add('exchange');
+    return MappingAuthorizationSuccessEnvelope.fromJson({
+      'schema_version': '1.0',
+      'request_id': 'req_mapping_authorization_ui_01',
+      'server_time': '2026-08-26T08:00:00Z',
+      'data': {
+        'authorization_id': 'mapping_auth_0123456789abcdef0123456789abcdef',
+        'token': 'mapping-authorization-secret',
+        'robot_id': 'robot-home',
+        'purpose': 'manual_mapping',
+        'request_id': 'req_mapping_authorization_ui_01',
+        'idempotency_key': 'idem_mapping_authorization_ui_01',
+        'expires_at': '2026-08-26T08:02:00Z',
+        'audit_summary_sha256': 'a' * 64,
+        'revision': 1,
+        'granted_scopes': ['mapping.start'],
+      },
+    });
+  }
+
+  @override
+  Future<MappingOperationSuccessEnvelope> startMapping({
+    required MappingChallengePurpose mode,
+    required String authorizationToken,
+  }) async {
+    events.add('start');
+    return MappingOperationSuccessEnvelope.fromJson({
+      'schema_version': '1.0',
+      'request_id': 'req_mapping_start_ui_01',
+      'server_time': '2026-08-26T08:00:00Z',
+      'data': {
+        'operation_id': 'mapping_0123456789abcdef0123456789abcdef',
+        'robot_id': 'robot-home',
+        'actor_id': 'dvs_0123456789abcdef0123456789abcdef',
+        'request_id': 'req_mapping_start_ui_01',
+        'idempotency_key': 'idem_mapping_start_ui_01',
+        'mode': 'manual_mapping',
+        'status': 'started',
+        'requested_at': '2026-08-26T08:00:00Z',
+        'expires_at': '2026-08-26T08:00:30Z',
+        'updated_at': '2026-08-26T08:00:00Z',
+        'audit_summary_sha256': 'b' * 64,
+        'failure_reason': null,
+        'revision': 2,
+      },
+    });
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 class _RecordingSwitchMapManager implements MapManagementManager {
+  MappingChallengePurpose? requestedDisplayPurpose;
   String? scannedPayload;
   String? switchedMapId;
   int? switchedRevision;
   String? presenceToken;
   String? recoveredOperationId;
   var backgroundInvalidations = 0;
+
+  @override
+  Future<MapChallengeDisplaySuccessEnvelope> requestMapChallengeDisplay(
+    MappingChallengePurpose purpose,
+  ) {
+    requestedDisplayPurpose = purpose;
+    return Future.value(
+      MapChallengeDisplaySuccessEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_display_ui_01',
+        'server_time': '2026-08-26T08:00:00Z',
+        'data': {
+          'robot_id': 'robot-home',
+          'purpose': 'map_management',
+          'expires_at': '2026-08-26T08:02:00Z',
+          'request_id': 'req_display_ui_01',
+          'idempotency_key': 'idem_display_ui_01',
+        },
+      }),
+    );
+  }
 
   @override
   Future<void> invalidateMapManagementPresenceForBackground() async {
