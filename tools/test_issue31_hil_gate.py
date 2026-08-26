@@ -66,6 +66,70 @@ class Issue31HilGateTest(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertIn("FAIL android_phones: found 1, need at least 2", output.getvalue())
 
+    def test_gate_rejects_android_emulator_as_second_physical_phone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            apk = root / "app-debug.apk"
+            apk.write_bytes(b"signed-apk-fixture")
+            digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+            evidence = root / "evidence.json"
+            evidence.write_text(json.dumps({}), encoding="utf-8")
+            output = StringIO()
+
+            exit_code = main(
+                [
+                    "--apk",
+                    str(apk),
+                    "--expected-apk-sha256",
+                    digest,
+                    "--adb-bin",
+                    "adb",
+                    "--evidence",
+                    str(evidence),
+                ],
+                command_runner=_one_phone_and_one_android_emulator,
+                stdout=output,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn(
+            "FAIL android_phones: found 1, need at least 2",
+            output.getvalue(),
+        )
+
+    def test_gate_replaces_invalid_utf8_from_adb_device_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            apk = root / "app-debug.apk"
+            apk.write_bytes(b"signed-apk-fixture")
+            digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+            evidence = root / "evidence.json"
+            evidence.write_text(json.dumps({}), encoding="utf-8")
+            output = StringIO()
+
+            def replacement_decoding_runner(command, **kwargs):
+                self.assertEqual(kwargs.get("encoding"), "utf-8")
+                self.assertEqual(kwargs.get("errors"), "replace")
+                return _two_android_phones(command, **kwargs)
+
+            exit_code = main(
+                [
+                    "--apk",
+                    str(apk),
+                    "--expected-apk-sha256",
+                    digest,
+                    "--adb-bin",
+                    "adb",
+                    "--evidence",
+                    str(evidence),
+                ],
+                command_runner=replacement_decoding_runner,
+                stdout=output,
+            )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("PASS android_phones: 2", output.getvalue())
+
     def test_gate_rejects_evidence_without_the_issue_31_schema(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -451,6 +515,26 @@ def _one_phone_and_one_linux_robot(command, **_kwargs):
         return subprocess.CompletedProcess(command, 0, stdout="35\n", stderr="")
     if command[:3] == ["adb", "-s", "emulator-5554"]:
         return subprocess.CompletedProcess(command, 127, stdout="", stderr="getprop: not found")
+    raise AssertionError(f"unexpected command: {command}")
+
+
+def _one_phone_and_one_android_emulator(command, **_kwargs):
+    if command == ["adb", "devices", "-l"]:
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=(
+                "List of devices attached\n"
+                "phone-a device product:PHK110 transport_id:1\n"
+                "emulator-5554 device product:sdk_gphone64_arm64 transport_id:2\n"
+            ),
+            stderr="",
+        )
+    if command[-1] == "ro.build.version.sdk":
+        return subprocess.CompletedProcess(command, 0, stdout="35\n", stderr="")
+    if command[-1] == "ro.kernel.qemu":
+        value = "1\n" if command[2] == "emulator-5554" else "\n"
+        return subprocess.CompletedProcess(command, 0, stdout=value, stderr="")
     raise AssertionError(f"unexpected command: {command}")
 
 

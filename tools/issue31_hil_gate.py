@@ -79,6 +79,8 @@ def main(
             [args.adb_bin, "devices", "-l"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
         )
     except OSError:
@@ -105,12 +107,35 @@ def main(
                 ],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
         except OSError:
             stdout.write("FAIL adb_devices: unavailable\n")
             return 1
-        if sdk.returncode == 0 and sdk.stdout.strip().isdigit():
+        if sdk.returncode != 0 or not sdk.stdout.strip().isdigit():
+            continue
+        try:
+            qemu = command_runner(
+                [
+                    args.adb_bin,
+                    "-s",
+                    serial,
+                    "shell",
+                    "getprop",
+                    "ro.kernel.qemu",
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+        except OSError:
+            stdout.write("FAIL adb_devices: unavailable\n")
+            return 1
+        if qemu.returncode == 0 and qemu.stdout.strip() != "1":
             phone_serials.append(serial)
     if len(phone_serials) < 2:
         stdout.write(
