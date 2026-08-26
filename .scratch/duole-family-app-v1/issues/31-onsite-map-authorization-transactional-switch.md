@@ -150,7 +150,9 @@ User stories covered: 176, 181–182, 185–187, 199
   `/home/ztl/duole-issue31-nav-ws`，逐文件 SHA-256 一致；旧 `agent.py`/`cli.py` 备份在
   `backups/mapping-interface-before-20260826-v1/`。正式 `/etc/systemd/system` 和
   `/etc/sudoers.d` 尚未写入，因为导航板 `sudo` 需要操作员交互式密码；没有执行
-  `daemon-reload`，也没有启停任何服务。
+  `daemon-reload`，也没有启停任何服务。另已提交并部署只安装、不启动的固定安装器
+  `/home/ztl/duole-issue31-nav-ws/bin/install-issue31-navigation-board-mapping-services`
+  （提交 `e26043f`）；它先验证服务状态、unit 和 sudoers，拒绝覆盖不同的既有文件。
 - 新协议的真实只读预检返回电量 `77%`、可用存储约 `61 GiB`、版本匹配、无活动任务，
   同时正确返回 `docked=false`、`sensors_ready=false`。只读诊断确认深度图仍有新鲜数据，
   但 `/scan` 与 `/scan_filtered` 已约两小时没有消息；雷达进程和设备节点仍存在，属于进程
