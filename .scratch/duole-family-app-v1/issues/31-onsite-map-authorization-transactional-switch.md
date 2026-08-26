@@ -129,3 +129,9 @@ User stories covered: 176, 181–182, 185–187, 199
 - 当前 ROS 2 CLI daemon 返回 `rclpy.ok()` 故障；未重启共享 daemon，而是以无 daemon 模式
   只读取得 BMS 消息。结果为 `power_supply_status=2`、电流约 `-0.7 A`，确认机器人正在放电，
   不是安全在桩窗口，因此没有进行地图加载、锚点验证或任何运动相关操作。
+- 隔离代理最初返回通用错误，经 `diagnose` 反馈循环确认 ROS collector 本身正常；第一次手工
+  请求遗漏 `observed_at`，第二次使用了板端 Python 3.10 原先不接受的 RFC 3339 `Z` 尾缀。
+  已先增加失败测试，再集中规范化末尾 `Z` 为 `+00:00`。板端 agent/CLI/清单及相关切图测试
+  50 项通过，隔离运行时与本地 `agent.py` SHA-256 均为
+  `16bb80bd9a3b45d07fbb32460895b4625b74693f412c1d33094ba0c7787fea95`；真实 `Z` 请求随后成功
+  返回 `charging_confirmed=false`、底盘静止、无活动 owner。一次性探针和调试标记已清理。
