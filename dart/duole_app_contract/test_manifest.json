@@ -37,6 +37,10 @@
       "fixtures": []
     },
     {
+      "test": "manual_mapping_contract_test.dart",
+      "fixtures": []
+    },
+    {
       "test": "malformed_envelope_test.dart",
       "fixtures": ["battery_status/success.json"]
     },

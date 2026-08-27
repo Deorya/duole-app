@@ -12,11 +12,18 @@ void main(List<String> arguments) {
   }
 
   final fixture = jsonDecode(File(arguments.single).readAsStringSync());
-  final mode = CapabilitiesSuccessEnvelope.fromJson(
+  final envelope = CapabilitiesSuccessEnvelope.fromJson(
     fixture as Map<String, Object?>,
-  ).data.mode;
+  );
+  final mode = envelope.data.mode;
+  final items = {for (final item in envelope.data.items) item.key: item};
 
-  if (mode != RobotMode.mockNoMotion || mode.allowsMotion) {
+  if (mode != RobotMode.mockNoMotion ||
+      mode.allowsMotion ||
+      items[CapabilityKey.manualMapping]?.availability !=
+          CapabilityAvailability.available ||
+      items[CapabilityKey.teleop]?.availability !=
+          CapabilityAvailability.unsupported) {
     throw StateError('MOCK_NO_MOTION must never allow physical motion');
   }
 }

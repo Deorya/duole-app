@@ -196,6 +196,7 @@ abstract interface class MapManagementManager {
   Future<MappingOperationSuccessEnvelope> startMapping({
     required MappingChallengePurpose mode,
     required String authorizationToken,
+    required bool safetyNoticeAcknowledged,
   });
 
   Future<MappingOperationSuccessEnvelope> getMappingOperation(
@@ -216,6 +217,28 @@ abstract interface class MapManagementManager {
 
   Future<MapSwitchOperationSuccessEnvelope> getMapSwitch(
     String operationId,
+  );
+}
+
+enum ManualMappingAction {
+  finishCollection,
+  dockVerified,
+  saveUnverified,
+  immediateStop,
+  abandon,
+  appBackground,
+  screenLocked,
+  appProcessEnded,
+}
+
+abstract interface class ManualMappingManager {
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  );
+
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
   );
 }
 

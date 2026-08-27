@@ -3,9 +3,11 @@ import 'dart:typed_data';
 
 import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
+import 'package:duole_engineering_client/manual_mapping_control.dart';
 import 'package:flutter/material.dart';
 
 import 'emergency_stop_control.dart';
+import 'manual_mapping_page.dart';
 
 typedef MapChallengeScanner = Future<String?> Function(
   BuildContext context,
@@ -19,6 +21,8 @@ class NavigationMapPage extends StatefulWidget {
     this.catalogReader,
     this.catalogManager,
     this.mapManagementManager,
+    this.manualMappingManager,
+    this.manualMappingControlTransport,
     this.mapChallengeScanner,
     this.onTaskRequested,
     this.emergencyStopCommander,
@@ -28,6 +32,8 @@ class NavigationMapPage extends StatefulWidget {
   final MapCatalogReader? catalogReader;
   final MapCatalogManager? catalogManager;
   final MapManagementManager? mapManagementManager;
+  final ManualMappingManager? manualMappingManager;
+  final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final MapChallengeScanner? mapChallengeScanner;
   final VoidCallback? onTaskRequested;
   final EmergencyStopCommander? emergencyStopCommander;
@@ -116,6 +122,8 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                       ],
                       _MappingEntry(
                         manager: widget.mapManagementManager,
+                        manualMappingManager: widget.manualMappingManager,
+                        controlTransport: widget.manualMappingControlTransport,
                         scanner: widget.mapChallengeScanner,
                       ),
                       const SizedBox(height: 16),
@@ -147,9 +155,16 @@ class _NavigationMapPageState extends State<NavigationMapPage>
 }
 
 class _MappingEntry extends StatelessWidget {
-  const _MappingEntry({required this.manager, required this.scanner});
+  const _MappingEntry({
+    required this.manager,
+    this.manualMappingManager,
+    this.controlTransport,
+    required this.scanner,
+  });
 
   final MapManagementManager? manager;
+  final ManualMappingManager? manualMappingManager;
+  final ManualMappingWebSocketTransport? controlTransport;
   final MapChallengeScanner? scanner;
 
   @override
@@ -195,6 +210,8 @@ class _MappingEntry extends StatelessWidget {
         builder: (_) => MappingPreparationPage(
           mode: mode,
           manager: manager,
+          manualMappingManager: manualMappingManager,
+          controlTransport: controlTransport,
           scanner: scanner,
         ),
       ),
@@ -207,11 +224,15 @@ class MappingPreparationPage extends StatefulWidget {
     super.key,
     required this.mode,
     required this.manager,
+    this.manualMappingManager,
+    this.controlTransport,
     required this.scanner,
   });
 
   final MappingChallengePurpose mode;
   final MapManagementManager? manager;
+  final ManualMappingManager? manualMappingManager;
+  final ManualMappingWebSocketTransport? controlTransport;
   final MapChallengeScanner? scanner;
 
   @override
@@ -222,6 +243,7 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
   MappingPreflightData? _preflight;
   Object? _error;
   bool _starting = false;
+  bool _safetyNoticeAcknowledged = false;
   MappingOperation? _operation;
 
   @override
@@ -266,9 +288,28 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
       final operation = await manager.startMapping(
         mode: widget.mode,
         authorizationToken: authorization.data.token,
+        safetyNoticeAcknowledged: _safetyNoticeAcknowledged,
       );
       if (!mounted) return;
       setState(() => _operation = operation.data);
+      final sessionId = operation.data.manualMappingSessionId;
+      final manualManager = widget.manualMappingManager;
+      final controlTransport = widget.controlTransport;
+      if (widget.mode == MappingChallengePurpose.manualMapping &&
+          sessionId != null &&
+          manualManager != null &&
+          controlTransport != null &&
+          mounted) {
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => ManualMappingPage(
+              sessionId: sessionId,
+              manager: manualManager,
+              controlTransport: controlTransport,
+            ),
+          ),
+        );
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() => _error = error);
@@ -298,6 +339,26 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    if (preflight.safetyNoticeAcknowledgementRequired)
+                      Card(
+                        color: const Color(0xFFFFF3CD),
+                        child: CheckboxListTile(
+                          key: const Key('mapping-safety-ack'),
+                          value: _safetyNoticeAcknowledged,
+                          onChanged: _starting
+                              ? null
+                              : (value) => setState(
+                                    () => _safetyNoticeAcknowledged =
+                                        value == true,
+                                  ),
+                          title: const Text('MOCK_NO_MOTION 安全提示'),
+                          subtitle: const Text(
+                            '仅用于现场手动建图模拟；请确认机器人正在充电、'
+                            '底盘静止且周围无人。防碰撞与停止保护不可关闭。',
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                        ),
+                      ),
                     for (final item in preflight.items)
                       Card(
                         child: ListTile(
@@ -316,6 +377,8 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
                       key: const Key('mapping-scan-start'),
                       onPressed: preflight.ready &&
                               !_starting &&
+                              (!preflight.safetyNoticeAcknowledgementRequired ||
+                                  _safetyNoticeAcknowledged) &&
                               widget.scanner != null
                           ? _start
                           : null,
@@ -346,10 +409,15 @@ String _mappingTitle(MappingChallengePurpose mode) => switch (mode) {
 
 String _preflightLabel(String key) => switch (key) {
       'dock' => '回到充电桩',
+      'charging' => '充电状态',
+      'stationary' => '底盘静止',
       'battery' => '电量',
       'tasks' => '活动任务',
       'sensors' => '传感器',
+      'collision_protection' => '防碰撞保护',
+      'stop_chain' => '停止链路',
       'storage' => '存储空间',
+      'motion_owner' => '运动控制权',
       'version' => '软件版本',
       _ => '未知准备项',
     };
@@ -357,9 +425,14 @@ String _preflightLabel(String key) => switch (key) {
 String _guidanceLabel(String code) => switch (code) {
       'none' => '已满足',
       'return_to_dock' => '请先让机器人回到充电桩',
+      'confirm_charging' => '请确认机器人处于充电状态',
+      'wait_until_stationary' => '请等待底盘完全静止',
       'charge_robot' => '请继续充电后重试',
+      'charge_robot_to_50' => '请充电至 50% 后重试',
       'stop_active_task' => '请先明确停止当前运动任务',
       'check_mapping_sensors' => '请检查建图传感器状态',
+      'restore_collision_protection' => '请恢复防碰撞保护后重试',
+      'restore_stop_chain' => '请恢复停止链路后重试',
       'free_map_storage' => '请清理地图或回收站空间',
       'update_robot_software' => '请先完成软件版本升级',
       _ => '请按机器人提示处理',

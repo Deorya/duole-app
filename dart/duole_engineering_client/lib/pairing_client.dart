@@ -639,7 +639,8 @@ class EngineeringMapCatalogClient implements MapCatalogManager {
   }
 }
 
-class EngineeringMapManagementClient implements MapManagementManager {
+class EngineeringMapManagementClient
+    implements MapManagementManager, ManualMappingManager {
   EngineeringMapManagementClient({
     required Uri robotOrigin,
     required String robotId,
@@ -1087,15 +1088,18 @@ class EngineeringMapManagementClient implements MapManagementManager {
   Future<MappingOperationSuccessEnvelope> startMapping({
     required MappingChallengePurpose mode,
     required String authorizationToken,
+    required bool safetyNoticeAcknowledged,
   }) async {
     final request = MappingOperationRequest.fromJson({
       'authorization_token': authorizationToken,
       'mode': _mappingModeWire(mode),
+      'safety_notice_acknowledged': safetyNoticeAcknowledged,
     });
     const path = '/api/v1/navigation/mapping-operations';
     final body = jsonEncode(SplayTreeMap<String, Object?>.of({
       'authorization_token': request.authorizationToken,
       'mode': _mappingModeWire(request.mode),
+      'safety_notice_acknowledged': request.safetyNoticeAcknowledged,
     }));
     final requestId = _requestIdFactory();
     final sentAt = _clock().toUtc().toIso8601String();
@@ -1193,6 +1197,138 @@ class EngineeringMapManagementClient implements MapManagementManager {
     }
     return operation;
   }
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  ) async {
+    final validatedSessionId = _manualMappingSessionId(sessionId);
+    final requestId = _requestIdFactory();
+    final path =
+        '/api/v1/navigation/manual-mapping-sessions/$validatedSessionId';
+    final response = await _transport.request(
+      'GET',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final session = ManualMappingSessionSuccessEnvelope.fromJson(payload);
+    _verifyManualMappingSession(session, validatedSessionId, requestId);
+    return session;
+  }
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
+  ) async {
+    final validatedSessionId = _manualMappingSessionId(sessionId);
+    final actionWire = _manualMappingActionWire(action);
+    final request = ManualMappingCommandRequest.fromJson({
+      'action': actionWire,
+    });
+    final path = '/api/v1/navigation/manual-mapping-sessions/'
+        '$validatedSessionId/commands';
+    final body = jsonEncode(SplayTreeMap<String, Object?>.of({
+      'action': request.action,
+    }));
+    final requestId = _requestIdFactory();
+    final sentAt = _clock().toUtc().toIso8601String();
+    final idempotencyKey = _idempotencyKeyFactory();
+    final nonce = _proofNonceFactory();
+    final proofPayload = _installationCommandPayload(
+      robotId: _robotId,
+      deviceSessionId: _deviceSessionId,
+      requestId: requestId,
+      method: 'POST',
+      path: path,
+      sentAt: sentAt,
+      idempotencyKey: idempotencyKey,
+      nonce: nonce,
+      bodySha256: sha256.convert(utf8.encode(body)).toString(),
+    );
+    final signature = await _credentialVault.signInstallationPayload(
+      base64Encode(utf8.encode(proofPayload)),
+    );
+    final response = await _transport.request(
+      'POST',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+      },
+      body: body,
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final session = ManualMappingSessionSuccessEnvelope.fromJson(payload);
+    _verifyManualMappingSession(session, validatedSessionId, requestId);
+    return session;
+  }
+
+  void _verifyManualMappingSession(
+    ManualMappingSessionSuccessEnvelope envelope,
+    String sessionId,
+    String requestId,
+  ) {
+    if (envelope.data.sessionId != sessionId ||
+        envelope.data.robotId != _robotId ||
+        envelope.data.actorId != _deviceSessionId ||
+        envelope.data.mode != 'MOCK_NO_MOTION') {
+      throw EngineeringProtocolException(
+        reasonCode: 'manual_mapping_session_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+  }
+
+  static String _manualMappingSessionId(String value) {
+    if (!RegExp(r'^manual_mapping_[0-9a-f]{32}$').hasMatch(value)) {
+      throw ArgumentError.value(
+        value,
+        'sessionId',
+        'invalid manual mapping session id',
+      );
+    }
+    return value;
+  }
+
+  static String _manualMappingActionWire(ManualMappingAction action) =>
+      switch (action) {
+        ManualMappingAction.finishCollection => 'finish_collection',
+        ManualMappingAction.dockVerified => 'dock_verified',
+        ManualMappingAction.saveUnverified => 'save_unverified',
+        ManualMappingAction.immediateStop => 'immediate_stop',
+        ManualMappingAction.abandon => 'abandon',
+        ManualMappingAction.appBackground => 'app_background',
+        ManualMappingAction.screenLocked => 'screen_locked',
+        ManualMappingAction.appProcessEnded => 'app_process_ended',
+      };
 
   Future<MapSwitchOperationSuccessEnvelope> switchMap({
     required String targetMapId,

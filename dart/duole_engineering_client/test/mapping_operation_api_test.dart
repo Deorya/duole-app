@@ -30,8 +30,10 @@ Future<void> main() async {
   final operation = await client.startMapping(
     mode: MappingChallengePurpose.manualMapping,
     authorizationToken: 'mapping-authorization-secret',
+    safetyNoticeAcknowledged: true,
   );
-  final recovered = await client.getMappingOperation(operation.data.operationId);
+  final recovered =
+      await client.getMappingOperation(operation.data.operationId);
 
   if (!preflight.data.ready ||
       preflight.data.items.map((item) => item.key).join(',') !=
@@ -43,7 +45,8 @@ Future<void> main() async {
               'mapping_0123456789abcdef0123456789abcdef' ||
       transport.commandBody !=
           '{"authorization_token":"mapping-authorization-secret",'
-              '"mode":"manual_mapping"}' ||
+              '"mode":"manual_mapping",'
+              '"safety_notice_acknowledged":true}' ||
       operation.data.idempotencyKey != 'idem_mapping_start_01' ||
       recovered.data.operationId != operation.data.operationId ||
       operation.data.status != MappingOperationStatus.started) {
@@ -84,6 +87,8 @@ class _MappingOperationTransport implements PairingHttpTransport {
             'mode': 'manual_mapping',
             'observed_at': '2026-08-25T15:00:00Z',
             'ready': true,
+            'safety_notice_code': 'onsite_manual_mapping_safety_v1',
+            'safety_notice_acknowledgement_required': true,
             'items': [
               for (final key in const [
                 'dock',
@@ -137,6 +142,8 @@ Map<String, Object?> _mappingOperationEnvelope(String envelopeRequestId) => {
         'updated_at': '2026-08-25T15:00:00Z',
         'audit_summary_sha256': 'b' * 64,
         'failure_reason': null,
+        'manual_mapping_session_id':
+            'manual_mapping_0123456789abcdef0123456789abcdef',
         'revision': 2,
       },
     };

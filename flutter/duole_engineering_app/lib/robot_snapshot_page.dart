@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
+import 'package:duole_engineering_client/manual_mapping_control.dart';
 import 'package:flutter/material.dart';
 
 import 'navigation_map_page.dart';
@@ -17,6 +18,8 @@ class RobotSnapshotPage extends StatefulWidget {
     this.mapCatalogReader,
     this.mapCatalogManager,
     this.mapManagementManager,
+    this.manualMappingManager,
+    this.manualMappingControlTransport,
     this.emergencyStopCommander,
     super.key,
   });
@@ -27,6 +30,8 @@ class RobotSnapshotPage extends StatefulWidget {
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
   final MapManagementManager? mapManagementManager;
+  final ManualMappingManager? manualMappingManager;
+  final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final EmergencyStopCommander? emergencyStopCommander;
 
   @override
@@ -251,6 +256,9 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
                     catalogReader: widget.mapCatalogReader,
                     catalogManager: widget.mapCatalogManager,
                     mapManagementManager: widget.mapManagementManager,
+                    manualMappingManager: widget.manualMappingManager,
+                    manualMappingControlTransport:
+                        widget.manualMappingControlTransport,
                     mapChallengeScanner: scanMapChallenge,
                     emergencyStopCommander: widget.emergencyStopCommander,
                   ),

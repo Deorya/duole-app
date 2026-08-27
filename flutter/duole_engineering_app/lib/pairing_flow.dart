@@ -5,8 +5,16 @@ import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
 import 'package:duole_engineering_client/pairing_client.dart';
+import 'package:duole_engineering_client/manual_mapping_control.dart';
 
 typedef EventTransportFactory = EventWebSocketTransport Function(
+  Uri robotOrigin,
+  String trustedFingerprint,
+  String accessToken,
+);
+
+typedef ManualMappingTransportFactory = ManualMappingWebSocketTransport
+    Function(
   Uri robotOrigin,
   String trustedFingerprint,
   String accessToken,
@@ -51,6 +59,8 @@ class PairedRobotSession {
     this.mapCatalogReader,
     this.mapCatalogManager,
     this.mapManagementManager,
+    this.manualMappingManager,
+    this.manualMappingControlTransport,
     this.emergencyStopCommander,
     required this.forceRefresher,
     required this.refresh,
@@ -66,6 +76,8 @@ class PairedRobotSession {
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
   final MapManagementManager? mapManagementManager;
+  final ManualMappingManager? manualMappingManager;
+  final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final EmergencyStopCommander? emergencyStopCommander;
   final DeviceStatusForceRefresher? forceRefresher;
   final EventSyncSession? eventSync;
@@ -91,6 +103,7 @@ class SecurePairingSessionGateway
         transportFactory,
     EventCursorStore? eventCursorStore,
     EventTransportFactory? eventTransportFactory,
+    ManualMappingTransportFactory? manualMappingTransportFactory,
     String Function()? requestIdFactory,
     String Function()? idempotencyKeyFactory,
   })  : _clientVersion = clientVersion,
@@ -101,6 +114,7 @@ class SecurePairingSessionGateway
                 ? credentialVault as EventCursorStore
                 : null),
         _eventTransportFactory = eventTransportFactory,
+        _manualMappingTransportFactory = manualMappingTransportFactory,
         _requestIdFactory =
             requestIdFactory ?? _OpaqueIdFactory('android_req').next,
         _idempotencyKeyFactory =
@@ -112,6 +126,7 @@ class SecurePairingSessionGateway
       _transportFactory;
   final EventCursorStore? _eventCursorStore;
   final EventTransportFactory? _eventTransportFactory;
+  final ManualMappingTransportFactory? _manualMappingTransportFactory;
   final String Function() _requestIdFactory;
   final String Function() _idempotencyKeyFactory;
 
@@ -247,6 +262,20 @@ class SecurePairingSessionGateway
       credentialVault: _credentialVault,
     );
     final eventSync = _createEventSync(input, credentials, api);
+    final manualMappingTransport = credentials.scopes.contains('maps.manage')
+        ? (_manualMappingTransportFactory?.call(
+              input.robotOrigin,
+              input.verifiedDeviceFingerprint,
+              credentials.accessToken,
+            ) ??
+            DeviceKeyPinnedManualMappingWebSocketTransport(
+              robotOrigin: input.robotOrigin,
+              trustedDeviceKeyFingerprint: input.verifiedDeviceFingerprint,
+              accessToken: credentials.accessToken,
+              clientVersion: _clientVersion,
+              requestIdFactory: _requestIdFactory,
+            ))
+        : null;
     return PairedRobotSession(
       credentials: credentials,
       reader: api,
@@ -258,6 +287,10 @@ class SecurePairingSessionGateway
       mapManagementManager: credentials.scopes.contains('maps.manage')
           ? mapManagementManager
           : null,
+      manualMappingManager: credentials.scopes.contains('maps.manage')
+          ? mapManagementManager
+          : null,
+      manualMappingControlTransport: manualMappingTransport,
       emergencyStopCommander: credentials.scopes.contains('robot.stop')
           ? emergencyStopCommander
           : null,
@@ -287,11 +320,13 @@ class SecurePairingSessionGateway
           await client.revokeCurrent(input.robotId);
         } finally {
           if (eventSync != null) await eventSync.close();
+          manualMappingTransport?.close();
           transport.close();
         }
       },
       close: () {
         if (eventSync != null) unawaited(eventSync.close());
+        manualMappingTransport?.close();
         transport.close();
       },
     );

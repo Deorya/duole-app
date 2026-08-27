@@ -23,6 +23,8 @@ void main(List<String> arguments) {
           CapabilityAvailability.unsupported ||
       items[CapabilityKey.teleop]?.availability !=
           CapabilityAvailability.unsupported ||
+      items[CapabilityKey.manualMapping]?.availability !=
+          CapabilityAvailability.unsupported ||
       items[CapabilityKey.scheduleWrite]?.availability !=
           CapabilityAvailability.unsupported) {
     throw StateError('unimplemented capabilities must not appear available');

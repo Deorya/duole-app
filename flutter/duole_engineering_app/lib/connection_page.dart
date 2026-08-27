@@ -746,6 +746,9 @@ class _PairingPageState extends State<PairingPage> {
                       mapCatalogReader: session.mapCatalogReader,
                       mapCatalogManager: session.mapCatalogManager,
                       mapManagementManager: session.mapManagementManager,
+                      manualMappingManager: session.manualMappingManager,
+                      manualMappingControlTransport:
+                          session.manualMappingControlTransport,
                       emergencyStopCommander: session.emergencyStopCommander,
                     ),
                   ),

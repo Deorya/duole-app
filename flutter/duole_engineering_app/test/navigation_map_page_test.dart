@@ -34,16 +34,20 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('手动建图准备'), findsOneWidget);
-      for (final label in const [
-        '回到充电桩',
-        '电量',
-        '活动任务',
-        '传感器',
-        '存储空间',
-        '软件版本'
+      for (final item in const [
+        ('充电状态', '请确认机器人处于充电状态'),
+        ('底盘静止', '请等待底盘完全静止'),
+        ('电量', '请充电至 50% 后重试'),
+        ('传感器', '请检查建图传感器状态'),
+        ('防碰撞保护', '请恢复防碰撞保护后重试'),
+        ('停止链路', '请恢复停止链路后重试'),
+        ('存储空间', '请清理地图或回收站空间'),
+        ('运动控制权', '请先明确停止当前运动任务'),
+        ('软件版本', '请先完成软件版本升级'),
       ]) {
-        await tester.scrollUntilVisible(find.text(label), 120);
-        expect(find.text(label), findsOneWidget);
+        await tester.scrollUntilVisible(find.text(item.$1), 120);
+        expect(find.text(item.$1), findsOneWidget);
+        expect(find.text(item.$2), findsOneWidget);
       }
       final start = tester.widget<FilledButton>(
         find.byKey(const Key('mapping-scan-start')),
@@ -71,10 +75,42 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('MOCK_NO_MOTION 安全提示'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('mapping-scan-start')),
+      300,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('mapping-scan-start')),
+          )
+          .onPressed,
+      isNull,
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('mapping-safety-ack')),
+      -300,
+    );
+    await tester.tap(find.byKey(const Key('mapping-safety-ack')));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('mapping-scan-start')),
+      300,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const Key('mapping-scan-start')),
+          )
+          .onPressed,
+      isNotNull,
+    );
     await tester.tap(find.byKey(const Key('mapping-scan-start')));
     await tester.pumpAndSettle();
 
     expect(manager.events, ['display', 'scan', 'exchange', 'start']);
+    expect(manager.safetyNoticeAcknowledged, isTrue);
   });
 
   testWidgets('task map keeps the emergency stop control visible',
@@ -475,13 +511,22 @@ class _BlockedMapManagementManager implements MapManagementManager {
           'mode': 'manual_mapping',
           'observed_at': '2026-08-25T15:00:00Z',
           'ready': false,
+          'safety_notice_code': 'onsite_manual_mapping_safety_v1',
+          'safety_notice_acknowledgement_required': true,
           'items': [
             for (final entry in const [
-              ('dock', 'robot_not_docked', 'return_to_dock'),
-              ('battery', 'mapping_battery_low', 'charge_robot'),
-              ('tasks', 'motion_task_active', 'stop_active_task'),
+              ('charging', 'robot_not_charging', 'confirm_charging'),
+              ('stationary', 'chassis_not_stationary', 'wait_until_stationary'),
+              ('battery', 'mapping_battery_below_50', 'charge_robot_to_50'),
               ('sensors', 'mapping_sensor_unready', 'check_mapping_sensors'),
+              (
+                'collision_protection',
+                'collision_protection_unready',
+                'restore_collision_protection'
+              ),
+              ('stop_chain', 'stop_chain_unready', 'restore_stop_chain'),
               ('storage', 'mapping_storage_insufficient', 'free_map_storage'),
+              ('motion_owner', 'motion_task_active', 'stop_active_task'),
               (
                 'version',
                 'mapping_version_incompatible',
@@ -506,6 +551,7 @@ class _BlockedMapManagementManager implements MapManagementManager {
 
 class _ReadyMapManagementManager implements MapManagementManager {
   final events = <String>[];
+  bool? safetyNoticeAcknowledged;
 
   @override
   Future<MappingPreflightSuccessEnvelope> getMappingPreflight(
@@ -519,13 +565,18 @@ class _ReadyMapManagementManager implements MapManagementManager {
         'mode': 'manual_mapping',
         'observed_at': '2026-08-26T08:00:00Z',
         'ready': true,
+        'safety_notice_code': 'onsite_manual_mapping_safety_v1',
+        'safety_notice_acknowledgement_required': true,
         'items': [
           for (final key in const [
-            'dock',
+            'charging',
+            'stationary',
             'battery',
-            'tasks',
             'sensors',
+            'collision_protection',
+            'stop_chain',
             'storage',
+            'motion_owner',
             'version',
           ])
             {
@@ -587,7 +638,9 @@ class _ReadyMapManagementManager implements MapManagementManager {
   Future<MappingOperationSuccessEnvelope> startMapping({
     required MappingChallengePurpose mode,
     required String authorizationToken,
+    required bool safetyNoticeAcknowledged,
   }) async {
+    this.safetyNoticeAcknowledged = safetyNoticeAcknowledged;
     events.add('start');
     return MappingOperationSuccessEnvelope.fromJson({
       'schema_version': '1.0',
@@ -606,6 +659,8 @@ class _ReadyMapManagementManager implements MapManagementManager {
         'updated_at': '2026-08-26T08:00:00Z',
         'audit_summary_sha256': 'b' * 64,
         'failure_reason': null,
+        'manual_mapping_session_id':
+            'manual_mapping_0123456789abcdef0123456789abcdef',
         'revision': 2,
       },
     });

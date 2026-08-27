@@ -455,6 +455,15 @@ def _render_property_constraints(
     if "const" in schema:
         constant = _dart_literal(schema["const"])
         add(f"{value} != {constant}", f"must equal {constant}")
+    if "enum" in schema:
+        allowed_values = tuple(
+            item for item in schema["enum"] if item is not None
+        )
+        allowed = ", ".join(_dart_literal(item) for item in allowed_values)
+        add(
+            f"!const <Object?>[{allowed}].contains({value})",
+            "contains an unknown enum value",
+        )
     if schema.get("minLength") is not None:
         minimum = int(schema["minLength"])
         add(f"{value}.length < {minimum}", f"must contain at least {minimum} characters")
