@@ -200,6 +200,43 @@ void main() {
     expect(find.text('地图切换完成'), findsOneWidget);
   });
 
+  testWidgets('second map operator sees the active operator busy message',
+      (tester) async {
+    final mapManager = _BusyMapManagementManager();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NavigationMapPage(
+          reader: _MismatchReader(),
+          catalogReader: _CatalogReader(),
+          mapManagementManager: mapManager,
+          mapChallengeScanner: (_, purpose) async {
+            expect(purpose, MappingChallengePurpose.mapManagement);
+            return '{"screen":"map-management"}';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('switch-map-map_available')),
+      300,
+    );
+    await tester.ensureVisible(
+      find.byKey(const Key('switch-map-map_available')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('switch-map-map_available')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('另一位用户正在建图或管理地图，请稍后重试'),
+      findsOneWidget,
+    );
+    expect(find.text('知道了'), findsOneWidget);
+    expect(find.textContaining('检查充电'), findsNothing);
+  });
+
   testWidgets('app background invalidates any active map management presence',
       (tester) async {
     final mapManager = _RecordingSwitchMapManager();
@@ -707,6 +744,34 @@ class _RecordingSwitchMapManager implements MapManagementManager {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _BusyMapManagementManager extends _RecordingSwitchMapManager {
+  @override
+  Future<MapManagementPresenceSuccessEnvelope> exchangeMapManagementPresence(
+    String qrPayload,
+  ) {
+    scannedPayload = qrPayload;
+    throw EngineeringApiException(
+      statusCode: 409,
+      envelope: ErrorEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_presence_busy_ui_01',
+        'server_time': '2026-08-26T08:00:00Z',
+        'error': {
+          'code': 'CAPABILITY_UNAVAILABLE',
+          'message': '另一位用户正在建图或管理地图',
+          'retriable': true,
+          'remediation': '请稍后重试或在机器人屏幕重新生成二维码',
+          'details': {
+            'reason_code': 'map_management_busy',
+            'busy': true,
+            'message_code': 'map_management_busy',
+          },
+        },
+      }),
+    );
+  }
 }
 
 class _UnusedStopCommander implements EmergencyStopCommander {

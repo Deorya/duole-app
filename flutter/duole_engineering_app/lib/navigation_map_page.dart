@@ -589,6 +589,24 @@ class _CatalogMapTile extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('地图切换已受理，正在等待机器人完成定位与提交')),
       );
+    } on EngineeringApiException catch (error) {
+      if (!context.mounted) return;
+      final details = error.envelope.error.details;
+      final mapManagementBusy = error.statusCode == 409 &&
+          (details['reason_code'] == 'map_management_busy' ||
+              details['message_code'] == 'map_management_busy');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            mapManagementBusy
+                ? '另一位用户正在建图或管理地图，请稍后重试'
+                : '地图切换未受理，请检查充电、静止状态和活动任务',
+          ),
+          action: mapManagementBusy
+              ? SnackBarAction(label: '知道了', onPressed: () {})
+              : null,
+        ),
+      );
     } on Object {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

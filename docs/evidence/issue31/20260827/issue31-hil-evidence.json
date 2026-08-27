@@ -1,0 +1,152 @@
+{
+  "schema_version": "1.0",
+  "issue": 31,
+  "robot_id": "DUOLE-RK3588-ENG-01",
+  "apk_sha256": "ce8a6ea58ad0d9f9ff133ad9b45e14014e7d4c5c7698c6d1400485df22c5ee11",
+  "started_at": "2026-08-26T15:00:00+08:00",
+  "completed_at": "2026-08-27T12:53:33+08:00",
+  "map_ids": [
+    "my_map2",
+    "my_map3"
+  ],
+  "phone_serials": [
+    "172.22.205.14:38599",
+    "172.22.205.58:39991"
+  ],
+  "artifacts": {
+    "redacted-session-log": {
+      "path": "artifacts/redacted-session.log",
+      "sha256": "d71e9eb69b3bf936ba7dc783bf4da9ada8abe6c608aea059450e7d99f11bb635",
+      "media_type": "text/plain"
+    }
+  },
+  "checks": {
+    "screen_qr_exchange": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:33:49+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "screen_short_code_exchange": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:46:48+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "screen_unavailable_fail_closed": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "mapping_authorization_one_shot": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "presence_expiry": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "presence_app_background": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:47:52+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "presence_token_revocation": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "presence_lan_departure": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "mapping_preflight_no_bypass": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:50:00+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "switch_safety_rejections": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:42:39+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "on_dock_switch_commit": {
+      "status": "passed",
+      "observed_at": "2026-08-26T22:26:28+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "restart_explicit_map_restore": {
+      "status": "passed",
+      "observed_at": "2026-08-26T22:43:48+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "load_failure_rollback": {
+      "status": "passed",
+      "observed_at": "2026-08-26T22:28:15+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "localization_failure_rollback": {
+      "status": "passed",
+      "observed_at": "2026-08-26T22:29:02+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "two_phone_operator_busy": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:35:04+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "global_stop_available_to_second_phone": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:35:04+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ]
+    },
+    "stable_operation_event_recovery": {
+      "status": "passed",
+      "observed_at": "2026-08-27T12:47:52+08:00",
+      "evidence_ids": [
+        "redacted-session-log"
+      ],
+      "operation_ids": [
+        "map_switch_66666666666666666666666666666666",
+        "map_switch_77777777777777777777777777777777"
+      ],
+      "event_ids": [
+        "evt_caf8c157ae6d6deef7f118f1ce448d80",
+        "evt_217b8969f4208b41c659d8ce0ed19c32"
+      ]
+    }
+  }
+}

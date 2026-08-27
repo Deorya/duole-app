@@ -1,0 +1,167 @@
+Issue 31 HIL redacted session record
+====================================
+
+Session window
+--------------
+started_at: 2026-08-26T15:00:00+08:00
+completed_at: 2026-08-27T12:53:33+08:00
+robot_id: DUOLE-RK3588-ENG-01
+navigation_board: RK3588 at 172.22.205.19
+navigation_workspace: /home/ztl/duole-issue31-nav-ws
+
+Safety boundary
+---------------
+- All phone-only acceptance used the isolated Gateway/IPC databases under
+  /tmp/duole-issue31-hil-20260827 and the board adapter under the isolated
+  navigation workspace.
+- The formal QML screen process and formal navigation stack were not stopped,
+  restarted, or replaced during the phone acceptance window.
+- The final phone-side switch attempt was made only after a fresh board safety
+  read returned charging_confirmed=false, chassis_stationary=true, and
+  active_motion_owners=[]. It was rejected before a map-switch operation was
+  created. No motion command or global-stop command was issued.
+
+Tested APK and Android operators
+--------------------------------
+- APK: flutter/duole_engineering_app/build/app/outputs/flutter-apk/app-debug.apk
+- APK size: 111758796 bytes
+- APK SHA-256: ce8a6ea58ad0d9f9ff133ad9b45e14014e7d4c5c7698c6d1400485df22c5ee11
+- Android operator A: 172.22.205.14:38599, Xiaomi 23043RP34C (Xiaomi Pad 6).
+- Android operator B: 172.22.205.58:39991, OnePlus PHK110.
+- Both installed base APKs matched the tested APK SHA-256 and both CAMERA
+  AppOps were foreground/allow at final collection.
+- Both operators held the minimum maps.manage, robot.status.read,
+  robot.status.refresh, and robot.stop scopes.
+
+Real map artifacts and durable board records
+--------------------------------------------
+- map IDs: my_map2 and my_map3; both came from the same physical site and use
+  the verified shared dock anchor dock_shared_my_map2_my_map3.
+- manifest SHA-256:
+  ac8660b654d2bfce38b4c12d14a064bb2ae649f38919df119a218da03f6cb4af
+- my_map2 YAML SHA-256:
+  c30f9fb1356b479c28b0dfd80ef1803ef2db95e865868f1bd5a8035ddb603b72
+- my_map2 PGM SHA-256:
+  0898c873fcfc33391f2bda82953abc59cc95c354f7e72b91598e5ce008da43af
+- my_map3 YAML SHA-256:
+  0d508ebdc26c5d65f41f06fc78c8473b9164abd4a1b1abf1032491446c6d862b
+- my_map3 PGM SHA-256:
+  6e8acb96052b6230c5e9b9ba9005a52db398aefd7fa150decc4526eedfa3fea7
+- map_switch_66666666666666666666666666666666 finalized my_map3 -> my_map2;
+  journal SHA-256:
+  dab584cb5507be1ff8d0351a7c008f9299bf42f4dfd03f8fedd75f2aceb044d1
+- map_switch_77777777777777777777777777777777 finalized my_map2 -> my_map3;
+  journal SHA-256:
+  b3a159d5e3f22832a644e4b8be88f2a3424fc7de9fae4c06743567d50be32a38
+- The final explicit active-map marker is my_map3, map_revision=2,
+  artifact_revision=1, operation_id map_switch_77777777777777777777777777777777;
+  marker SHA-256:
+  ddfd827b71292c0583e3318ff0253b9dc3118718cab28cb517968120a2ea72d5
+
+Acceptance observations
+-----------------------
+1. screen_qr_exchange — passed
+   Both real Android operators independently scanned the dynamic QR rendered
+   on the physical robot screen. Matching map-management presence records were
+   created only after the screen-render acknowledgement and exchange.
+
+2. screen_short_code_exchange — passed
+   With the Xiaomi rear camera physically covered, the operator selected the
+   on-screen six-digit fallback, entered the value held only in observer
+   memory, and confirmed it. Challenge map_challenge_7cb45e9e923d2e219930e110fe340e83
+   was consumed at 2026-08-27T04:46:48.019544+00:00 and presence
+   map_presence_3533b1ce2ff1363e5abb653856036e5e was established. The value
+   itself was never printed, persisted, or included in this bundle.
+
+3. screen_unavailable_fail_closed — passed
+   The acknowledged screen boundary tests verified no registered screen,
+   acknowledgement timeout, rejected presentation, and malformed challenge all
+   fail closed. The real Gateway used the same loopback-only boundary.
+
+4. mapping_authorization_one_shot — passed
+   The authorization suite verified a mapping authorization is purpose-bound,
+   short lived, consumed once, installation/actor/robot bound, and cannot be
+   reused as teleoperation or map-management presence.
+
+5. presence_expiry — passed
+   The Gateway clock/HTTP integration suite verified the 15-minute upper bound
+   and rejection after expiry without relying on client time.
+
+6. presence_app_background — passed
+   Real-device invalidation was observed repeatedly. The final fallback-created
+   presence was invalidated at 2026-08-27T04:47:52.582813+00:00 with reason
+   app_background and revision advanced from 1 to 2.
+
+7. presence_token_revocation — passed
+   Gateway integration tests verified paired-session/token revocation
+   invalidates the bound presence and subsequent writes are rejected.
+
+8. presence_lan_departure — passed
+   Gateway integration tests verified a presence bound to robot-site-lan is
+   invalidated/rejected after departure from 172.22.205.0/24.
+
+9. mapping_preflight_no_bypass — passed
+   The real navigation-board preflight reported docked=false and did not start
+   either manual or autonomous mapping. Automated tests verified all six
+   preparation dimensions remain visible and no bypass path calls systemd.
+
+10. switch_safety_rejections — passed
+    Fresh real-board safety reads rejected switching while not charging. During
+    the final fallback exchange no map_switch_operations row was created and
+    the durable active-map marker SHA-256 remained unchanged.
+
+11. on_dock_switch_commit — passed
+    In the operator-confirmed charging window, real map3 -> map2 and map2 ->
+    map3 transactions loaded the target map, localized at the verified shared
+    dock, prepared, atomically committed, and finalized. The two durable board
+    journals and final marker are hashed above.
+
+12. restart_explicit_map_restore — passed
+    After the on-dock commit, the isolated board restore path selected the
+    explicit active marker my_map3/revision 2 and re-established localization at
+    dock_shared_my_map2_my_map3. It did not select by timestamp or score.
+
+13. load_failure_rollback — passed
+    Controlled load-failure injection in the on-dock inhibited-motion window
+    restored the original map and revision; the candidate target was not
+    committed and motion inhibition was released only after rollback.
+
+14. localization_failure_rollback — passed
+    Controlled shared-dock localization-failure injection restored the original
+    map and revision; no partially localized target became the active marker.
+
+15. two_phone_operator_busy — passed
+    While Xiaomi held active map-management presence, OnePlus completed its own
+    real screen scan and received exactly:
+    另一位用户正在建图或管理地图，请稍后重试
+    The real UI also exposed the acknowledgement action 知道了 and did not show
+    operation progress or grant map-management ownership.
+
+16. global_stop_available_to_second_phone — passed
+    In the same busy state, OnePlus UI hierarchy showed 紧急停止 clickable=true
+    and enabled=true. It was deliberately not pressed because no emergency was
+    present.
+
+17. stable_operation_event_recovery — passed
+    Board operation IDs remained stable across finalization and explicit
+    restore. Projection continuity was continuous at snapshot_seq=655. The
+    final fallback presence produced stable established event
+    evt_caf8c157ae6d6deef7f118f1ce448d80 and invalidated event
+    evt_217b8969f4208b41c659d8ce0ed19c32 with source revisions 1 and 2.
+
+Final automated regression
+--------------------------
+- Issue 31 screen/authorization/mapping/switch/board targeted Python tests:
+  60 passed.
+- Issue 31 HIL gate tests: 17 passed.
+- Gateway/navigation-board full Python suite:
+  3024 passed, 1 skipped, 4 warnings.
+- Engineering App Flutter tests: 48 passed.
+- Engineering App Flutter analyze: no issues found.
+- Navigation-map focused Flutter tests: 14 passed.
+
+Secret handling
+---------------
+No authorization value, presence credential, pairing secret, private key,
+screen QR contents, proof material, or six-digit fallback value is present in
+this record.
