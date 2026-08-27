@@ -47,7 +47,7 @@ User stories covered: 176, 187–195
 - 正式 MOCK CLI 明确拒绝导航板参数且不构造 SSH 导航板；fake 边界没有物理输出端口，
   `manual_mapping` capability 只在 MOCK 可用，普通 `teleop` 始终不可用。本验收不声称或
   提前开放 Issue 33 的真实车轮能力。
-- 机器人仓全量为 `3059 passed, 1 skipped, 4 warnings`；App 合同消费者 26 个入口、工程
+- Provider 最终 `master` 全量为 `3137 passed, 1 skipped, 4 warnings`；App 合同消费者 26 个入口、工程
   客户端 38 个入口、Flutter 63 项全部通过，三个 Dart/Flutter 包静态分析均无问题，合同
   audit 与 provider fixtures 全绿。
 - 最终 clean rebuild 的 ARM64 调试 APK 为

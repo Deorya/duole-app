@@ -36,7 +36,7 @@ Issue 32 的 MOCK tracer bullet 已完成落地验收。正式 MOCK App Gateway 
 
 ## 自动化结果
 
-- 机器人仓全量：`3059 passed, 1 skipped, 4 warnings`。跳过项为既有硬件依赖测试；警告为
+- Provider 最终 `master` 全量：`3137 passed, 1 skipped, 4 warnings`。跳过项为既有硬件依赖测试；警告为
   TLS 1.0/1.1 拒绝测试和既有第三方弃用告警。
 - App Gateway + 合同定向回归通过；Issue 32 核心服务与 CLI 定向回归为 `38 passed`。
 - App 合同消费者 26 个入口、工程客户端 38 个入口全部退出码 0。
