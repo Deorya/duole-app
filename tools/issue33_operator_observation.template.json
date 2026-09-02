@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "operator_observation",
+  "scenario": "REPLACE_WITH_REQUIRED_STOP_SCENARIO",
+  "operator_id": "REPLACE_WITH_ONSITE_OPERATOR_ID",
+  "observed_at": "REPLACE_WITH_RFC3339",
+  "observation_mode": "direct_onsite",
+  "emergency_stop_accessible": true,
+  "robot_stopped": true,
+  "visible_reverse": false,
+  "continued_sliding": false,
+  "stable_final_stop": true,
+  "telemetry_evidence_id": "REPLACE_WITH_BOUND_LOG_ARTIFACT_ID"
+}

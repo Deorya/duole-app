@@ -6,17 +6,22 @@ import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/manual_mapping_control.dart';
 import 'package:flutter/material.dart';
 
+import 'manual_mapping_joystick_state.dart';
+import 'manual_mapping_map_view.dart';
+
 class ManualMappingPage extends StatefulWidget {
   const ManualMappingPage({
     super.key,
     required this.sessionId,
     required this.manager,
     required this.controlTransport,
+    this.clock,
   });
 
   final String sessionId;
   final ManualMappingManager manager;
   final ManualMappingWebSocketTransport controlTransport;
+  final DateTime Function()? clock;
 
   @override
   State<ManualMappingPage> createState() => _ManualMappingPageState();
@@ -25,22 +30,26 @@ class ManualMappingPage extends StatefulWidget {
 class _ManualMappingPageState extends State<ManualMappingPage>
     with WidgetsBindingObserver {
   ManualMappingSession? _session;
+  ManualMappingVisualization? _visualization;
   ManualMappingControlConnection? _connection;
   StreamSubscription<ManualMappingServerFrame>? _subscription;
   Timer? _intentTimer;
   Timer? _statusTimer;
   Object? _error;
+  String? _controlErrorCode;
   String? _leaseId;
   int? _leaseEpoch;
   var _seq = 0;
-  var _linear = 0.0;
-  var _angular = 0.0;
-  var _knobOffset = Offset.zero;
-  var _pressed = false;
+  final _joystick = ManualMappingJoystickState();
   var _awaitingStop = false;
   var _lifecycleTerminated = false;
   var _statusRefreshInFlight = false;
+  var _visualizationRefreshInFlight = false;
   var _reconnectInProgress = false;
+  String? _displayBlockedReason;
+  var _showLaser = true;
+  var _showTrajectory = true;
+  var _showSafetyBoundaries = true;
 
   @override
   void initState() {
@@ -64,26 +73,37 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       _connection = connection;
       _subscription = connection.frames.listen(
         _handleFrame,
-        onError: _handleControlFailure,
+        onError: (Object error) => _handleControlFailure(error),
         onDone: _handleConnectionClosed,
       );
       _statusTimer = Timer.periodic(
         const Duration(milliseconds: 500),
-        (_) => unawaited(_refreshStatus()),
+        (_) {
+          unawaited(_refreshStatus());
+          unawaited(_refreshVisualization());
+        },
       );
       _applySession(status.data);
+      unawaited(_refreshVisualization());
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
   }
 
+  void _retryInitialize() {
+    if (_session != null) return;
+    setState(() => _error = null);
+    unawaited(_initialize());
+  }
+
   Future<void> _refreshStatus() async {
-    if (_statusRefreshInFlight) return;
+    if (_controlHasRefreshPriority || _statusRefreshInFlight) return;
     _statusRefreshInFlight = true;
     try {
       final status = await widget.manager.getManualMappingSession(
         widget.sessionId,
       );
+      if (_controlHasRefreshPriority) return;
       _applySession(status.data);
     } on Object {
       // WSS remains the control safety boundary; a transient read miss does
@@ -92,6 +112,42 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       _statusRefreshInFlight = false;
     }
   }
+
+  Future<void> _refreshVisualization() async {
+    final manager = widget.manager;
+    if (manager is! ManualMappingVisualizationManager ||
+        _controlHasRefreshPriority ||
+        _visualizationRefreshInFlight) {
+      return;
+    }
+    _visualizationRefreshInFlight = true;
+    final visualizationManager = manager as ManualMappingVisualizationManager;
+    try {
+      final response = await visualizationManager.getManualMappingVisualization(
+        widget.sessionId,
+      );
+      final candidate = response.data;
+      if (!mounted ||
+          _controlHasRefreshPriority ||
+          candidate.sessionId != widget.sessionId) {
+        return;
+      }
+      final current = _visualization;
+      if (current != null && candidate.mapRevision < current.mapRevision)
+        return;
+      setState(() => _visualization = candidate);
+    } on Object {
+      // Visualization is read-only and must never affect the control lease.
+    } finally {
+      _visualizationRefreshInFlight = false;
+    }
+  }
+
+  bool get _controlHasRefreshPriority =>
+      _joystick.controlGestureEligible &&
+      !_awaitingStop &&
+      _leaseId != null &&
+      _leaseEpoch != null;
 
   void _handleFrame(ManualMappingServerFrame frame) {
     if (!mounted) return;
@@ -108,7 +164,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       case 'hello':
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'control_granted':
-        if (!_pressed) {
+        if (!_joystick.controlGestureEligible) {
           _leaseId = frame.leaseId;
           _leaseEpoch = frame.leaseEpoch;
           unawaited(_endPress(ManualMappingReleaseReason.pointerCancel));
@@ -125,36 +181,56 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         );
         unawaited(_sendCurrentIntent());
       case 'intent_applied':
+        setState(() => _displayBlockedReason = frame.blockedReason);
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'stop_pending':
         setState(() {
+          _joystick.controlUnavailable();
           _awaitingStop = true;
+          _displayBlockedReason = null;
         });
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'control_stopped':
         setState(() {
+          _joystick.controlRecovered();
           _awaitingStop = false;
           _leaseId = null;
           _leaseEpoch = null;
+          _displayBlockedReason = null;
+          _error = null;
+          _controlErrorCode = null;
         });
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'control_reconnected':
-        setState(() => _awaitingStop = false);
+        setState(() {
+          _joystick.controlRecovered();
+          _awaitingStop = false;
+          _leaseId = null;
+          _leaseEpoch = null;
+          _displayBlockedReason = null;
+          _error = null;
+          _controlErrorCode = null;
+        });
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'error':
+        final errorCode = frame.errorCode ?? 'manual_mapping_control_error';
         _handleControlFailure(
-          StateError(frame.errorCode ?? 'manual_mapping_control_error'),
+          StateError(errorCode),
+          errorCode: errorCode,
         );
     }
   }
 
-  void _handleControlFailure(Object error) {
+  void _handleControlFailure(Object error, {String? errorCode}) {
     if (!mounted || _lifecycleTerminated) return;
     final failedConnection = _connection;
     _connection = null;
     final failedSubscription = _subscription;
     _subscription = null;
-    setState(() => _error = error);
+    setState(() {
+      _error = error;
+      _controlErrorCode = errorCode;
+    });
     unawaited(failedSubscription?.cancel());
     unawaited(failedConnection?.close());
     _handleConnectionClosed();
@@ -164,10 +240,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     _intentTimer?.cancel();
     if (!mounted || _lifecycleTerminated) return;
     setState(() {
-      _pressed = false;
-      _linear = 0;
-      _angular = 0;
-      _knobOffset = Offset.zero;
+      _joystick.controlUnavailable();
       _awaitingStop = true;
       _leaseId = null;
       _leaseEpoch = null;
@@ -194,7 +267,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         _connection = replacement;
         _subscription = replacement.frames.listen(
           _handleFrame,
-          onError: _handleControlFailure,
+          onError: (Object error) => _handleControlFailure(error),
           onDone: _handleConnectionClosed,
         );
         await replacement.reconnect();
@@ -207,16 +280,19 @@ class _ManualMappingPageState extends State<ManualMappingPage>
 
   Future<void> _beginPress(Offset localPosition, Size size) async {
     final connection = _connection;
-    if (connection == null || _pressed || _awaitingStop || _sessionEnded) {
-      return;
-    }
+    if (_joystick.pointerActive || _sessionEnded) return;
     final intent = normalizeManualMappingJoystick(localPosition, size);
+    late final bool shouldAcquire;
     setState(() {
-      _pressed = true;
-      _knobOffset = intent.knobOffset;
-      _linear = intent.linear;
-      _angular = intent.angular;
+      shouldAcquire = _joystick.pointerDown(
+        linear: intent.linear,
+        angular: intent.angular,
+        knobDx: intent.knobOffset.dx,
+        knobDy: intent.knobOffset.dy,
+        controlReady: connection != null && !_awaitingStop,
+      );
     });
+    if (!shouldAcquire || connection == null) return;
     try {
       await connection.acquire();
     } catch (error) {
@@ -225,28 +301,26 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   }
 
   void _updateJoystick(Offset localPosition, Size size) {
-    if (!_pressed || _awaitingStop) return;
-    if (localPosition.dx < 0 ||
-        localPosition.dy < 0 ||
-        localPosition.dx > size.width ||
-        localPosition.dy > size.height) {
-      unawaited(_endPress(ManualMappingReleaseReason.pointerOutside));
-      return;
-    }
+    if (!_joystick.pointerActive) return;
+    // Keep the drag active when the finger moves beyond the painted base.
+    // normalizeManualMappingJoystick clamps the stick to the circular edge;
+    // only an actual pointer end/cancel may release the control lease.
     final intent = normalizeManualMappingJoystick(localPosition, size);
     setState(() {
-      _knobOffset = intent.knobOffset;
-      _angular = intent.angular;
-      _linear = intent.linear;
+      _joystick.pointerMove(
+        linear: intent.linear,
+        angular: intent.angular,
+        knobDx: intent.knobOffset.dx,
+        knobDy: intent.knobOffset.dy,
+      );
     });
-    unawaited(_sendCurrentIntent());
   }
 
   Future<void> _sendCurrentIntent() async {
     final connection = _connection;
     final leaseId = _leaseId;
     final leaseEpoch = _leaseEpoch;
-    if (!_pressed ||
+    if (!_joystick.controlGestureEligible ||
         _awaitingStop ||
         connection == null ||
         leaseId == null ||
@@ -259,8 +333,8 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         leaseId: leaseId,
         leaseEpoch: leaseEpoch,
         seq: seq,
-        linear: _linear,
-        angular: _angular,
+        linear: _joystick.linear,
+        angular: _joystick.angular,
       );
     } catch (error) {
       _handleControlFailure(error);
@@ -268,7 +342,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   }
 
   Future<void> _endPress(ManualMappingReleaseReason reason) async {
-    if (!_pressed && _leaseId == null) return;
+    if (!_joystick.pointerActive && _leaseId == null) return;
     final connection = _connection;
     final leaseId = _leaseId;
     final leaseEpoch = _leaseEpoch;
@@ -276,11 +350,8 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     _intentTimer = null;
     if (mounted) {
       setState(() {
-        _pressed = false;
-        _linear = 0;
-        _angular = 0;
-        _knobOffset = Offset.zero;
-        _awaitingStop = leaseId != null;
+        _joystick.pointerUp();
+        _awaitingStop = _awaitingStop || leaseId != null;
       });
     }
     if (connection == null || leaseId == null || leaseEpoch == null) return;
@@ -328,26 +399,41 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       );
       return;
     }
+    final controlCanResume =
+        _connection != null && manualMappingControlCanResume(candidate);
     final current = _session;
     if (current != null) {
-      if (candidate.revision <= current.revision) return;
+      if (candidate.revision < current.revision) return;
+      if (candidate.revision == current.revision &&
+          !(_awaitingStop && controlCanResume)) {
+        return;
+      }
       if (_isTerminalPhase(current.phase) &&
           !_isTerminalPhase(candidate.phase)) {
         return;
       }
     }
     final terminal = _isTerminalPhase(candidate.phase);
-    if (terminal) _intentTimer?.cancel();
+    if (terminal || controlCanResume) {
+      _intentTimer?.cancel();
+      _intentTimer = null;
+    }
     setState(() {
       _session = candidate;
+      _displayBlockedReason = candidate.blockedReason;
       if (terminal) {
-        _pressed = false;
-        _linear = 0;
-        _angular = 0;
-        _knobOffset = Offset.zero;
+        _joystick.terminate();
+      } else if (controlCanResume) {
+        _joystick.controlRecovered();
+      }
+      if (terminal || controlCanResume) {
         _leaseId = null;
         _leaseEpoch = null;
-        _awaitingStop = !candidate.stopConfirmed;
+        _awaitingStop = terminal ? !candidate.stopConfirmed : false;
+        if (controlCanResume) {
+          _error = null;
+          _controlErrorCode = null;
+        }
       }
     });
   }
@@ -382,35 +468,140 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   @override
   Widget build(BuildContext context) {
     final session = _session;
+    final candidateVisualization = _visualization;
+    final visualizationFrameMismatch = session != null &&
+        candidateVisualization != null &&
+        candidateVisualization.mapFrameId != session.incrementalMap.frameId;
+    final visualization = session != null && !visualizationFrameMismatch
+        ? candidateVisualization
+        : null;
+    final now = widget.clock?.call() ?? DateTime.now();
+    final displayLaserScan = _displayableLaserScan(
+      visualization?.laserScan,
+      now: now,
+    );
+    final visualizationPoseIsFresh = visualization != null &&
+        _mappingObservationIsDisplayable(visualization.observedAt, now: now);
     return Scaffold(
       appBar: AppBar(title: const Text('手动建图')),
       body: session == null
           ? Center(
               child: _error == null
                   ? const CircularProgressIndicator()
-                  : const Text('手动建图状态暂时不可用'),
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('手动建图状态暂时不可用'),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          key: const Key('manual-mapping-retry'),
+                          onPressed: _retryInitialize,
+                          child: const Text('重试'),
+                        ),
+                      ],
+                    ),
             )
           : SingleChildScrollView(
+              physics: _joystick.pointerActive
+                  ? const NeverScrollableScrollPhysics()
+                  : null,
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
-                    color: const Color(0xFFFFE5E5),
-                    child: const Text(
-                      'MOCK_NO_MOTION',
+                    color: session.mode == 'REAL'
+                        ? const Color(0xFFFFF3CD)
+                        : const Color(0xFFFFE5E5),
+                    child: Text(
+                      session.mode == 'REAL'
+                          ? 'REAL · 现场低速建图'
+                          : 'MOCK_NO_MOTION',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
+                  if (session.mode == 'REAL') ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      '拖动摇杆会让机器人实际移动；请保持急停可及。',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '当前采用无充电桩路径：请从安全空旷位置开始，'
+                      '结束后停车并保存未回桩验证地图。',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   AspectRatio(
                     aspectRatio: 1,
-                    child: CustomPaint(
+                    child: ManualMappingMapView(
                       key: const Key('manual-mapping-map'),
-                      painter: _IncrementalMapPainter(session),
+                      map: session.incrementalMap,
+                      robotPose: visualizationPoseIsFresh
+                          ? visualization.robotPose
+                          : session.robotPose,
+                      laserScan: displayLaserScan,
+                      trajectory: visualization?.trajectory ?? const [],
+                      safetyBoundaries: visualization?.safetyBoundaries,
+                      showLaser: _showLaser,
+                      showTrajectory: _showTrajectory,
+                      showSafetyBoundaries: _showSafetyBoundaries,
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '地图 r${session.incrementalMap.revision} · '
+                    '${session.incrementalMap.resolutionMPerPx.toStringAsFixed(3)} m/格 · '
+                    '${session.incrementalMap.frameId} · '
+                    '${_mapObservedAtLabel(session.incrementalMap.observedAt)}',
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      FilterChip(
+                        key: const Key('manual-mapping-layer-laser'),
+                        selected: _showLaser,
+                        label: Text(
+                          '雷达 ${displayLaserScan?.points.length ?? 0}点',
+                        ),
+                        onSelected: (selected) =>
+                            setState(() => _showLaser = selected),
+                      ),
+                      FilterChip(
+                        key: const Key('manual-mapping-layer-trajectory'),
+                        selected: _showTrajectory,
+                        label: Text(
+                          '轨迹 ${visualization?.trajectory.length ?? 0}点',
+                        ),
+                        onSelected: (selected) =>
+                            setState(() => _showTrajectory = selected),
+                      ),
+                      FilterChip(
+                        key: const Key('manual-mapping-layer-safety'),
+                        selected: _showSafetyBoundaries,
+                        label: const Text('安全阈值'),
+                        onSelected: (selected) =>
+                            setState(() => _showSafetyBoundaries = selected),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _mappingVisualizationLabel(
+                      candidateVisualization,
+                      expectedMapFrame: session.incrementalMap.frameId,
+                      now: now,
+                    ),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -423,9 +614,14 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                     '用时 ${_elapsed(session.elapsedMs)}',
                     textAlign: TextAlign.center,
                   ),
-                  if (session.blockedReason != null)
+                  Text(
+                    _mappingQualityLabel(session.quality),
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (_displayBlockedReason != null)
                     Text(
-                      _blockedReasonLabel(session.blockedReason!),
+                      _blockedReasonLabel(_displayBlockedReason!),
                       textAlign: TextAlign.center,
                     ),
                   const SizedBox(height: 16),
@@ -452,10 +648,20 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                           onPointerCancel: (_) => unawaited(
                             _endPress(ManualMappingReleaseReason.pointerCancel),
                           ),
-                          child: CustomPaint(
-                            painter: _JoystickPainter(
-                              knobOffset: _knobOffset,
-                              disabled: _awaitingStop || _sessionEnded,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onPanUpdate: (_) {
+                              // Claim the drag from the parent scroll view;
+                              // Listener retains the raw pointer positions.
+                            },
+                            child: CustomPaint(
+                              painter: _JoystickPainter(
+                                knobOffset: Offset(
+                                  _joystick.knobDx,
+                                  _joystick.knobDy,
+                                ),
+                                disabled: _awaitingStop || _sessionEnded,
+                              ),
                             ),
                           ),
                         ),
@@ -464,8 +670,8 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '线性 ${_linear.toStringAsFixed(2)} · '
-                    '转向 ${_angular.toStringAsFixed(2)}',
+                    '线性 ${_joystick.linear.toStringAsFixed(2)} · '
+                    '转向 ${_joystick.angular.toStringAsFixed(2)}',
                     textAlign: TextAlign.center,
                   ),
                   if (_awaitingStop)
@@ -474,11 +680,16 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                       textAlign: TextAlign.center,
                     ),
                   const SizedBox(height: 16),
-                  if (!_sessionEnded) _terminalActions(session.phase),
-                  if (_error != null)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: Text('控制通道出现错误，机器人已按停止路径处理。'),
+                  if (!_sessionEnded) _terminalActions(session),
+                  if (_error != null || _controlErrorCode != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        _controlErrorCode == null
+                            ? '控制通道出现错误，机器人已按停止路径处理。'
+                            : '控制通道出现错误（$_controlErrorCode），'
+                                '机器人已按停止路径处理。',
+                      ),
                     ),
                 ],
               ),
@@ -486,26 +697,36 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     );
   }
 
-  Widget _terminalActions(ManualMappingPhase phase) {
+  Widget _terminalActions(ManualMappingSession session) {
+    final phase = session.phase;
+    final realNoDock = session.mode == 'REAL';
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       alignment: WrapAlignment.center,
       children: [
-        if (phase == ManualMappingPhase.collecting)
+        if (phase == ManualMappingPhase.collecting && !realNoDock)
           FilledButton(
             onPressed: () => _command(ManualMappingAction.finishCollection),
             child: const Text('提前结束采集'),
           ),
-        if (phase == ManualMappingPhase.manualDocking)
+        if (phase == ManualMappingPhase.manualDocking && !realNoDock)
           FilledButton(
             onPressed: () => _command(ManualMappingAction.dockVerified),
             child: const Text('已手动回桩并保存'),
           ),
-        OutlinedButton(
-          onPressed: () => _command(ManualMappingAction.saveUnverified),
-          child: const Text('保存未确认地图'),
-        ),
+        if (realNoDock &&
+            (phase == ManualMappingPhase.collecting ||
+                phase == ManualMappingPhase.manualDocking))
+          FilledButton(
+            onPressed: () => _command(ManualMappingAction.saveUnverified),
+            child: const Text('结束并保存未验证地图'),
+          )
+        else
+          OutlinedButton(
+            onPressed: () => _command(ManualMappingAction.saveUnverified),
+            child: const Text('保存未确认地图'),
+          ),
         OutlinedButton(
           onPressed: () => _command(ManualMappingAction.immediateStop),
           child: const Text('立即停止并保存'),
@@ -517,44 +738,6 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       ],
     );
   }
-}
-
-class _IncrementalMapPainter extends CustomPainter {
-  const _IncrementalMapPainter(this.session);
-  final ManualMappingSession session;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xFFE5E7EB),
-    );
-    final map = session.incrementalMap;
-    final cellWidth = size.width / map.widthPx;
-    final cellHeight = size.height / map.heightPx;
-    final explored = Paint()..color = const Color(0xFFF9FAFB);
-    for (final cell in map.exploredCells) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          cell.x * cellWidth,
-          cell.y * cellHeight,
-          cellWidth,
-          cellHeight,
-        ),
-        explored,
-      );
-    }
-    final pose = session.robotPose;
-    canvas.drawCircle(
-      Offset(size.width / 2 + pose.x * 10, size.height / 2 - pose.y * 10),
-      6,
-      Paint()..color = const Color(0xFF136F63),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_IncrementalMapPainter oldDelegate) =>
-      oldDelegate.session.revision != session.revision;
 }
 
 class _JoystickPainter extends CustomPainter {
@@ -583,9 +766,11 @@ class _JoystickPainter extends CustomPainter {
       oldDelegate.knobOffset != knobOffset || oldDelegate.disabled != disabled;
 }
 
-String _phaseLabel(ManualMappingPhase phase) => switch (phase) {
+String _phaseLabel(ManualMappingPhase phase, {required String mode}) =>
+    switch (phase) {
       ManualMappingPhase.collecting => '采集中',
-      ManualMappingPhase.manualDocking => '请在 5 分钟内手动回桩',
+      ManualMappingPhase.manualDocking =>
+        mode == 'REAL' ? '请停车并保存未回桩验证地图' : '请在 5 分钟内手动回桩',
       ManualMappingPhase.completed => '已保存',
       ManualMappingPhase.terminated => '已终止并保存未确认地图',
       ManualMappingPhase.abandoned => '已放弃',
@@ -610,7 +795,7 @@ String _sessionLabel(ManualMappingSession session) => switch (session.outcome) {
       'abandoned' => '已放弃地图',
       'capacity_failed' => '保存失败：容量不足',
       'interrupted_saved' => '异常中断，已保存中断地图',
-      null => _phaseLabel(session.phase),
+      null => _phaseLabel(session.phase, mode: session.mode),
       _ => '结果不可识别，控制已禁用',
     };
 
@@ -626,6 +811,75 @@ String _elapsed(int milliseconds) {
   return '${minutes.toString().padLeft(2, '0')}:'
       '${(seconds % 60).toString().padLeft(2, '0')}';
 }
+
+String _mapObservedAtLabel(DateTime observedAt) {
+  final local = observedAt.toLocal();
+  return '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}:'
+      '${local.second.toString().padLeft(2, '0')}';
+}
+
+String _mappingVisualizationLabel(
+  ManualMappingVisualization? visualization, {
+  required String expectedMapFrame,
+  required DateTime now,
+}) {
+  if (visualization != null && visualization.mapFrameId != expectedMapFrame) {
+    return '可视化坐标帧 ${visualization.mapFrameId} 与地图 '
+        '$expectedMapFrame 不一致，图层已隐藏';
+  }
+  final scan = visualization?.laserScan;
+  final boundaries = visualization?.safetyBoundaries;
+  final scanFreshness =
+      scan == null ? null : _mappingFreshnessLabel(scan.observedAt, now: now);
+  final scanLabel = scan == null
+      ? '雷达等待有效 map-frame 数据'
+      : !_mappingObservationIsDisplayable(scan.observedAt, now: now)
+          ? scanFreshness == '时间异常'
+              ? '雷达时间异常，点云已隐藏'
+              : '雷达已过期，点云已隐藏'
+          : '雷达$scanFreshness';
+  final boundaryLabel = boundaries == null
+      ? '安全阈值未投影'
+      : '硬阻断 ${(boundaries.hardStopDistanceM * 100).round()}cm / '
+          '软减速 ${(boundaries.softSlowdownDistanceM * 100).round()}cm'
+          '（激光距离阈值示意）';
+  return '$scanLabel · $boundaryLabel';
+}
+
+ManualMappingLaserScan? _displayableLaserScan(
+  ManualMappingLaserScan? scan, {
+  required DateTime now,
+}) =>
+    scan != null && _mappingObservationIsDisplayable(scan.observedAt, now: now)
+        ? scan
+        : null;
+
+bool _mappingObservationIsDisplayable(
+  DateTime observedAt, {
+  required DateTime now,
+}) {
+  final age = now.toUtc().difference(observedAt.toUtc());
+  return !age.isNegative && age <= const Duration(seconds: 5);
+}
+
+String _mappingFreshnessLabel(
+  DateTime observedAt, {
+  required DateTime now,
+}) {
+  final age = now.toUtc().difference(observedAt.toUtc());
+  if (age.isNegative) return '时间异常';
+  if (age <= const Duration(seconds: 2)) return '实时';
+  if (age <= const Duration(seconds: 5)) return '延迟';
+  return '已过期';
+}
+
+String _mappingQualityLabel(MapQuality quality) =>
+    '地图质量 ${quality.overallScore}/100 · '
+    '覆盖 ${quality.coverageScore} · '
+    '一致 ${quality.consistencyScore} · '
+    '定位 ${quality.localizabilityScore} · '
+    '可导航 ${quality.navigabilityScore}（仅诊断，不是建图进度）';
 
 ({double linear, double angular, Offset knobOffset})
     normalizeManualMappingJoystick(Offset localPosition, Size size) {

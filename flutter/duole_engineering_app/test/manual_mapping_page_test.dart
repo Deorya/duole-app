@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:duole_app_contract/app_contract.dart';
+import 'package:duole_engineering_app/manual_mapping_map_view.dart';
 import 'package:duole_engineering_app/manual_mapping_page.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/manual_mapping_control.dart';
@@ -42,6 +43,178 @@ void main() {
       ),
       closeTo(1, 0.0001),
     );
+  });
+
+  testWidgets('map exposes bounded RViz-style layers and threshold semantics',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _StaticManualManager(_sessionEnvelope()),
+          controlTransport: _ManualTransport(_ManualConnection()),
+          clock: () => DateTime.parse('2026-08-27T06:00:02Z'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('雷达 1点'), findsOneWidget);
+    expect(find.text('轨迹 2点'), findsOneWidget);
+    expect(find.textContaining('硬阻断 10cm / 软减速 30cm'), findsOneWidget);
+    expect(find.textContaining('激光距离阈值示意'), findsOneWidget);
+    expect(find.textContaining('仅诊断，不是建图进度'), findsOneWidget);
+    var painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<ManualMappingMapPainter>()
+        .single;
+    expect(painter.showLaser, isTrue);
+
+    final laserChip = find.byKey(const Key('manual-mapping-layer-laser'));
+    await tester.ensureVisible(laserChip);
+    await tester.pump();
+    await tester.tap(laserChip);
+    await tester.pump();
+    painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<ManualMappingMapPainter>()
+        .single;
+    expect(painter.showLaser, isFalse);
+  });
+
+  testWidgets('failed initial session read can be retried in place',
+      (tester) async {
+    final manager = _FailOnceManualManager();
+    final transport = _ManualTransport(_ManualConnection());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: transport,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('手动建图状态暂时不可用'), findsOneWidget);
+    expect(find.byKey(const Key('manual-mapping-retry')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('manual-mapping-retry')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('手动建图状态暂时不可用'), findsNothing);
+    expect(find.textContaining('REAL · 现场低速建图'), findsOneWidget);
+    expect(manager.reads, 2);
+    expect(transport.connectCount, 1);
+  });
+
+  testWidgets('stale laser is hidden while the historical trajectory remains',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _StaticManualManager(
+            _sessionEnvelope(),
+            visualizationObservedAt: '2026-08-27T06:00:00Z',
+          ),
+          controlTransport: _ManualTransport(_ManualConnection()),
+          clock: () => DateTime.parse('2026-08-27T06:00:10Z'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('雷达已过期，点云已隐藏'), findsOneWidget);
+    final painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<ManualMappingMapPainter>()
+        .single;
+    expect(painter.laserScan, isNull);
+    expect(painter.trajectory, hasLength(2));
+  });
+
+  testWidgets('frame-mismatched visualization layers are hidden',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _StaticManualManager(
+            _sessionEnvelope(),
+            visualizationFrameId: 'odom',
+          ),
+          controlTransport: _ManualTransport(_ManualConnection()),
+          clock: () => DateTime.parse('2026-08-27T06:00:02Z'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('可视化坐标帧 odom 与地图 map 不一致'),
+      findsOneWidget,
+    );
+    final painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<ManualMappingMapPainter>()
+        .single;
+    expect(painter.laserScan, isNull);
+    expect(painter.trajectory, isEmpty);
+    expect(painter.safetyBoundaries, isNull);
+  });
+
+  testWidgets('future-dated laser is reported and hidden', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _StaticManualManager(
+            _sessionEnvelope(),
+            visualizationObservedAt: '2026-08-27T06:00:10Z',
+          ),
+          controlTransport: _ManualTransport(_ManualConnection()),
+          clock: () => DateTime.parse('2026-08-27T06:00:02Z'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('雷达时间异常，点云已隐藏'), findsOneWidget);
+    final painter = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((paint) => paint.painter)
+        .whereType<ManualMappingMapPainter>()
+        .single;
+    expect(painter.laserScan, isNull);
+  });
+
+  testWidgets('visualization refresh is not blocked by a slow status read',
+      (tester) async {
+    final manager = _IndependentRefreshManualManager();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: _ManualTransport(_ManualConnection()),
+          clock: () => DateTime.parse('2026-08-27T06:00:02Z'),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    expect(manager.statusReads, 2);
+    expect(manager.visualizationReads, 2);
+
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets(
@@ -86,7 +259,7 @@ void main() {
       ));
       await tester.pump();
       await gesture.moveBy(const Offset(48, -64));
-      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
 
       expect(connection.intents, isNotEmpty);
       expect(connection.intents.last.linear, closeTo(0.8, 0.05));
@@ -112,6 +285,258 @@ void main() {
       await nextGesture.cancel();
     },
   );
+
+  testWidgets('session-free intent feedback updates collision status',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _ManualManager(),
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    connection.emit(
+      _frame(
+        'intent_applied',
+        acceptedSeq: 1,
+        status: 'scaled',
+        blockedReason: 'collision_slowdown',
+        effectiveLinear: 0.25,
+        effectiveAngular: 0.0,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('防碰撞保护：已减速'), findsOneWidget);
+
+    connection.emit(
+      _frame(
+        'intent_applied',
+        acceptedSeq: 2,
+        status: 'applied',
+        effectiveLinear: 0.5,
+        effectiveAngular: 0.0,
+      ),
+    );
+    await tester.pump();
+    expect(find.text('防碰撞保护：已减速'), findsNothing);
+  });
+
+  testWidgets('held drag beyond the edge stays clamped until pointer up',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _ManualManager(mode: 'REAL'),
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'6' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+
+    await gesture.moveBy(const Offset(0, -140));
+    await tester.pump();
+
+    expect(connection.releases, isEmpty);
+    expect(find.textContaining('线性 1.00'), findsOneWidget);
+    final intentCountWhileHeld = connection.intents.length;
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(connection.intents.length, greaterThan(intentCountWhileHeld));
+    expect(connection.intents.last.linear, closeTo(1, 0.001));
+
+    await gesture.up();
+    await tester.pump();
+    expect(connection.releases, [ManualMappingReleaseReason.pointerUp]);
+    expect(find.textContaining('线性 0.00'), findsOneWidget);
+  });
+
+  testWidgets('drag updates are coalesced into the 100ms intent cadence',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _ManualManager(mode: 'REAL'),
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'5' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+
+    expect(connection.intents, hasLength(1));
+    await gesture.moveBy(const Offset(20, -30));
+    await gesture.moveBy(const Offset(20, -30));
+    await tester.pump(const Duration(milliseconds: 99));
+
+    expect(connection.intents, hasLength(1));
+
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(connection.intents, hasLength(2));
+    expect(connection.intents.last.linear, closeTo(0.6, 0.01));
+    expect(connection.intents.last.angular, closeTo(0.4, 0.01));
+
+    await gesture.up();
+    await tester.pump();
+  });
+
+  testWidgets(
+    'active control pauses board-backed map refresh without pausing intents',
+    (tester) async {
+      final manager = _CountingRefreshManualManager();
+      final connection = _ManualConnection();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ManualMappingPage(
+            sessionId: _sessionId,
+            manager: manager,
+            controlTransport: _ManualTransport(connection),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final joystick = find.byKey(const Key('manual-mapping-joystick'));
+      await tester.scrollUntilVisible(joystick, 300);
+      final gesture = await tester.startGesture(tester.getCenter(joystick));
+      await tester.pump();
+      connection.emit(_frame(
+        'control_granted',
+        leaseId: 'mapping_lease_${'4' * 32}',
+        leaseEpoch: 1,
+      ));
+      await tester.pump();
+      final statusReadsAtGrant = manager.statusReads;
+      final visualizationReadsAtGrant = manager.visualizationReads;
+      final intentsAtGrant = connection.intents.length;
+
+      await tester.pump(const Duration(milliseconds: 1100));
+
+      expect(
+          connection.intents.length, greaterThanOrEqualTo(intentsAtGrant + 11));
+      expect(manager.statusReads, statusReadsAtGrant);
+      expect(manager.visualizationReads, visualizationReadsAtGrant);
+
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 501));
+      expect(manager.statusReads, greaterThan(statusReadsAtGrant));
+      expect(
+        manager.visualizationReads,
+        greaterThan(visualizationReadsAtGrant),
+      );
+    },
+  );
+
+  testWidgets('REAL session warns that the joystick moves the physical robot',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _StaticManualManager(_sessionEnvelope(mode: 'REAL')),
+          controlTransport: _ManualTransport(_ManualConnection()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('REAL · 现场低速建图'), findsOneWidget);
+    expect(
+      find.text('拖动摇杆会让机器人实际移动；请保持急停可及。'),
+      findsOneWidget,
+    );
+    expect(find.text('MOCK_NO_MOTION'), findsNothing);
+  });
+
+  testWidgets('REAL session finishes through no-dock unverified save',
+      (tester) async {
+    final manager = _ManualManager(mode: 'REAL');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: _ManualTransport(_ManualConnection()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('结束并保存未验证地图'), findsOneWidget);
+    expect(find.text('提前结束采集'), findsNothing);
+    await tester.scrollUntilVisible(find.text('结束并保存未验证地图'), 300);
+    await tester.tap(find.text('结束并保存未验证地图'));
+    await tester.pumpAndSettle();
+
+    expect(manager.commands, [ManualMappingAction.saveUnverified]);
+  });
+
+  testWidgets('REAL touch drives acquire intent and pointer-up release',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _ManualManager(mode: 'REAL'),
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final pressAt = tester.getTopLeft(joystick) + const Offset(100, 10);
+    final gesture = await tester.startGesture(pressAt);
+    await tester.pump();
+    expect(connection.acquireCount, 1);
+
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'8' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+
+    expect(connection.intents, isNotEmpty);
+    expect(connection.intents.last.linear, closeTo(0.9, 0.01));
+    expect(connection.intents.last.angular, closeTo(0, 0.01));
+
+    await gesture.up();
+    await tester.pump();
+    expect(connection.releases, [ManualMappingReleaseReason.pointerUp]);
+    expect(find.text('等待停止确认'), findsOneWidget);
+  });
 
   testWidgets('press position immediately determines held intent',
       (tester) async {
@@ -179,14 +604,14 @@ void main() {
     await gesture.cancel();
   });
 
-  testWidgets('protocol error zeros locally and stops the intent timer',
+  testWidgets('protocol error keeps local drag but stops intent and shows code',
       (tester) async {
     final connection = _ManualConnection();
     await tester.pumpWidget(
       MaterialApp(
         home: ManualMappingPage(
           sessionId: _sessionId,
-          manager: _ManualManager(),
+          manager: _RecoveringManualManager(),
           controlTransport: _ManualTransport(connection),
         ),
       ),
@@ -207,16 +632,158 @@ void main() {
     await tester.pump(const Duration(milliseconds: 150));
     expect(connection.intents, isNotEmpty);
 
-    connection.emitError(const FormatException('future_frame'));
+    final scrollable = Scrollable.of(tester.element(joystick));
+    final scrollOffsetBeforeDrag = scrollable.position.pixels;
+    connection.emit(_frame(
+      'error',
+      errorCode: 'MANUAL_MAPPING_LEASE_EXPIRED',
+    ));
     await tester.pump();
     final intentCountAfterError = connection.intents.length;
+    await gesture.moveBy(const Offset(50, 50));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(connection.intents.length, intentCountAfterError);
+    expect(find.textContaining('线性 0.40'), findsOneWidget);
+    expect(find.textContaining('转向 0.50'), findsOneWidget);
+    expect(find.text('等待停止确认'), findsOneWidget);
+    expect(find.textContaining('MANUAL_MAPPING_LEASE_EXPIRED'), findsOneWidget);
+    expect(scrollable.position.pixels, scrollOffsetBeforeDrag);
+    expect(connection.closeCount, greaterThanOrEqualTo(1));
+    await gesture.up();
+    await tester.pump();
     expect(find.textContaining('线性 0.00'), findsOneWidget);
     expect(find.textContaining('转向 0.00'), findsOneWidget);
+  });
+
+  testWidgets('reconnect never resumes control for an already-held pointer',
+      (tester) async {
+    final manager = _RecoveringManualManager();
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(joystick) + const Offset(100, 10),
+    );
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'7' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+    expect(connection.acquireCount, 1);
+    expect(connection.intents, isNotEmpty);
+
+    connection.emit(_frame(
+      'error',
+      errorCode: 'MANUAL_MAPPING_GUARD_UNAVAILABLE',
+    ));
+    await tester.pump();
+    final intentCountAfterError = connection.intents.length;
+    manager.confirmStop();
+    await tester.pump(const Duration(milliseconds: 501));
+    await tester.pump();
+    expect(find.text('等待停止确认'), findsNothing);
+
+    await gesture.moveBy(const Offset(50, 50));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.textContaining('线性 0.40'), findsOneWidget);
+    expect(find.textContaining('转向 0.50'), findsOneWidget);
+    expect(connection.acquireCount, 1);
+    expect(connection.intents.length, intentCountAfterError);
+
+    await gesture.up();
+    await tester.pump();
+    final freshGesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    expect(connection.acquireCount, 2);
+    await freshGesture.cancel();
+  });
+
+  testWidgets('confirmed stopped status restores joystick after control error',
+      (tester) async {
+    final manager = _RecoveringManualManager();
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    connection.emitError(const FormatException('intent_expired'));
+    await tester.pump();
     expect(find.text('等待停止确认'), findsOneWidget);
-    expect(connection.closeCount, greaterThanOrEqualTo(1));
+
+    manager.confirmStop();
+    await tester.pump(const Duration(milliseconds: 501));
+    await tester.pump();
+
+    expect(find.text('等待停止确认'), findsNothing);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    expect(connection.acquireCount, 1);
+    await gesture.cancel();
+  });
+
+  testWidgets('successful reconnect clears the prior control channel error',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: _RecoveringManualManager(),
+          controlTransport: _ManualTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'1' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump(const Duration(milliseconds: 150));
+    connection.emit(_frame(
+      'error',
+      errorCode: 'MANUAL_MAPPING_RECONNECT_NOT_ALLOWED',
+    ));
+    await tester.pump();
+    expect(
+      find.textContaining('MANUAL_MAPPING_RECONNECT_NOT_ALLOWED'),
+      findsOneWidget,
+    );
+
+    connection.emit(_frame('control_reconnected'));
+    await tester.pump();
+
+    expect(find.textContaining('控制通道出现错误'), findsNothing);
+    expect(find.text('等待停止确认'), findsNothing);
     await gesture.cancel();
   });
 
@@ -334,13 +901,18 @@ void main() {
 const _sessionId = 'manual_mapping_0123456789abcdef0123456789abcdef';
 
 class _ManualManager implements ManualMappingManager {
+  _ManualManager({this.mode = 'MOCK_NO_MOTION'});
+
+  final String mode;
   final commands = <ManualMappingAction>[];
 
   @override
   Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
     String sessionId,
   ) async =>
-      ManualMappingSessionSuccessEnvelope.fromJson(_sessionEnvelope());
+      ManualMappingSessionSuccessEnvelope.fromJson(
+        _sessionEnvelope(mode: mode),
+      );
 
   @override
   Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
@@ -348,13 +920,44 @@ class _ManualManager implements ManualMappingManager {
     ManualMappingAction action,
   ) async {
     commands.add(action);
-    return ManualMappingSessionSuccessEnvelope.fromJson(_sessionEnvelope());
+    return ManualMappingSessionSuccessEnvelope.fromJson(
+      _sessionEnvelope(mode: mode),
+    );
   }
 }
 
-class _StaticManualManager implements ManualMappingManager {
-  _StaticManualManager(this.envelope);
+class _FailOnceManualManager implements ManualMappingManager {
+  var reads = 0;
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  ) async {
+    reads += 1;
+    if (reads == 1) throw StateError('transient_session_read_failure');
+    return ManualMappingSessionSuccessEnvelope.fromJson(
+      _sessionEnvelope(mode: 'REAL'),
+    );
+  }
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
+  ) =>
+      getManualMappingSession(sessionId);
+}
+
+class _StaticManualManager
+    implements ManualMappingManager, ManualMappingVisualizationManager {
+  _StaticManualManager(
+    this.envelope, {
+    this.visualizationFrameId = 'map',
+    this.visualizationObservedAt = '2026-08-27T06:00:01Z',
+  });
   final Map<String, Object?> envelope;
+  final String visualizationFrameId;
+  final String visualizationObservedAt;
 
   @override
   Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
@@ -368,6 +971,104 @@ class _StaticManualManager implements ManualMappingManager {
     ManualMappingAction action,
   ) async =>
       ManualMappingSessionSuccessEnvelope.fromJson(envelope);
+
+  @override
+  Future<ManualMappingVisualizationSuccessEnvelope>
+      getManualMappingVisualization(String sessionId) async =>
+          ManualMappingVisualizationSuccessEnvelope.fromJson({
+            'schema_version': '1.0',
+            'request_id': 'req_manual_visualization_ui_01',
+            'server_time': '2026-08-27T06:00:01Z',
+            'data': {
+              'session_id': sessionId,
+              'map_revision': 0,
+              'map_frame_id': visualizationFrameId,
+              'observed_at': visualizationObservedAt,
+              'robot_pose': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},
+              'laser_scan': {
+                'frame_id': visualizationFrameId,
+                'observed_at': visualizationObservedAt,
+                'points': [
+                  {'x': 0.1, 'y': 0.0},
+                ],
+              },
+              'trajectory': [
+                {'x': 0.0, 'y': 0.0},
+                {'x': 0.1, 'y': 0.0},
+              ],
+              'safety_boundaries': {
+                'source': 'laser_scan',
+                'hard_stop_distance_m': 0.1,
+                'soft_slowdown_distance_m': 0.3,
+              },
+            },
+          });
+}
+
+class _CountingRefreshManualManager
+    implements ManualMappingManager, ManualMappingVisualizationManager {
+  var statusReads = 0;
+  var visualizationReads = 0;
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  ) async {
+    statusReads += 1;
+    return ManualMappingSessionSuccessEnvelope.fromJson(
+      _sessionEnvelope(mode: 'REAL'),
+    );
+  }
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
+  ) =>
+      getManualMappingSession(sessionId);
+
+  @override
+  Future<ManualMappingVisualizationSuccessEnvelope>
+      getManualMappingVisualization(String sessionId) async {
+    visualizationReads += 1;
+    return _StaticManualManager(_sessionEnvelope(mode: 'REAL'))
+        .getManualMappingVisualization(sessionId);
+  }
+}
+
+class _IndependentRefreshManualManager
+    implements ManualMappingManager, ManualMappingVisualizationManager {
+  final delayedStatus = Completer<ManualMappingSessionSuccessEnvelope>();
+  var statusReads = 0;
+  var visualizationReads = 0;
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  ) {
+    statusReads += 1;
+    if (statusReads == 1) {
+      return Future.value(
+        ManualMappingSessionSuccessEnvelope.fromJson(_sessionEnvelope()),
+      );
+    }
+    return delayedStatus.future;
+  }
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
+  ) =>
+      getManualMappingSession(sessionId);
+
+  @override
+  Future<ManualMappingVisualizationSuccessEnvelope>
+      getManualMappingVisualization(String sessionId) async {
+    visualizationReads += 1;
+    return _StaticManualManager(_sessionEnvelope())
+        .getManualMappingVisualization(sessionId);
+  }
 }
 
 class _RacingManualManager implements ManualMappingManager {
@@ -409,6 +1110,31 @@ class _RacingManualManager implements ManualMappingManager {
       ),
     );
   }
+}
+
+class _RecoveringManualManager implements ManualMappingManager {
+  var _stopConfirmed = false;
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> getManualMappingSession(
+    String sessionId,
+  ) async =>
+      ManualMappingSessionSuccessEnvelope.fromJson(
+        _sessionEnvelope(
+          controlState: _stopConfirmed ? 'stopped' : 'controlling',
+          stopConfirmed: _stopConfirmed,
+          revision: _stopConfirmed ? 2 : 1,
+        ),
+      );
+
+  @override
+  Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
+    String sessionId,
+    ManualMappingAction action,
+  ) =>
+      getManualMappingSession(sessionId);
+
+  void confirmStop() => _stopConfirmed = true;
 }
 
 class _ManualTransport implements ManualMappingWebSocketTransport {
@@ -483,6 +1209,12 @@ ManualMappingServerFrame _frame(
   String type, {
   String? leaseId,
   int? leaseEpoch,
+  int? acceptedSeq,
+  String? status,
+  double? effectiveLinear,
+  double? effectiveAngular,
+  String? blockedReason,
+  String? errorCode,
 }) =>
     ManualMappingServerFrame.fromJson({
       'type': type,
@@ -490,16 +1222,19 @@ ManualMappingServerFrame _frame(
       'session': null,
       'lease_id': leaseId,
       'lease_epoch': leaseEpoch,
-      'accepted_seq': null,
-      'status': null,
-      'effective_linear': null,
-      'effective_angular': null,
-      'blocked_reason': null,
-      'error_code': null,
+      'accepted_seq': acceptedSeq,
+      'status': status,
+      'effective_linear': effectiveLinear,
+      'effective_angular': effectiveAngular,
+      'blocked_reason': blockedReason,
+      'error_code': errorCode,
     });
 
 Map<String, Object?> _sessionEnvelope({
+  String mode = 'MOCK_NO_MOTION',
   String phase = 'collecting',
+  String controlState = 'stopped',
+  bool stopConfirmed = true,
   String? outcome,
   int revision = 1,
 }) =>
@@ -512,22 +1247,27 @@ Map<String, Object?> _sessionEnvelope({
         'mapping_operation_id': 'mapping_${'b' * 32}',
         'robot_id': 'robot-home',
         'actor_id': 'dvs_${'a' * 32}',
-        'mode': 'MOCK_NO_MOTION',
+        'mode': mode,
         'phase': phase,
         'started_at': '2026-08-27T06:00:00Z',
         'updated_at': '2026-08-27T06:00:00Z',
         'phase_deadline': '2026-08-27T06:30:00Z',
-        'control_state': 'stopped',
+        'control_state': controlState,
         'lease_epoch': 0,
         'last_seq': 0,
         'effective_linear': 0.0,
         'effective_angular': 0.0,
         'blocked_reason': null,
-        'stop_confirmed': true,
+        'stop_confirmed': stopConfirmed,
         'incremental_map': {
           'revision': 0,
           'width_px': 16,
           'height_px': 16,
+          'resolution_m_per_px': 0.05,
+          'origin': {'x_m': -0.4, 'y_m': -0.4, 'yaw_rad': 0.0},
+          'frame_id': 'map',
+          'observed_at': '2026-08-27T06:00:01Z',
+          'occupancy_rle': [-1, 256],
           'explored_cells': <Object?>[],
         },
         'robot_pose': {'x': 0.0, 'y': 0.0, 'yaw': 0.0},

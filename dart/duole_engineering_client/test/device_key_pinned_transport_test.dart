@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -29,21 +30,31 @@ Future<void> main() async {
       final body = await utf8.decoder.bind(request).join();
       final expectedBody = '{"probe":true}';
       if (request.method != 'POST' ||
-          request.uri.path != '/api/v1/pairing/exchange' ||
           request.headers.chunkedTransferEncoding ||
           request.headers.contentLength != utf8.encode(expectedBody).length ||
           body != expectedBody) {
         request.response.statusCode = HttpStatus.badRequest;
-      } else {
+      } else if (request.uri.path == '/api/v1/navigation/mapping-operations') {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        request.response.statusCode = HttpStatus.accepted;
+      } else if (request.uri.path == '/api/v1/pairing/exchange') {
         request.response.statusCode = HttpStatus.created;
+      } else {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        request.response.statusCode = HttpStatus.ok;
       }
       request.response.headers.set('X-Request-ID', 'req_transport_pair_01');
       request.response.write('{"ok":true}');
-      await request.response.close();
+      try {
+        await request.response.close();
+      } on SocketException {
+        // The ordinary route deliberately exceeds the short base timeout.
+      }
     });
     transport = DeviceKeyPinnedTlsHttpTransport(
       trustedDeviceKeyFingerprint: fingerprint,
-      timeout: const Duration(seconds: 2),
+      timeout: const Duration(milliseconds: 250),
+      mappingOperationTimeout: const Duration(seconds: 1),
     );
 
     final response = await transport.request(
@@ -62,6 +73,37 @@ Future<void> main() async {
         response.body != '{"ok":true}' ||
         response.headers['x-request-id'] != 'req_transport_pair_01') {
       throw StateError('device-key-pinned POST was not preserved');
+    }
+
+    final mappingResponse = await transport.request(
+      'POST',
+      Uri.parse(
+        'https://127.0.0.1:${server.port}'
+        '/api/v1/navigation/mapping-operations',
+      ),
+      headers: const {
+        'Content-Type': 'application/json',
+        'X-Request-ID': 'req_transport_pair_01',
+      },
+      body: '{"probe":true}',
+    );
+    if (mappingResponse.statusCode != HttpStatus.accepted) {
+      throw StateError('mapping start did not use its bounded long timeout');
+    }
+
+    try {
+      await transport.request(
+        'POST',
+        Uri.parse('https://127.0.0.1:${server.port}/api/v1/slow-probe'),
+        headers: const {
+          'Content-Type': 'application/json',
+          'X-Request-ID': 'req_transport_pair_01',
+        },
+        body: '{"probe":true}',
+      );
+      throw StateError('ordinary route unexpectedly ignored base timeout');
+    } on TimeoutException {
+      // Expected: only the mapping start route receives the longer budget.
     }
   } finally {
     transport?.close();

@@ -4,6 +4,7 @@ import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_app/robot_snapshot_page.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
+import 'package:duole_engineering_client/teleop_control.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,6 +83,28 @@ void main() {
 
     expect(find.text('家庭地图'), findsOneWidget);
     expect(find.textContaining('导航板未连接'), findsOneWidget);
+  });
+
+  testWidgets('scoped direct teleop opens without map or capability projection',
+      (tester) async {
+    final connection = _SnapshotTeleopConnection();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RobotSnapshotPage(
+          reader: _SnapshotReader(),
+          teleopControlTransport: _SnapshotTeleopTransport(connection),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('摇杆遥控'), 400);
+    expect(find.text('进入后由机器人实时安全门判定是否可控'), findsOneWidget);
+
+    await tester.tap(find.text('摇杆遥控'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('teleop-joystick')), findsOneWidget);
+    expect(find.textContaining('地图'), findsNothing);
   });
 
   testWidgets('applies live event projections after the snapshot high water',
@@ -284,25 +307,24 @@ class _SnapshotReader implements RobotSnapshotReader {
         },
         'projections': {
           'activities': <Object?>[],
-          'capabilities': includeWriteCapability
-              ? [
-                  {
-                    'key': 'capability.schedule_write',
-                    'value': {
-                      'key': 'schedule_write',
-                      'status': 'ok',
-                      'reason_code': 'capability_ready',
-                      'write_allowed': true,
-                      'blocking_dependencies': <Object?>[],
-                    },
-                    'projected_seq': 42,
-                    'observed_at': '2026-08-22T02:00:30Z',
-                    'stale_after_ms': 30000,
-                    'stale': false,
-                    'stale_reason': null,
-                  }
-                ]
-              : <Object?>[],
+          'capabilities': [
+            if (includeWriteCapability)
+              {
+                'key': 'capability.schedule_write',
+                'value': {
+                  'key': 'schedule_write',
+                  'status': 'ok',
+                  'reason_code': 'capability_ready',
+                  'write_allowed': true,
+                  'blocking_dependencies': <Object?>[],
+                },
+                'projected_seq': 42,
+                'observed_at': '2026-08-22T02:00:30Z',
+                'stale_after_ms': 30000,
+                'stale': false,
+                'stale_reason': null,
+              },
+          ],
           'privacy_media': <Object?>[],
           'robot': <Object?>[],
           'schedule': <Object?>[],
@@ -344,6 +366,52 @@ class _SnapshotReader implements RobotSnapshotReader {
       },
     });
   }
+}
+
+class _SnapshotTeleopTransport implements TeleopWebSocketTransport {
+  _SnapshotTeleopTransport(this.connection);
+
+  final _SnapshotTeleopConnection connection;
+
+  @override
+  Future<TeleopControlConnection> connect() async => connection;
+
+  @override
+  void close() {}
+}
+
+class _SnapshotTeleopConnection implements TeleopControlConnection {
+  final _frames = StreamController<TeleopServerFrame>();
+
+  @override
+  Stream<TeleopServerFrame> get frames => _frames.stream;
+
+  @override
+  Future<void> acquire() async {}
+
+  @override
+  Future<void> sendIntent({
+    required String leaseId,
+    required int leaseEpoch,
+    required int seq,
+    required int ttlMs,
+    required double linear,
+    required double angular,
+  }) async {}
+
+  @override
+  Future<void> release({
+    required String leaseId,
+    required int leaseEpoch,
+    required int seq,
+    required TeleopReleaseReason reason,
+  }) async {}
+
+  @override
+  Future<void> setMotionInhibited(bool inhibited) async {}
+
+  @override
+  Future<void> close() async {}
 }
 
 class _UnavailableNavigationReader implements NavigationMapReader {

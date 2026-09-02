@@ -49,7 +49,8 @@ abstract interface class PairedRobotHttpTransport
 class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
   DeviceKeyPinnedTlsHttpTransport({
     required String trustedDeviceKeyFingerprint,
-    this.timeout = const Duration(seconds: 3),
+    this.timeout = const Duration(seconds: 20),
+    this.mappingOperationTimeout = const Duration(seconds: 55),
   })  : _trustedDeviceKeyFingerprint =
             normalizeDeviceKeyFingerprint(trustedDeviceKeyFingerprint),
         _client = HttpClient(
@@ -75,6 +76,7 @@ class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
 
   final String _trustedDeviceKeyFingerprint;
   final Duration timeout;
+  final Duration mappingOperationTimeout;
   final HttpClient _client;
 
   @override
@@ -99,8 +101,12 @@ class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
     if (!const {'GET', 'POST', 'DELETE'}.contains(normalizedMethod)) {
       throw ArgumentError.value(method, 'method', 'unsupported HTTP method');
     }
+    final requestTimeout = normalizedMethod == 'POST' &&
+            uri.path == '/api/v1/navigation/mapping-operations'
+        ? mappingOperationTimeout
+        : timeout;
     final request =
-        await _client.openUrl(normalizedMethod, uri).timeout(timeout);
+        await _client.openUrl(normalizedMethod, uri).timeout(requestTimeout);
     request.followRedirects = false;
     headers.forEach(request.headers.set);
     if (body != null) {
@@ -108,8 +114,8 @@ class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
       request.contentLength = encodedBody.length;
       request.add(encodedBody);
     }
-    final response = await request.close().timeout(timeout);
-    final responseBody = await _readPairingBody(response, timeout);
+    final response = await request.close().timeout(requestTimeout);
+    final responseBody = await _readPairingBody(response, requestTimeout);
     final responseHeaders = <String, String>{};
     response.headers.forEach((name, values) {
       responseHeaders[name.toLowerCase()] = values.join(',');
@@ -640,7 +646,10 @@ class EngineeringMapCatalogClient implements MapCatalogManager {
 }
 
 class EngineeringMapManagementClient
-    implements MapManagementManager, ManualMappingManager {
+    implements
+        MapManagementManager,
+        ManualMappingManager,
+        ManualMappingVisualizationManager {
   EngineeringMapManagementClient({
     required Uri robotOrigin,
     required String robotId,
@@ -1229,6 +1238,44 @@ class EngineeringMapManagementClient
   }
 
   @override
+  Future<ManualMappingVisualizationSuccessEnvelope>
+      getManualMappingVisualization(String sessionId) async {
+    final validatedSessionId = _manualMappingSessionId(sessionId);
+    final requestId = _requestIdFactory();
+    final path = '/api/v1/navigation/manual-mapping-sessions/'
+        '$validatedSessionId/visualization';
+    final response = await _transport.request(
+      'GET',
+      _robotOrigin.replace(path: path),
+      headers: {
+        'Authorization': 'Bearer $_accessToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != 200) {
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final visualization =
+        ManualMappingVisualizationSuccessEnvelope.fromJson(payload);
+    if (visualization.data.sessionId != validatedSessionId ||
+        (visualization.data.laserScan != null &&
+            visualization.data.laserScan!.frameId !=
+                visualization.data.mapFrameId)) {
+      throw EngineeringProtocolException(
+        reasonCode: 'manual_mapping_visualization_binding_mismatch',
+        requestId: requestId,
+      );
+    }
+    return visualization;
+  }
+
+  @override
   Future<ManualMappingSessionSuccessEnvelope> commandManualMappingSession(
     String sessionId,
     ManualMappingAction action,
@@ -1299,7 +1346,8 @@ class EngineeringMapManagementClient
     if (envelope.data.sessionId != sessionId ||
         envelope.data.robotId != _robotId ||
         envelope.data.actorId != _deviceSessionId ||
-        envelope.data.mode != 'MOCK_NO_MOTION') {
+        (envelope.data.mode != 'REAL' &&
+            envelope.data.mode != 'MOCK_NO_MOTION')) {
       throw EngineeringProtocolException(
         reasonCode: 'manual_mapping_session_binding_mismatch',
         requestId: requestId,

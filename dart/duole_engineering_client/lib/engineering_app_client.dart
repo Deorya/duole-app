@@ -242,6 +242,11 @@ abstract interface class ManualMappingManager {
   );
 }
 
+abstract interface class ManualMappingVisualizationManager {
+  Future<ManualMappingVisualizationSuccessEnvelope>
+      getManualMappingVisualization(String sessionId);
+}
+
 class NavigationMapImageResponse {
   const NavigationMapImageResponse({
     required this.bytes,

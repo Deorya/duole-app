@@ -25,6 +25,7 @@ Future<void> main() async {
       context,
     );
     const sessionId = 'manual_mapping_0123456789abcdef0123456789abcdef';
+    var clientNow = DateTime.parse('2026-08-27T05:59:59.290Z');
     final received = <Map<String, Object?>>[];
     server.listen((request) async {
       if (request.uri.path !=
@@ -65,7 +66,7 @@ Future<void> main() async {
       accessToken: 'paired-access',
       clientVersion: 'android/0.6.0',
       requestIdFactory: () => 'req_manual_socket_01',
-      clock: () => DateTime.parse('2026-08-27T06:00:00Z'),
+      clock: () => clientNow,
       timeout: const Duration(seconds: 2),
     );
 
@@ -75,6 +76,7 @@ Future<void> main() async {
     await connection.acquire();
     await iterator.moveNext();
     final granted = iterator.current;
+    clientNow = clientNow.add(const Duration(milliseconds: 25));
     await connection.sendIntent(
       leaseId: granted.leaseId!,
       leaseEpoch: granted.leaseEpoch!,
@@ -96,9 +98,13 @@ Future<void> main() async {
         received[1]['ttl_ms'] != 200 ||
         received[1]['linear'] != 0.5 ||
         received[1]['angular'] != -0.25 ||
+        DateTime.parse(received[1]['sent_at']! as String) !=
+            DateTime.parse('2026-08-27T06:00:00.025Z') ||
         received[2]['reason'] != 'pointer_up' ||
         iterator.current.type != 'control_stopped') {
-      throw StateError('manual mapping WSS frames lost frozen semantics');
+      throw StateError(
+        'manual mapping WSS frames or trusted server clock semantics lost',
+      );
     }
   } finally {
     transport?.close();

@@ -22,6 +22,11 @@ void main() {
       'revision': 2,
       'width_px': 16,
       'height_px': 16,
+      'resolution_m_per_px': 0.05,
+      'origin': {'x_m': -0.4, 'y_m': -0.4, 'yaw_rad': 0.0},
+      'frame_id': 'map',
+      'observed_at': '2026-08-27T06:00:01Z',
+      'occupancy_rle': [-1, 136, 0, 1, -1, 119],
       'explored_cells': [
         {'x': 8, 'y': 8, 'occupancy': 0},
       ],
@@ -51,9 +56,49 @@ void main() {
   if (session.mode != 'MOCK_NO_MOTION' ||
       session.phase != ManualMappingPhase.collecting ||
       session.incrementalMap.exploredCells.single.x != 8 ||
+      session.incrementalMap.resolutionMPerPx != 0.05 ||
+      session.incrementalMap.origin.xM != -0.4 ||
+      session.incrementalMap.frameId != 'map' ||
+      session.incrementalMap.occupancyRle.length != 6 ||
       session.quality.overallScore != 82 ||
       session.elapsedMs != 1000) {
     throw StateError('manual mapping session contract did not decode');
+  }
+  final visualization = ManualMappingVisualization.fromJson({
+    'session_id': session.sessionId,
+    'map_revision': 2,
+    'map_frame_id': 'map',
+    'observed_at': '2026-08-27T06:00:01Z',
+    'robot_pose': {'x': 0.1, 'y': 0.0, 'yaw': -0.1},
+    'laser_scan': {
+      'frame_id': 'map',
+      'observed_at': '2026-08-27T06:00:01Z',
+      'points': [
+        {'x': 0.15, 'y': 0.2},
+      ],
+    },
+    'trajectory': [
+      {'x': 0.0, 'y': 0.0},
+      {'x': 0.1, 'y': 0.0},
+    ],
+    'safety_boundaries': {
+      'source': 'laser_scan',
+      'hard_stop_distance_m': 0.1,
+      'soft_slowdown_distance_m': 0.3,
+    },
+  });
+  if (visualization.laserScan?.points.single.x != 0.15 ||
+      visualization.trajectory.length != 2 ||
+      visualization.safetyBoundaries.hardStopDistanceM != 0.1 ||
+      visualization.safetyBoundaries.softSlowdownDistanceM != 0.3) {
+    throw StateError('manual mapping visualization did not decode');
+  }
+  final realSession = ManualMappingSession.fromJson({
+    ..._sessionJson(),
+    'mode': 'REAL',
+  });
+  if (realSession.mode != 'REAL') {
+    throw StateError('REAL manual mapping session did not decode');
   }
 
   final intent = ManualMappingIntentFrame.fromJson({
@@ -127,6 +172,11 @@ Map<String, Object?> _sessionJson() => {
         'revision': 2,
         'width_px': 16,
         'height_px': 16,
+        'resolution_m_per_px': 0.05,
+        'origin': {'x_m': -0.4, 'y_m': -0.4, 'yaw_rad': 0.0},
+        'frame_id': 'map',
+        'observed_at': '2026-08-27T06:00:01Z',
+        'occupancy_rle': [-1, 256],
         'explored_cells': <Object?>[],
       },
       'robot_pose': {'x': 0.1, 'y': 0.0, 'yaw': -0.1},

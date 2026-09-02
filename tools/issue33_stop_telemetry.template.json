@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "stop_telemetry",
+  "scenario": "REPLACE_WITH_REQUIRED_STOP_SCENARIO",
+  "lease_id": "mapping_lease_REPLACE_WITH_32_HEX_CHARACTERS",
+  "last_accepted_seq": 0,
+  "fault_at": "REPLACE_WITH_RFC3339",
+  "zero_at": "REPLACE_WITH_RFC3339",
+  "wheels_stopped_at": "REPLACE_WITH_RFC3339",
+  "stop_latency_ms": 1001
+}

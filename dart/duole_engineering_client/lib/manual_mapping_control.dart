@@ -10,6 +10,15 @@ import 'connection_identity.dart';
 
 enum ManualMappingReleaseReason { pointerUp, pointerOutside, pointerCancel }
 
+bool manualMappingControlCanResume(ManualMappingSession session) =>
+    session.stopConfirmed &&
+    switch (session.controlState) {
+      ManualMappingControlState.idle ||
+      ManualMappingControlState.stopped =>
+        true,
+      _ => false,
+    };
+
 class ManualMappingAuthenticationRequired implements Exception {
   const ManualMappingAuthenticationRequired();
 }
@@ -151,15 +160,17 @@ class _ManualMappingSocketConnection implements ManualMappingControlConnection {
     required Duration closeTimeout,
   })  : _sessionId = sessionId,
         _clock = clock,
-        _closeTimeout = closeTimeout,
-        frames = _socket.map(_decodeServerFrame);
+        _closeTimeout = closeTimeout {
+    frames = _socket.map(_decodeAndCalibrateServerClock);
+  }
 
   final WebSocket _socket;
   final String _sessionId;
   final DateTime Function() _clock;
   final Duration _closeTimeout;
+  Duration? _serverClockOffset;
   @override
-  final Stream<ManualMappingServerFrame> frames;
+  late final Stream<ManualMappingServerFrame> frames;
 
   @override
   Future<void> acquire() => _send({
@@ -181,7 +192,7 @@ class _ManualMappingSocketConnection implements ManualMappingControlConnection {
     required double linear,
     required double angular,
   }) {
-    final sentAt = _clock().toUtc();
+    final sentAt = _serverAlignedNow();
     ManualMappingIntentFrame.fromJson({
       'type': 'intent',
       'session_id': _sessionId,
@@ -204,6 +215,20 @@ class _ManualMappingSocketConnection implements ManualMappingControlConnection {
       'linear': linear,
       'angular': angular,
     });
+  }
+
+  ManualMappingServerFrame _decodeAndCalibrateServerClock(dynamic raw) {
+    final frame = _decodeServerFrame(raw);
+    _serverClockOffset = frame.serverTime.toUtc().difference(_clock().toUtc());
+    return frame;
+  }
+
+  DateTime _serverAlignedNow() {
+    final offset = _serverClockOffset;
+    if (offset == null) {
+      throw StateError('manual_mapping_server_time_unavailable');
+    }
+    return _clock().toUtc().add(offset);
   }
 
   @override

@@ -46,6 +46,11 @@ Future<void> main() async {
       session.manualMappingControlTransport == null) {
     throw StateError('maps.manage scope did not create MOCK mapping clients');
   }
+  if (session.teleopControlTransport == null) {
+    throw StateError(
+      'teleop.control scope did not create the direct robot transport',
+    );
+  }
   session.close?.call();
 }
 
@@ -80,7 +85,12 @@ class _GatewayTransport implements PairedRobotHttpTransport {
           'access_token': 'access-paired-test-only',
           'refresh_token': 'refresh-paired-test-only',
           'expires_at': '2026-08-23T02:00:00Z',
-          'scopes': ['robot.status.read', 'robot.stop', 'maps.manage'],
+          'scopes': [
+            'robot.status.read',
+            'robot.stop',
+            'maps.manage',
+            'teleop.control',
+          ],
         },
       }),
     );

@@ -749,6 +749,7 @@ class _PairingPageState extends State<PairingPage> {
                       manualMappingManager: session.manualMappingManager,
                       manualMappingControlTransport:
                           session.manualMappingControlTransport,
+                      teleopControlTransport: session.teleopControlTransport,
                       emergencyStopCommander: session.emergencyStopCommander,
                     ),
                   ),

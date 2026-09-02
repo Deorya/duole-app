@@ -6,6 +6,7 @@ import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
 import 'package:duole_engineering_client/pairing_client.dart';
 import 'package:duole_engineering_client/manual_mapping_control.dart';
+import 'package:duole_engineering_client/teleop_control.dart';
 
 typedef EventTransportFactory = EventWebSocketTransport Function(
   Uri robotOrigin,
@@ -15,6 +16,12 @@ typedef EventTransportFactory = EventWebSocketTransport Function(
 
 typedef ManualMappingTransportFactory = ManualMappingWebSocketTransport
     Function(
+  Uri robotOrigin,
+  String trustedFingerprint,
+  String accessToken,
+);
+
+typedef TeleopTransportFactory = TeleopWebSocketTransport Function(
   Uri robotOrigin,
   String trustedFingerprint,
   String accessToken,
@@ -61,6 +68,7 @@ class PairedRobotSession {
     this.mapManagementManager,
     this.manualMappingManager,
     this.manualMappingControlTransport,
+    this.teleopControlTransport,
     this.emergencyStopCommander,
     required this.forceRefresher,
     required this.refresh,
@@ -78,6 +86,7 @@ class PairedRobotSession {
   final MapManagementManager? mapManagementManager;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? manualMappingControlTransport;
+  final TeleopWebSocketTransport? teleopControlTransport;
   final EmergencyStopCommander? emergencyStopCommander;
   final DeviceStatusForceRefresher? forceRefresher;
   final EventSyncSession? eventSync;
@@ -104,6 +113,7 @@ class SecurePairingSessionGateway
     EventCursorStore? eventCursorStore,
     EventTransportFactory? eventTransportFactory,
     ManualMappingTransportFactory? manualMappingTransportFactory,
+    TeleopTransportFactory? teleopTransportFactory,
     String Function()? requestIdFactory,
     String Function()? idempotencyKeyFactory,
   })  : _clientVersion = clientVersion,
@@ -115,6 +125,7 @@ class SecurePairingSessionGateway
                 : null),
         _eventTransportFactory = eventTransportFactory,
         _manualMappingTransportFactory = manualMappingTransportFactory,
+        _teleopTransportFactory = teleopTransportFactory,
         _requestIdFactory =
             requestIdFactory ?? _OpaqueIdFactory('android_req').next,
         _idempotencyKeyFactory =
@@ -127,6 +138,7 @@ class SecurePairingSessionGateway
   final EventCursorStore? _eventCursorStore;
   final EventTransportFactory? _eventTransportFactory;
   final ManualMappingTransportFactory? _manualMappingTransportFactory;
+  final TeleopTransportFactory? _teleopTransportFactory;
   final String Function() _requestIdFactory;
   final String Function() _idempotencyKeyFactory;
 
@@ -276,6 +288,20 @@ class SecurePairingSessionGateway
               requestIdFactory: _requestIdFactory,
             ))
         : null;
+    final teleopTransport = credentials.scopes.contains('teleop.control')
+        ? (_teleopTransportFactory?.call(
+              input.robotOrigin,
+              input.verifiedDeviceFingerprint,
+              credentials.accessToken,
+            ) ??
+            DeviceKeyPinnedTeleopWebSocketTransport(
+              robotOrigin: input.robotOrigin,
+              trustedDeviceKeyFingerprint: input.verifiedDeviceFingerprint,
+              accessToken: credentials.accessToken,
+              clientVersion: _clientVersion,
+              requestIdFactory: _requestIdFactory,
+            ))
+        : null;
     return PairedRobotSession(
       credentials: credentials,
       reader: api,
@@ -291,6 +317,7 @@ class SecurePairingSessionGateway
           ? mapManagementManager
           : null,
       manualMappingControlTransport: manualMappingTransport,
+      teleopControlTransport: teleopTransport,
       emergencyStopCommander: credentials.scopes.contains('robot.stop')
           ? emergencyStopCommander
           : null,
@@ -321,12 +348,14 @@ class SecurePairingSessionGateway
         } finally {
           if (eventSync != null) await eventSync.close();
           manualMappingTransport?.close();
+          teleopTransport?.close();
           transport.close();
         }
       },
       close: () {
         if (eventSync != null) unawaited(eventSync.close());
         manualMappingTransport?.close();
+        teleopTransport?.close();
         transport.close();
       },
     );

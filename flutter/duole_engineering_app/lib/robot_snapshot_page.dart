@@ -4,11 +4,13 @@ import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
 import 'package:duole_engineering_client/manual_mapping_control.dart';
+import 'package:duole_engineering_client/teleop_control.dart';
 import 'package:flutter/material.dart';
 
 import 'navigation_map_page.dart';
 import 'emergency_stop_control.dart';
 import 'map_challenge_scanner.dart';
+import 'teleop_page.dart';
 
 class RobotSnapshotPage extends StatefulWidget {
   const RobotSnapshotPage({
@@ -20,6 +22,7 @@ class RobotSnapshotPage extends StatefulWidget {
     this.mapManagementManager,
     this.manualMappingManager,
     this.manualMappingControlTransport,
+    this.teleopControlTransport,
     this.emergencyStopCommander,
     super.key,
   });
@@ -32,6 +35,7 @@ class RobotSnapshotPage extends StatefulWidget {
   final MapManagementManager? mapManagementManager;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? manualMappingControlTransport;
+  final TeleopWebSocketTransport? teleopControlTransport;
   final EmergencyStopCommander? emergencyStopCommander;
 
   @override
@@ -140,6 +144,12 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
                 eventContinuityIsContinuous
             ? ProjectionContinuity.continuous
             : ProjectionContinuity.degraded;
+    final teleopProjectedReady = _teleopWriteAllowed(
+      snapshotCapabilities: capabilities,
+      eventCapabilities: eventCapabilities,
+      serverTime: effectiveServerTime,
+      continuity: effectiveContinuity,
+    );
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -266,6 +276,27 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
               ),
             ),
           ),
+        if (widget.teleopControlTransport != null)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.gamepad_outlined),
+              title: const Text('摇杆遥控'),
+              subtitle: Text(
+                teleopProjectedReady
+                    ? '直接连接机器人，按住摇杆才产生运动意图'
+                    : '进入后由机器人实时安全门判定是否可控',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => TeleopPage(
+                    controlTransport: widget.teleopControlTransport!,
+                    emergencyStopCommander: widget.emergencyStopCommander,
+                  ),
+                ),
+              ),
+            ),
+          ),
         Card(
           child: ListTile(
             leading: const Icon(Icons.event_note),
@@ -286,6 +317,30 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
       ],
     );
   }
+}
+
+bool _teleopWriteAllowed({
+  required List<ProjectionItem> snapshotCapabilities,
+  required List<ProjectionCacheEntry> eventCapabilities,
+  required DateTime serverTime,
+  required ProjectionContinuity continuity,
+}) {
+  if (continuity != ProjectionContinuity.continuous) return false;
+  for (final item in eventCapabilities) {
+    final key = '${item.value['key'] ?? item.key}';
+    if (key != 'teleop') continue;
+    return !_eventProjectionIsStale(item, serverTime) &&
+        _health(item.value['status']) == _SnapshotHealth.ok &&
+        item.value['write_allowed'] == true;
+  }
+  for (final item in snapshotCapabilities) {
+    final key = '${item.value['key'] ?? item.key}';
+    if (key != 'teleop') continue;
+    return !_projectionIsStale(item, serverTime) &&
+        _health(item.value['status']) == _SnapshotHealth.ok &&
+        item.value['write_allowed'] == true;
+  }
+  return false;
 }
 
 class _EventStateCard extends StatelessWidget {
