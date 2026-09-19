@@ -25,6 +25,8 @@ class _ScheduleEditorPageState extends State<ScheduleEditorPage> {
   late final _date = TextEditingController(text: widget.initialDate);
   final _time = TextEditingController(text: '09:00');
   final _lead = TextEditingController(text: '0');
+  final _confirmationWait = TextEditingController(text: '15');
+  ScheduleConfirmationPolicy _confirmation = ScheduleConfirmationPolicy.none;
   ScheduleFrequency _frequency = ScheduleFrequency.once;
   final _weekdays = <int>{};
   bool _saving = false;
@@ -58,6 +60,8 @@ class _ScheduleEditorPageState extends State<ScheduleEditorPage> {
       ..addAll(value.recurrence.weekdays);
     _lead.text = value.payload.reminderLeadMinutes.toString();
     _enabled = value.enabled;
+    _confirmation = value.confirmationPolicy;
+    _confirmationWait.text = (value.payload.confirmationWaitMinutes ?? 15).toString();
   }
 
   Future<void> _refresh() async {
@@ -85,6 +89,7 @@ class _ScheduleEditorPageState extends State<ScheduleEditorPage> {
     _date.dispose();
     _time.dispose();
     _lead.dispose();
+    _confirmationWait.dispose();
     super.dispose();
   }
 
@@ -109,8 +114,15 @@ class _ScheduleEditorPageState extends State<ScheduleEditorPage> {
             ? (_weekdays.toList()..sort())
             : <int>[]
       },
-      'confirmation_policy': 'none',
-      'payload': {'reminder_lead_minutes': int.parse(_lead.text)},
+      'confirmation_policy': switch (_confirmation) {
+        ScheduleConfirmationPolicy.noNotification => 'no_notification',
+        _ => _confirmation.name,
+      },
+      'payload': {
+        'reminder_lead_minutes': _confirmation == ScheduleConfirmationPolicy.none ? int.parse(_lead.text) : 0,
+        if (_confirmation == ScheduleConfirmationPolicy.custom)
+          'confirmation_wait_minutes': int.parse(_confirmationWait.text),
+      },
     };
     setState(() {
       _saving = true;
@@ -300,6 +312,33 @@ class _ScheduleEditorPageState extends State<ScheduleEditorPage> {
                                       })
                                   : null),
                       ]),
+                    DropdownButtonFormField<ScheduleConfirmationPolicy>(
+                      key: const Key('schedule-confirmation'),
+                      initialValue: _confirmation,
+                      decoration: const InputDecoration(labelText: '确认与通知'),
+                      items: const [
+                        DropdownMenuItem(value: ScheduleConfirmationPolicy.none, child: Text('普通提醒，不升级通知')),
+                        DropdownMenuItem(value: ScheduleConfirmationPolicy.required, child: Text('需要确认（默认策略）')),
+                        DropdownMenuItem(value: ScheduleConfirmationPolicy.noNotification, child: Text('需要确认，不通知家属')),
+                        DropdownMenuItem(value: ScheduleConfirmationPolicy.immediate, child: Text('到点播报后立即通知家属')),
+                        DropdownMenuItem(value: ScheduleConfirmationPolicy.custom, child: Text('自定义等待时间')),
+                      ],
+                      onChanged: editable ? (value) => setState(() => _confirmation = value!) : null,
+                    ),
+                    if (_confirmation == ScheduleConfirmationPolicy.required)
+                      const Text('到点播报，5 分钟后重试一次，15 分钟未确认通知家属'),
+                    if (_confirmation == ScheduleConfirmationPolicy.custom)
+                      TextFormField(
+                        key: const Key('schedule-confirmation-wait'),
+                        controller: _confirmationWait, enabled: editable,
+                        decoration: const InputDecoration(labelText: '等待确认（分钟）'),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          final wait = int.tryParse(value ?? '');
+                          return wait != null && wait >= 1 && wait <= 1440 ? null : '请输入 1 到 1440 分钟';
+                        },
+                      ),
+                    if (_confirmation == ScheduleConfirmationPolicy.none)
                     TextFormField(
                         key: const Key('schedule-lead'),
                         controller: _lead,

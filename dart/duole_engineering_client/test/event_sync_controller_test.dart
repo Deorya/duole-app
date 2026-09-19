@@ -5,6 +5,7 @@ import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
 
 Future<void> main() async {
+  await _reminderNotificationIsAppliedOnce();
   await _persistsAppliedCursorAndAdvancesUnknownTypes();
   await _invalidUnknownEnvelopeStopsCursor();
   await _gapReplacesCacheFromSnapshot();
@@ -377,4 +378,23 @@ void _expectEqual(Object? actual, Object? expected) {
   if (jsonEncode(actual) != jsonEncode(expected)) {
     throw StateError('expected $expected, got $actual');
   }
+}
+
+
+Future<void> _reminderNotificationIsAppliedOnce() async {
+  final store = _CursorStore(initial: 10);
+  final controller = EventSyncController(robotId: 'rb_event_01', cursorStore: store,
+    snapshotReader: _SnapshotReader(_snapshot(seq: 10)));
+  await controller.initialize();
+  final event = _event(seq: 11, eventType: 'schedule.reminder.unconfirmed', percentage: 0);
+  event['payload'] = {'updates': [{
+    'category': 'schedule', 'key': 'reminder.dose1',
+    'observed_at': '2026-08-22T06:00:01Z', 'stale_after_ms': 86400000,
+    'value': {'occurrence_id': 'dose1', 'outcome': 'unconfirmed', 'reason_code': 'confirmation_timeout'},
+  }]};
+  await controller.applyFrame(event);
+  await controller.applyFrame(event);
+  _expectEqual(controller.projections['reminder.dose1']?.value['outcome'], 'unconfirmed');
+  _expectEqual(controller.cursor, 11);
+  _expectEqual(store.saved.length, 1);
 }

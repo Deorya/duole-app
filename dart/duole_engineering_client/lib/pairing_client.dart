@@ -663,9 +663,14 @@ Map<String, Object?> _patchJson(SchedulePatch patch) {
         'weekdays': patch.recurrence!.weekdays
       },
     if (patch.confirmationPolicy != null)
-      'confirmation_policy': patch.confirmationPolicy!.name,
+      'confirmation_policy': patch.confirmationPolicy == ScheduleConfirmationPolicy.noNotification
+          ? 'no_notification' : patch.confirmationPolicy!.name,
     if (patch.payload != null)
-      'payload': {'reminder_lead_minutes': patch.payload!.reminderLeadMinutes},
+      'payload': {
+        'reminder_lead_minutes': patch.payload!.reminderLeadMinutes,
+        if (patch.payload!.confirmationWaitMinutes != null)
+          'confirmation_wait_minutes': patch.payload!.confirmationWaitMinutes,
+      },
   };
 }
 

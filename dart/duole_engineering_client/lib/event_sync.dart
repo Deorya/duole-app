@@ -182,6 +182,7 @@ class EventSyncController {
     'robot.snapshot.updated',
     'state.changed',
     'capability.changed',
+    'schedule.reminder.unconfirmed',
   };
 
   final String robotId;

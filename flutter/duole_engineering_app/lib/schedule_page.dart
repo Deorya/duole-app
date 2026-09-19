@@ -266,7 +266,7 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
       final schedule = response.data.schedule;
       if (schedule.kind != ScheduleKind.reminder ||
           schedule.recurrence.frequency == ScheduleFrequency.unknown ||
-          schedule.confirmationPolicy != ScheduleConfirmationPolicy.none) {
+          schedule.confirmationPolicy == ScheduleConfirmationPolicy.unknown) {
         throw const FormatException('unsupported schedule definition');
       }
       final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
@@ -375,6 +375,8 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
         Text('机器人当地时间（${detail.timezone}）'),
         Text(_robotLocalLabel(detail.schedule.scheduledAt)),
         Text('来源：${_sourceLabel(detail.schedule.source)}'),
+        if (detail.confirmationPolicy != null)
+          Text('确认策略：${_confirmationLabel(detail.confirmationPolicy, detail.confirmationWaitMinutes)}'),
         Text('可用性：${_availabilityLabel(detail.schedule.availability)}'),
         if (widget.manager != null)
           FilledButton(
@@ -403,7 +405,17 @@ class _ScheduleDetailPageState extends State<ScheduleDetailPage> {
                 subtitle: Text(
                   '计划时间：${_robotLocalLabel(occurrence.scheduledAt)}\n'
                   '记录时间：${_factTimeLabel(occurrence.recordedAt)}\n'
-                  '结果：${_outcomeLabel(occurrence.outcome)}',
+                  '结果：${_outcomeLabel(occurrence.outcome)}'
+                  '${occurrence.scheduleRevision == null ? '' : '\n日程版本：${occurrence.scheduleRevision}'}'
+                  '\n执行 ID：${occurrence.occurrenceId}'
+                  '${occurrence.deliveredAt == null ? '' : '\n实际送达：${_factTimeLabel(occurrence.deliveredAt)}'}'
+                  '${occurrence.confirmationPolicy == null ? '' : '\n当次策略：${_confirmationLabel(occurrence.confirmationPolicy, occurrence.confirmationWaitMinutes)}'}'
+                  '${occurrence.rescheduledAt == null ? '' : '\n稍后计划：${_factTimeLabel(occurrence.rescheduledAt)}'}'
+                  '${occurrence.parentOccurrenceId == null ? '' : '\n原执行 ID：${occurrence.parentOccurrenceId}'}'
+                  '${occurrence.childOccurrenceId == null ? '' : '\n后续执行 ID：${occurrence.childOccurrenceId}'}'
+                  '${occurrence.notificationAt == null ? '' : '\n家属通知事件：${_factTimeLabel(occurrence.notificationAt)}'}'
+                  '${occurrence.reasonCode == null ? '' : '\n原因：${_reminderReasonLabel(occurrence.reasonCode)}'}'
+                  '${occurrence.timeline == null ? '' : '\n状态时间线：\n${occurrence.timeline!.map((entry) => '${_factTimeLabel(entry.at)} ${_deliveryLabel(entry.status)} · ${_reminderReasonLabel(entry.reasonCode)}').join('\n')}'}',
                 ),
               ),
             ),
@@ -447,6 +459,8 @@ String _sourceLabel(ScheduleSource source) => switch (source) {
     };
 
 String _deliveryLabel(ScheduleDeliveryStatus status) => switch (status) {
+      ScheduleDeliveryStatus.scheduled => '待提醒',
+      ScheduleDeliveryStatus.deliveryFailed => '送达失败',
       ScheduleDeliveryStatus.claimed => '准备送达',
       ScheduleDeliveryStatus.playing => '正在播放',
       ScheduleDeliveryStatus.delivered => '已送达',
@@ -472,3 +486,27 @@ String _scheduleFailureLabel(ErrorCode code) => switch (code) {
       ErrorCode.scheduleDbUnavailable => '正式日程服务暂不可用，请重试',
       _ => '读取日程失败（${code.name}）',
     };
+
+
+String _confirmationLabel(ScheduleConfirmationPolicy? policy, int? wait) => switch (policy) {
+  ScheduleConfirmationPolicy.none => '普通提醒，不升级通知',
+  ScheduleConfirmationPolicy.required => '5 分钟后重试一次，15 分钟未确认通知家属',
+  ScheduleConfirmationPolicy.noNotification => '需要确认，5 分钟后重试一次，不通知家属',
+  ScheduleConfirmationPolicy.immediate => '到点播报后立即通知家属',
+  ScheduleConfirmationPolicy.custom => '${wait ?? '未知'} 分钟未确认通知家属',
+  _ => '策略未知',
+};
+
+String _reminderReasonLabel(String? reason) => switch (reason) {
+  'planned' => '已计划',
+  'initial' => '首次播报',
+  'confirmation_retry' => '未确认重试',
+  'confirmation_timeout' => '等待确认超时',
+  'elder_response' => '老人已回应',
+  'snoozed_by_elder' => '老人选择稍后提醒',
+  'playback_failed' => '播放失败',
+  'playback_unconfirmed' => '播放中断，送达未确认',
+  'immediate_notification' => '按策略立即通知家属',
+  'schedule_changed' => '日程已变更',
+  _ => '原因未知',
+};

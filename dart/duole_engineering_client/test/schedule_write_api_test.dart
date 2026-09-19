@@ -47,6 +47,22 @@ Future<void> main(List<String> arguments) async {
     throw StateError(
         'Schedule proof must bind the revision and canonical body');
   }
+  await client.updateSchedule('schedule-pill-01', SchedulePatch.fromJson({
+    'confirmation_policy': 'custom',
+    'payload': {'reminder_lead_minutes': 0, 'confirmation_wait_minutes': 8},
+  }), expectedRevision: 1);
+  final customBody = jsonDecode(transport.body!) as Map<String, Object?>;
+  final customChanges = customBody['changes'] as Map<String, Object?>;
+  final customPayload = customChanges['payload'] as Map<String, Object?>;
+  if (customChanges['confirmation_policy'] != 'custom' || customPayload['confirmation_wait_minutes'] != 8) {
+    throw StateError('custom notification delay was lost on the wire');
+  }
+  await client.updateSchedule('schedule-pill-01', SchedulePatch.fromJson({
+    'confirmation_policy': 'no_notification',
+  }), expectedRevision: 1);
+  if (!transport.body!.contains('"confirmation_policy":"no_notification"')) {
+    throw StateError('notification policy used a Dart name instead of its wire value');
+  }
   var keySequence = 0;
   final retryTransport = _Transport(fixture)..malformed = true;
   final retryClient = EngineeringScheduleClient(

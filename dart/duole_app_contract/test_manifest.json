@@ -131,6 +131,12 @@
     {
       "test": "valid_battery_fixture_test.dart",
       "fixtures": ["battery_status/success.json"]
+    },
+    {
+      "test": "reminder_confirmation_fixture_test.dart",
+      "fixtures": [
+        "schedules/detail_confirmation.json"
+      ]
     }
   ]
 }

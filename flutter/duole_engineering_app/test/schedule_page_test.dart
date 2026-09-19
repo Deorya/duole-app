@@ -6,6 +6,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('执行记录展示版本、实际送达、稍后计划和状态时间线', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(MaterialApp(home: ScheduleDetailPage(
+      reader: _ScheduleReader(confirmation: true), scheduleId: 'schedule-pill-01')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('5 分钟后重试一次，15 分钟未确认通知家属'), findsWidgets);
+    expect(find.textContaining('日程版本：7'), findsOneWidget);
+    expect(find.textContaining('实际送达：2026年09月12日 09:30'), findsOneWidget);
+    expect(find.textContaining('稍后计划：2026年09月12日 09:41'), findsOneWidget);
+    expect(find.textContaining('老人已回应'), findsWidgets);
+    expect(find.textContaining('09:31'), findsWidgets);
+  });
+
   testWidgets('有写权限时从列表新增、从详情载入正式版本再编辑', (tester) async {
     final manager = _ScheduleManager();
     await tester.pumpWidget(MaterialApp(
@@ -255,6 +269,7 @@ class _ScheduleReader implements ScheduleReader {
     this.noNext = false,
     this.historyUnavailable = false,
     this.year = '2026',
+    this.confirmation = false,
   });
 
   final bool stale;
@@ -262,6 +277,7 @@ class _ScheduleReader implements ScheduleReader {
   final bool noNext;
   final bool historyUnavailable;
   final String year;
+  final bool confirmation;
   bool failNextList = false;
   bool failNextDetail = false;
   final queries = <ScheduleReadQuery>[];
@@ -326,6 +342,7 @@ class _ScheduleReader implements ScheduleReader {
       'server_time': '2026-09-12T01:00:00Z',
       'data': {
         'timezone': 'Asia/Shanghai',
+        if (confirmation) ...{'confirmation_policy': 'required', 'confirmation_wait_minutes': 15},
         'schedule': {
           'schedule_id': scheduleId,
           'title': '吃药',
@@ -347,6 +364,17 @@ class _ScheduleReader implements ScheduleReader {
                   'delivery_status': 'delivered',
                   'outcome': null,
                   'recorded_at': '$year-09-12T09:31:00+08:00',
+                  if (confirmation) ...{
+                    'schedule_revision': 7, 'delivered_at': '2026-09-12T09:30:00+08:00',
+                    'outcome': 'snoozed', 'delivery_status': 'snoozed',
+                    'rescheduled_at': '2026-09-12T09:41:00+08:00',
+                    'child_occurrence_id': 'snoozed-01', 'reason_code': 'elder_response',
+                    'confirmation_policy': 'required', 'confirmation_wait_minutes': 15,
+                    'timeline': [
+                      {'status': 'delivered', 'at': '2026-09-12T09:30:00+08:00', 'reason_code': 'initial'},
+                      {'status': 'snoozed', 'at': '2026-09-12T09:31:00+08:00', 'reason_code': 'elder_response'},
+                    ],
+                  },
                 },
               ],
         'history': {

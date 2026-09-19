@@ -6,6 +6,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('冲突刷新后表单显示机器人最新确认策略', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final manager = _Manager()..conflict = true;
+    await tester.pumpWidget(MaterialApp(home: ScheduleEditorPage(
+      manager: manager, timezone: 'Asia/Shanghai', initialDate: '2026-09-19',
+      schedule: _definition(policy: 'custom', wait: 8))));
+    await tester.tap(find.byKey(const Key('schedule-save')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('刷新最新日程'));
+    await tester.pumpAndSettle();
+    expect(find.text('普通提醒，不升级通知'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-confirmation-wait')), findsNothing);
+  });
+
+  testWidgets('可保存自定义确认等待时间，编辑后保留原策略', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final manager = _Manager();
+    await tester.pumpWidget(MaterialApp(home: ScheduleEditorPage(
+      manager: manager, timezone: 'Asia/Shanghai', initialDate: '2026-09-19')));
+    await tester.enterText(find.byKey(const Key('schedule-title')), '喝水');
+    await tester.tap(find.byKey(const Key('schedule-confirmation')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('自定义等待时间').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('schedule-confirmation-wait')), '8');
+    await tester.tap(find.byKey(const Key('schedule-save')));
+    await tester.pump();
+    expect(manager.creates.single.confirmationPolicy, ScheduleConfirmationPolicy.custom);
+    expect(manager.creates.single.payload.confirmationWaitMinutes, 8);
+    manager.pending.complete(_write());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(MaterialApp(home: ScheduleEditorPage(
+      manager: manager, timezone: 'Asia/Shanghai', initialDate: '2026-09-19',
+      schedule: _definition(policy: 'custom', wait: 8))));
+    await tester.tap(find.byKey(const Key('schedule-save')));
+    await tester.pumpAndSettle();
+    expect(manager.patches.single.confirmationPolicy, ScheduleConfirmationPolicy.custom);
+    expect(manager.patches.single.payload?.confirmationWaitMinutes, 8);
+  });
+
   testWidgets('冲突刷新得到未知规则时拒绝继续编辑', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -254,7 +297,7 @@ ScheduleDefinition _definition(
         {int revision = 1,
         String title = '饭后吃药',
         bool enabled = true,
-        String frequency = 'once'}) =>
+        String frequency = 'once', String policy = 'none', int? wait}) =>
     ScheduleDefinition.fromJson({
       'schedule_id': 'schedule-pill-01',
       'kind': 'reminder',
@@ -263,8 +306,8 @@ ScheduleDefinition _definition(
       'timezone': 'Asia/Shanghai',
       'start': '2026-09-19T09:30:00+08:00',
       'recurrence': {'frequency': frequency, 'weekdays': <int>[]},
-      'confirmation_policy': 'none',
-      'payload': {'reminder_lead_minutes': 0},
+      'confirmation_policy': policy,
+      'payload': {'reminder_lead_minutes': 0, if (wait != null) 'confirmation_wait_minutes': wait},
       'revision': revision,
       'actor': {'kind': 'app', 'id': 'family-01'},
       'created_at': '2026-09-18T01:00:00Z',
