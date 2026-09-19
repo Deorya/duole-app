@@ -5,7 +5,7 @@ class FixtureEngineeringAppReader implements EngineeringAppReader {
   FixtureEngineeringAppReader({
     this.identityMode = RobotMode.mockNoMotion,
     RobotMode? capabilityMode,
-    this.apiSchemaVersion = '1.0.0',
+    this.apiSchemaVersion = appContractVersion,
     DateTime? batteryUpdatedAt,
     this.teleopAvailability = CapabilityAvailability.unsupported,
   })  : capabilityMode = capabilityMode ?? identityMode,

@@ -15,8 +15,7 @@ Future<void> main() async {
   final snapshot = await api.getRobotSnapshot();
 
   if (transport.uri?.path != '/api/v1/snapshot' ||
-      transport.headers?['Authorization'] !=
-          'Bearer paired-snapshot-access' ||
+      transport.headers?['Authorization'] != 'Bearer paired-snapshot-access' ||
       snapshot.data.snapshotSeq != 42 ||
       !snapshot.data.projections.states.single.stale) {
     throw StateError('paired snapshot read did not preserve frozen semantics');
@@ -72,7 +71,16 @@ class _SnapshotTransport implements EngineeringHttpTransport {
             ],
           },
           'active_summary': {'kind': 'idle'},
-          'today_schedule': {'count': 0},
+          'today_schedule': {
+            'count': 0,
+            'status': 'ok',
+            'timezone': 'Asia/Shanghai',
+            'next_schedule': null,
+            'observed_at': '2026-08-22T02:00:31Z',
+            'stale': false,
+            'stale_reason': null,
+            'reason_code': null,
+          },
           'privacy_media': {
             'privacy_mode': 'standard',
             'active_media_sessions': 0,

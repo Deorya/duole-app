@@ -24,7 +24,8 @@ void main(List<String> arguments) {
       battery.projectedSeq > snapshot.snapshotSeq ||
       !battery.stale ||
       battery.staleReason != 'threshold_exceeded' ||
-      snapshot.todaySchedule['count'] != 2) {
+      snapshot.todaySchedule.count != 2 ||
+      snapshot.todaySchedule.timezone != 'Asia/Shanghai') {
     throw StateError('shared robot snapshot was decoded incorrectly');
   }
 }

@@ -46,6 +46,19 @@ void main() {
     expect(find.text('隐私模式 standard · 活跃媒体 0'), findsOneWidget);
   });
 
+  testWidgets('首页今日日程显示同一正式投影的下一项摘要', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: RobotSnapshotPage(reader: _SnapshotReader())),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('今日日程'), 400);
+
+    expect(
+      find.textContaining('共 1 项 · Asia/Shanghai · 下次 08月22日 09:30 吃药'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('degraded continuity disables projected write capability',
       (tester) async {
     await tester.pumpWidget(
@@ -358,7 +371,20 @@ class _SnapshotReader implements RobotSnapshotReader {
           ],
         },
         'active_summary': {'kind': 'idle', 'summary': '当前无活动任务'},
-        'today_schedule': {'count': 0},
+        'today_schedule': {
+          'count': 1,
+          'status': 'ok',
+          'timezone': 'Asia/Shanghai',
+          'next_schedule': {
+            'schedule_id': 'schedule-pill-01',
+            'title': '吃药',
+            'scheduled_at': '2026-08-22T09:30:00+08:00',
+          },
+          'observed_at': '2026-08-22T02:00:31Z',
+          'stale': false,
+          'stale_reason': null,
+          'reason_code': null,
+        },
         'privacy_media': {
           'privacy_mode': 'standard',
           'active_media_sessions': 0,

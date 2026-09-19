@@ -29,7 +29,7 @@ Future<void> main() async {
   final incompatible = await _snapshot(
     FixtureEngineeringAppReader(
       identityMode: RobotMode.real,
-      apiSchemaVersion: '2.0.0',
+      apiSchemaVersion: '1.9.0',
       teleopAvailability: CapabilityAvailability.available,
     ),
   );

@@ -22,7 +22,7 @@ Future<void> _manualAndDiscoveredTargetsShareFailClosedVerification() async {
     identityHint: robotIdentityHint('rb_identity_01'),
     host: '192.0.2.41',
     port: 8443,
-    apiMajor: 1,
+    apiMajor: 3,
     gatewayVersion: '0.2.0',
     mode: 'REAL',
   );
@@ -51,7 +51,7 @@ Future<void> _manualAndDiscoveredTargetsShareFailClosedVerification() async {
     'tls_identity_fingerprint_mismatch',
   );
 
-  probe.result = _identity(apiSchemaVersion: '2.0.0');
+  probe.result = _identity(apiSchemaVersion: '1.9.0');
   await _expectReason(
     () => boundary.verify(ConnectionTarget.manual(host: '192.0.2.41')),
     'api_major_unsupported',
@@ -120,7 +120,7 @@ Future<void> _forgedDiscoveryAndChangedIdentityAreRejected() async {
     identityHint: robotIdentityHint('rb_attacker'),
     host: '192.0.2.66',
     port: 8443,
-    apiMajor: 1,
+    apiMajor: 3,
     gatewayVersion: '0.2.0',
     mode: 'REAL',
   );
@@ -148,7 +148,7 @@ Future<void> _forgedDiscoveryAndChangedIdentityAreRejected() async {
 
 RobotIdentityProbeResult _identity({
   String robotId = 'rb_identity_01',
-  String apiSchemaVersion = '1.0.0',
+  String apiSchemaVersion = appContractVersion,
   String responseFingerprint = fingerprintA,
   String peerFingerprint = fingerprintA,
 }) {

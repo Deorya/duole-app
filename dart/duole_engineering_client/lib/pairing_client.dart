@@ -98,7 +98,7 @@ class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
       throw ArgumentError.value(uri, 'uri', 'https URI required');
     }
     final normalizedMethod = method.toUpperCase();
-    if (!const {'GET', 'POST', 'DELETE'}.contains(normalizedMethod)) {
+    if (!const {'GET', 'POST', 'PATCH', 'DELETE'}.contains(normalizedMethod)) {
       throw ArgumentError.value(method, 'method', 'unsupported HTTP method');
     }
     final requestTimeout = normalizedMethod == 'POST' &&
@@ -430,6 +430,244 @@ class PairingClient {
 bool _invalidatesStoredSession(ErrorCode code) =>
     code == ErrorCode.authenticationRequired ||
     code == ErrorCode.sessionRevoked;
+
+class EngineeringScheduleClient implements ScheduleManager {
+  EngineeringScheduleClient({
+    required Uri robotOrigin,
+    required String robotId,
+    required String deviceSessionId,
+    required String accessToken,
+    required String clientVersion,
+    required String Function() requestIdFactory,
+    required String Function() idempotencyKeyFactory,
+    required String Function() proofNonceFactory,
+    required PairingHttpTransport transport,
+    required PairingCredentialVault credentialVault,
+    DateTime Function()? clock,
+    this.commandTtl = const Duration(seconds: 30),
+  })  : _robotOrigin = _validatePairingOrigin(robotOrigin),
+        _robotId = robotId,
+        _deviceSessionId = deviceSessionId,
+        _accessToken = accessToken,
+        _clientVersion = clientVersion,
+        _requestIdFactory = requestIdFactory,
+        _idempotencyKeyFactory = idempotencyKeyFactory,
+        _proofNonceFactory = proofNonceFactory,
+        _transport = transport,
+        _credentialVault = credentialVault,
+        _clock = clock ?? DateTime.now {
+    if (_accessToken.isEmpty || _accessToken.length > 512) {
+      throw ArgumentError.value(accessToken, 'accessToken', 'invalid token');
+    }
+    if (_robotId.isEmpty || _robotId.length > 128) {
+      throw ArgumentError.value(robotId, 'robotId', 'invalid robot id');
+    }
+    if (!RegExp(r'^dvs_[0-9a-f]{32}$').hasMatch(_deviceSessionId)) {
+      throw ArgumentError.value(
+        deviceSessionId,
+        'deviceSessionId',
+        'invalid device session id',
+      );
+    }
+    if (commandTtl <= Duration.zero ||
+        commandTtl > const Duration(seconds: 30)) {
+      throw ArgumentError.value(commandTtl, 'commandTtl', 'must be 1ms..30s');
+    }
+  }
+
+  final Uri _robotOrigin;
+  final String _robotId;
+  final String _deviceSessionId;
+  final String _accessToken;
+  final String _clientVersion;
+  final String Function() _requestIdFactory;
+  final String Function() _idempotencyKeyFactory;
+  final String Function() _proofNonceFactory;
+  final PairingHttpTransport _transport;
+  final PairingCredentialVault _credentialVault;
+  final DateTime Function() _clock;
+  final Duration commandTtl;
+
+  @override
+  Future<ScheduleDefinitionSuccessEnvelope> getScheduleDefinition(
+      String scheduleId) async {
+    final payload = await _request(
+        'GET', '/api/v1/schedules/${_scheduleId(scheduleId)}/definition');
+    return ScheduleDefinitionSuccessEnvelope.fromJson(payload);
+  }
+
+  @override
+  Future<ScheduleWriteSuccessEnvelope> createSchedule(ScheduleDraft draft,
+      {bool announce = false}) async {
+    return _write('POST', '/api/v1/schedules',
+        {'schedule': _draftJson(draft), 'announce': announce});
+  }
+
+  @override
+  Future<ScheduleWriteSuccessEnvelope> updateSchedule(
+      String scheduleId, SchedulePatch changes,
+      {required int expectedRevision, bool announce = false}) {
+    return _write('PATCH', '/api/v1/schedules/${_scheduleId(scheduleId)}', {
+      'changes': _patchJson(changes),
+      'expected_revision': _scheduleRevision(expectedRevision),
+      'announce': announce
+    });
+  }
+
+  @override
+  Future<ScheduleWriteSuccessEnvelope> deleteSchedule(String scheduleId,
+      {required int expectedRevision, bool announce = false}) {
+    return _write('DELETE', '/api/v1/schedules/${_scheduleId(scheduleId)}', {
+      'expected_revision': _scheduleRevision(expectedRevision),
+      'announce': announce
+    });
+  }
+
+  Future<ScheduleWriteSuccessEnvelope> _write(
+      String method, String path, Map<String, Object?> body) async {
+    return ScheduleWriteSuccessEnvelope.fromJson(
+        await _request(method, path, body));
+  }
+
+  final Map<String, (String, String)> _pending = {};
+
+  Future<Map<String, Object?>> _request(String method, String path,
+      [Map<String, Object?>? body]) async {
+    final canonicalBody =
+        body == null ? null : jsonEncode(_sortedScheduleJson(body));
+    final pendingKey = '$method $path $canonicalBody';
+    final (requestId, idempotencyKey) = _pending.putIfAbsent(
+        pendingKey, () => (_requestIdFactory(), _idempotencyKeyFactory()));
+    final headers = <String, String>{
+      'Authorization': 'Bearer $_accessToken',
+      'X-Request-ID': requestId,
+      'X-Client-Version': _clientVersion
+    };
+    if (body != null) {
+      final sentAt = _clock().toUtc().toIso8601String();
+      final nonce = _proofNonceFactory();
+      final proof = _installationCommandPayload(
+          robotId: _robotId,
+          deviceSessionId: _deviceSessionId,
+          requestId: requestId,
+          method: method,
+          path: path,
+          sentAt: sentAt,
+          idempotencyKey: idempotencyKey,
+          nonce: nonce,
+          bodySha256: sha256.convert(utf8.encode(canonicalBody!)).toString());
+      final signature = await _credentialVault
+          .signInstallationPayload(base64Encode(utf8.encode(proof)));
+      headers.addAll({
+        'Content-Type': 'application/json',
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': idempotencyKey,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': signature,
+        if (body['expected_revision'] != null)
+          'If-Match': '"rev-${body['expected_revision']}"'
+      });
+    }
+    final response = await _transport.request(
+        method, _robotOrigin.replace(path: path),
+        headers: headers, body: canonicalBody);
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, requestId);
+    if (response.statusCode != (method == 'POST' ? 201 : 200)) {
+      final envelope = ErrorEnvelope.fromJson(payload);
+      if (response.statusCode < 500) _pending.remove(pendingKey);
+      throw EngineeringApiException(
+          statusCode: response.statusCode, envelope: envelope);
+    }
+    final data = payload['data'];
+    if (data is! Map ||
+        data['schedule'] is! Map ||
+        response.headers['etag'] !=
+            '"rev-${(data['schedule'] as Map)['revision']}"') {
+      throw EngineeringProtocolException(
+          reasonCode: 'schedule_revision_mismatch', requestId: requestId);
+    }
+    final ScheduleDefinition definition;
+    if (method == 'GET') {
+      definition =
+          ScheduleDefinitionSuccessEnvelope.fromJson(payload).data.schedule;
+    } else {
+      final result = ScheduleWriteSuccessEnvelope.fromJson(payload).data;
+      definition = result.schedule;
+      final expectedAction =
+          {'POST': 'create', 'PATCH': 'update', 'DELETE': 'delete'}[method];
+      if (result.impact.action != expectedAction ||
+          result.impact.deleted != (method == 'DELETE') ||
+          result.impact.previousRevision != body!['expected_revision'] ||
+          definition.revision !=
+              (method == 'POST' ? 1 : (body['expected_revision'] as int) + 1)) {
+        throw EngineeringProtocolException(
+            reasonCode: 'schedule_result_mismatch', requestId: requestId);
+      }
+    }
+    if (method != 'POST' && definition.scheduleId != path.split('/')[4]) {
+      throw EngineeringProtocolException(
+          reasonCode: 'schedule_identity_mismatch', requestId: requestId);
+    }
+    _pending.remove(pendingKey);
+    return payload;
+  }
+
+  static String _scheduleId(String value) {
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$').hasMatch(value))
+      throw ArgumentError.value(value, 'scheduleId');
+    return value;
+  }
+
+  static int _scheduleRevision(int value) {
+    if (value < 1) throw ArgumentError.value(value, 'expectedRevision');
+    return value;
+  }
+}
+
+Object? _sortedScheduleJson(Object? value) {
+  if (value is Map<String, Object?>)
+    return SplayTreeMap<String, Object?>.from(
+        value.map((key, item) => MapEntry(key, _sortedScheduleJson(item))));
+  if (value is List) return value.map(_sortedScheduleJson).toList();
+  return value;
+}
+
+Map<String, Object?> _draftJson(ScheduleDraft draft) =>
+    _patchJson(SchedulePatch(
+        kind: draft.kind,
+        title: draft.title,
+        enabled: draft.enabled,
+        timezone: draft.timezone,
+        start: draft.start,
+        recurrence: draft.recurrence,
+        confirmationPolicy: draft.confirmationPolicy,
+        payload: draft.payload));
+
+Map<String, Object?> _patchJson(SchedulePatch patch) {
+  if (patch.kind == ScheduleKind.unknown ||
+      patch.recurrence?.frequency == ScheduleFrequency.unknown ||
+      patch.confirmationPolicy == ScheduleConfirmationPolicy.unknown)
+    throw ArgumentError('unsupported Schedule fields');
+  return {
+    if (patch.kind != null) 'kind': patch.kind!.name,
+    if (patch.title != null) 'title': patch.title,
+    if (patch.enabled != null) 'enabled': patch.enabled,
+    if (patch.timezone != null) 'timezone': patch.timezone,
+    if (patch.start != null) 'start': patch.start,
+    if (patch.recurrence != null)
+      'recurrence': {
+        'frequency': patch.recurrence!.frequency.name,
+        'weekdays': patch.recurrence!.weekdays
+      },
+    if (patch.confirmationPolicy != null)
+      'confirmation_policy': patch.confirmationPolicy!.name,
+    if (patch.payload != null)
+      'payload': {'reminder_lead_minutes': patch.payload!.reminderLeadMinutes},
+  };
+}
 
 class EngineeringMapCatalogClient implements MapCatalogManager {
   EngineeringMapCatalogClient({

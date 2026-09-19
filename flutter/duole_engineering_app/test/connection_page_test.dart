@@ -31,7 +31,7 @@ void main() {
     expect(find.text('同名机器人'), findsNWidgets(2));
     expect(find.text('192.0.2.41:8443'), findsOneWidget);
     expect(find.text('192.0.2.42:8443'), findsOneWidget);
-    expect(find.textContaining('API 1'), findsNWidgets(2));
+    expect(find.textContaining('API 3'), findsNWidgets(2));
     expect(find.textContaining('Gateway 0.2.0'), findsNWidgets(2));
     expect(find.text(robotIdentityHint('rb_connection_01')), findsOneWidget);
     expect(find.text(robotIdentityHint('rb_connection_02')), findsOneWidget);
@@ -169,6 +169,7 @@ void main() {
     expect(find.text('配对成功'), findsOneWidget);
     expect(find.text('dvs_0123456789abcdef0123456789abcdef'), findsOneWidget);
     expect(find.text('查看机器人状态'), findsOneWidget);
+    expect(find.text('查看日程'), findsOneWidget);
   });
 
   testWidgets('trusted unpaired robot resumes the secure pairing flow',
@@ -451,7 +452,7 @@ class _Probe implements RobotIdentityProbe {
         displayName: '同名机器人',
         productModel: 'DUOLE',
         mode: RobotMode.real,
-        apiSchemaVersion: '1.0.0',
+        apiSchemaVersion: appContractVersion,
         gatewayVersion: '0.2.0',
         deviceKeyFingerprint: fingerprint,
         pairingAvailable: false,
@@ -473,7 +474,7 @@ class _PairingProbe implements RobotIdentityProbe {
         displayName: '同名机器人',
         productModel: 'DUOLE',
         mode: RobotMode.real,
-        apiSchemaVersion: '1.0.0',
+        apiSchemaVersion: appContractVersion,
         gatewayVersion: '0.2.0',
         deviceKeyFingerprint: fingerprint,
         pairingAvailable: true,
@@ -524,7 +525,7 @@ DiscoveryCandidate _candidate(String robotId, String host) {
     identityHint: hint,
     host: host,
     port: 8443,
-    apiMajor: 1,
+    apiMajor: 3,
     gatewayVersion: '0.2.0',
     mode: 'REAL',
   );
@@ -551,6 +552,11 @@ class _UnusedReader implements EngineeringAppReader {
 }
 
 class _UnusedSnapshotReader implements RobotSnapshotReader {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _UnusedScheduleReader implements ScheduleReader {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -803,6 +809,7 @@ PairedRobotSession _pairedSession(
       ),
       reader: _UnusedReader(),
       snapshotReader: _UnusedSnapshotReader(),
+      scheduleReader: _UnusedScheduleReader(),
       forceRefresher: _UnusedForceRefresher(),
       eventSync: eventSync,
       revoke: () async {

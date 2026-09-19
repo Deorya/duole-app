@@ -226,9 +226,11 @@ class ConnectionIdentity {
   ConnectionIdentity({
     required RobotIdentityProbe probe,
     required RobotTrustStore trustStore,
-    this.supportedApiMajor = 1,
+    int? supportedApiMajor,
     DateTime Function()? clock,
   })  : _probe = probe,
+        supportedApiMajor = supportedApiMajor ??
+            int.parse(appContractVersion.split('.').first),
         _trustStore = trustStore,
         _clock = clock ?? DateTime.now;
 

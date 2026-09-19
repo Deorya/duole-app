@@ -62,6 +62,8 @@ class PairedRobotSession {
     required this.credentials,
     required this.reader,
     required this.snapshotReader,
+    this.scheduleReader,
+    this.scheduleManager,
     this.navigationMapReader,
     this.mapCatalogReader,
     this.mapCatalogManager,
@@ -80,6 +82,8 @@ class PairedRobotSession {
   final PairingCredentials credentials;
   final EngineeringAppReader reader;
   final RobotSnapshotReader snapshotReader;
+  final ScheduleReader? scheduleReader;
+  final ScheduleManager? scheduleManager;
   final NavigationMapReader? navigationMapReader;
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
@@ -306,6 +310,15 @@ class SecurePairingSessionGateway
       credentials: credentials,
       reader: api,
       snapshotReader: api,
+      scheduleReader: api,
+      scheduleManager: credentials.scopes.contains('schedule.write')
+          ? EngineeringScheduleClient(
+              robotOrigin: input.robotOrigin, robotId: credentials.robotId,
+              deviceSessionId: credentials.deviceSessionId, accessToken: credentials.accessToken,
+              clientVersion: _clientVersion, requestIdFactory: _requestIdFactory,
+              idempotencyKeyFactory: _idempotencyKeyFactory, proofNonceFactory: _idempotencyKeyFactory,
+              transport: transport, credentialVault: _credentialVault,
+            ) : null,
       navigationMapReader: api,
       mapCatalogReader: api,
       mapCatalogManager:

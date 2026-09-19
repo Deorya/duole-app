@@ -301,7 +301,7 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
           child: ListTile(
             leading: const Icon(Icons.event_note),
             title: const Text('今日日程'),
-            subtitle: Text('共 ${snapshot.todaySchedule['count'] ?? 0} 项'),
+            subtitle: Text(_todayScheduleLabel(snapshot.todaySchedule)),
           ),
         ),
         Card(
@@ -317,6 +317,25 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
       ],
     );
   }
+}
+
+String _todayScheduleLabel(TodayScheduleSummary summary) {
+  if (summary.status == DeviceHealth.unavailable) {
+    return '正式日程暂不可用';
+  }
+  final parts = <String>['共 ${summary.count} 项'];
+  if (summary.timezone case final timezone?) parts.add(timezone);
+  if (summary.nextSchedule case final next?) {
+    parts.add('下次 ${_scheduleLocalLabel(next.scheduledAt)} ${next.title}');
+  }
+  if (summary.stale) parts.add('数据已陈旧');
+  return parts.join(' · ');
+}
+
+String _scheduleLocalLabel(String value) {
+  if (value.length < 16) return '时间待确认';
+  return '${value.substring(5, 7)}月${value.substring(8, 10)}日 '
+      '${value.substring(11, 16)}';
 }
 
 bool _teleopWriteAllowed({

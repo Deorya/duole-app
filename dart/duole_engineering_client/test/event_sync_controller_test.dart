@@ -350,7 +350,16 @@ RobotSnapshotSuccessEnvelope _snapshot({
         ],
       },
       'active_summary': <String, Object?>{},
-      'today_schedule': <String, Object?>{'count': 0},
+      'today_schedule': <String, Object?>{
+        'count': 0,
+        'status': 'ok',
+        'timezone': 'Asia/Shanghai',
+        'next_schedule': null,
+        'observed_at': '2026-08-22T06:00:00Z',
+        'stale': false,
+        'stale_reason': null,
+        'reason_code': null,
+      },
       'privacy_media': <String, Object?>{
         'privacy_mode': 'unknown',
         'active_media_sessions': 0,

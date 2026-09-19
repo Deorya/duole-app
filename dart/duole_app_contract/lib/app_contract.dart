@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND.
 
-// contract-sha256: 2c4b30e8ddf4907188a4073d89c064e0899ef0546acf5d4396f8c3dcbc5ec797
+// contract-sha256: f97fc4c5d26fecd47e20f3c1d38cb86d6c59962658bfd2c84fa16897919f8a71
 
 Object? _required(Map<String, Object?> json, String key, String path) {
   if (!json.containsKey(key)) {
@@ -65,7 +65,7 @@ DateTime _asDateTime(Object? value, String path) {
   return parsed;
 }
 
-const String appContractVersion = "1.9.0";
+const String appContractVersion = "3.0.0";
 
 class ApiCompatibilityDecision {
   final bool writeAllowed;
@@ -241,6 +241,514 @@ bool _isAwareDateTime(String value) {
       RegExp(r'(Z|[+-]\d\d:\d\d)$').hasMatch(value);
 }
 
+class SchedulePatch {
+  final ScheduleKind? kind;
+  final String? title;
+  final bool? enabled;
+  final String? timezone;
+  final String? start;
+  final ScheduleRecurrence? recurrence;
+  final ScheduleConfirmationPolicy? confirmationPolicy;
+  final ScheduleReminderPayload? payload;
+
+  const SchedulePatch({
+    required this.kind,
+    required this.title,
+    required this.enabled,
+    required this.timezone,
+    required this.start,
+    required this.recurrence,
+    required this.confirmationPolicy,
+    required this.payload,
+  });
+
+  factory SchedulePatch.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'kind', 'title', 'enabled', 'timezone', 'start', 'recurrence', 'confirmation_policy', 'payload'}, path);
+    final result = SchedulePatch(
+      kind: json.containsKey('kind') ? _decodeScheduleKind(_required(json, 'kind', path), '$path.kind') : null,
+      title: json.containsKey('title') ? _asString(_required(json, 'title', path), '$path.title') : null,
+      enabled: json.containsKey('enabled') ? _asBool(_required(json, 'enabled', path), '$path.enabled') : null,
+      timezone: json.containsKey('timezone') ? _asString(_required(json, 'timezone', path), '$path.timezone') : null,
+      start: json.containsKey('start') ? _asString(_required(json, 'start', path), '$path.start') : null,
+      recurrence: json.containsKey('recurrence') ? ScheduleRecurrence.fromJson(_asMap(_required(json, 'recurrence', path), '$path.recurrence'), path: '$path.recurrence') : null,
+      confirmationPolicy: json.containsKey('confirmation_policy') ? _decodeScheduleConfirmationPolicy(_required(json, 'confirmation_policy', path), '$path.confirmation_policy') : null,
+      payload: json.containsKey('payload') ? ScheduleReminderPayload.fromJson(_asMap(_required(json, 'payload', path), '$path.payload'), path: '$path.payload') : null,
+    );
+    if (result.title != null && (result.title!.length < 1)) {
+      throw FormatException('$path.title must contain at least 1 characters');
+    }
+    if (result.title != null && (result.title!.length > 200)) {
+      throw FormatException('$path.title must contain at most 200 characters');
+    }
+    if (result.timezone != null && (result.timezone!.length < 1)) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone != null && (result.timezone!.length > 128)) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (result.start != null && (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})?$').hasMatch(result.start!))) {
+      throw FormatException('$path.start has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleUpdateRequest {
+  final SchedulePatch changes;
+  final int expectedRevision;
+  final bool announce;
+
+  const ScheduleUpdateRequest({
+    required this.changes,
+    required this.expectedRevision,
+    required this.announce,
+  });
+
+  factory ScheduleUpdateRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'changes', 'expected_revision', 'announce'}, path);
+    final result = ScheduleUpdateRequest(
+      changes: SchedulePatch.fromJson(_asMap(_required(json, 'changes', path), '$path.changes'), path: '$path.changes'),
+      expectedRevision: _asInt(_required(json, 'expected_revision', path), '$path.expected_revision'),
+      announce: _asBool(_required(json, 'announce', path), '$path.announce'),
+    );
+    if (result.expectedRevision < 1) {
+      throw FormatException('$path.expected_revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class ScheduleDeleteRequest {
+  final int expectedRevision;
+  final bool announce;
+
+  const ScheduleDeleteRequest({
+    required this.expectedRevision,
+    required this.announce,
+  });
+
+  factory ScheduleDeleteRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'expected_revision', 'announce'}, path);
+    final result = ScheduleDeleteRequest(
+      expectedRevision: _asInt(_required(json, 'expected_revision', path), '$path.expected_revision'),
+      announce: _asBool(_required(json, 'announce', path), '$path.announce'),
+    );
+    if (result.expectedRevision < 1) {
+      throw FormatException('$path.expected_revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class ScheduleDefinitionData {
+  final ScheduleDefinition schedule;
+
+  const ScheduleDefinitionData({
+    required this.schedule,
+  });
+
+  factory ScheduleDefinitionData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule'}, path);
+    final result = ScheduleDefinitionData(
+      schedule: ScheduleDefinition.fromJson(_asMap(_required(json, 'schedule', path), '$path.schedule'), path: '$path.schedule'),
+    );
+    return result;
+  }
+}
+
+class ScheduleDefinitionSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final ScheduleDefinitionData data;
+
+  const ScheduleDefinitionSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory ScheduleDefinitionSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = ScheduleDefinitionSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: ScheduleDefinitionData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    return result;
+  }
+}
+
+enum ScheduleKind { reminder, unknown }
+
+ScheduleKind _decodeScheduleKind(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'reminder' => ScheduleKind.reminder,
+      _ => ScheduleKind.unknown,
+  };
+}
+
+enum ScheduleFrequency { once, daily, weekly, unknown }
+
+ScheduleFrequency _decodeScheduleFrequency(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'once' => ScheduleFrequency.once,
+      'daily' => ScheduleFrequency.daily,
+      'weekly' => ScheduleFrequency.weekly,
+      _ => ScheduleFrequency.unknown,
+  };
+}
+
+enum ScheduleConfirmationPolicy { none, unknown }
+
+ScheduleConfirmationPolicy _decodeScheduleConfirmationPolicy(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'none' => ScheduleConfirmationPolicy.none,
+      _ => ScheduleConfirmationPolicy.unknown,
+  };
+}
+
+enum ScheduleActorKind { app, voice, system, unknown }
+
+ScheduleActorKind _decodeScheduleActorKind(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'app' => ScheduleActorKind.app,
+      'voice' => ScheduleActorKind.voice,
+      'system' => ScheduleActorKind.system,
+      _ => ScheduleActorKind.unknown,
+  };
+}
+
+class ScheduleActor {
+  final ScheduleActorKind kind;
+  final String id;
+
+  const ScheduleActor({
+    required this.kind,
+    required this.id,
+  });
+
+  factory ScheduleActor.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'kind', 'id'}, path);
+    final result = ScheduleActor(
+      kind: _decodeScheduleActorKind(_required(json, 'kind', path), '$path.kind'),
+      id: _asString(_required(json, 'id', path), '$path.id'),
+    );
+    if (result.id.length < 1) {
+      throw FormatException('$path.id must contain at least 1 characters');
+    }
+    if (result.id.length > 128) {
+      throw FormatException('$path.id must contain at most 128 characters');
+    }
+    return result;
+  }
+}
+
+class ScheduleRecurrence {
+  final ScheduleFrequency frequency;
+  final List<int> weekdays;
+
+  const ScheduleRecurrence({
+    required this.frequency,
+    required this.weekdays,
+  });
+
+  factory ScheduleRecurrence.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'frequency', 'weekdays'}, path);
+    final result = ScheduleRecurrence(
+      frequency: _decodeScheduleFrequency(_required(json, 'frequency', path), '$path.frequency'),
+      weekdays: _asList(_required(json, 'weekdays', path), '$path.weekdays').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.weekdays' + '[${entry.key}]';
+        return _asInt(item, itemPath);
+      }).toList(growable: false),
+    );
+    return result;
+  }
+}
+
+class ScheduleReminderPayload {
+  final int reminderLeadMinutes;
+
+  const ScheduleReminderPayload({
+    required this.reminderLeadMinutes,
+  });
+
+  factory ScheduleReminderPayload.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'reminder_lead_minutes'}, path);
+    final result = ScheduleReminderPayload(
+      reminderLeadMinutes: _asInt(_required(json, 'reminder_lead_minutes', path), '$path.reminder_lead_minutes'),
+    );
+    if (result.reminderLeadMinutes < 0) {
+      throw FormatException('$path.reminder_lead_minutes must be at least 0');
+    }
+    if (result.reminderLeadMinutes > 1440) {
+      throw FormatException('$path.reminder_lead_minutes must be at most 1440');
+    }
+    return result;
+  }
+}
+
+class ScheduleDefinition {
+  final String scheduleId;
+  final ScheduleKind kind;
+  final String title;
+  final bool enabled;
+  final String timezone;
+  final String start;
+  final ScheduleRecurrence recurrence;
+  final ScheduleConfirmationPolicy confirmationPolicy;
+  final ScheduleReminderPayload payload;
+  final int revision;
+  final ScheduleActor actor;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  const ScheduleDefinition({
+    required this.scheduleId,
+    required this.kind,
+    required this.title,
+    required this.enabled,
+    required this.timezone,
+    required this.start,
+    required this.recurrence,
+    required this.confirmationPolicy,
+    required this.payload,
+    required this.revision,
+    required this.actor,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  factory ScheduleDefinition.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule_id', 'kind', 'title', 'enabled', 'timezone', 'start', 'recurrence', 'confirmation_policy', 'payload', 'revision', 'actor', 'created_at', 'updated_at'}, path);
+    final result = ScheduleDefinition(
+      scheduleId: _asString(_required(json, 'schedule_id', path), '$path.schedule_id'),
+      kind: _decodeScheduleKind(_required(json, 'kind', path), '$path.kind'),
+      title: _asString(_required(json, 'title', path), '$path.title'),
+      enabled: _asBool(_required(json, 'enabled', path), '$path.enabled'),
+      timezone: _asString(_required(json, 'timezone', path), '$path.timezone'),
+      start: _asString(_required(json, 'start', path), '$path.start'),
+      recurrence: ScheduleRecurrence.fromJson(_asMap(_required(json, 'recurrence', path), '$path.recurrence'), path: '$path.recurrence'),
+      confirmationPolicy: _decodeScheduleConfirmationPolicy(_required(json, 'confirmation_policy', path), '$path.confirmation_policy'),
+      payload: ScheduleReminderPayload.fromJson(_asMap(_required(json, 'payload', path), '$path.payload'), path: '$path.payload'),
+      revision: _asInt(_required(json, 'revision', path), '$path.revision'),
+      actor: ScheduleActor.fromJson(_asMap(_required(json, 'actor', path), '$path.actor'), path: '$path.actor'),
+      createdAt: _asDateTime(_required(json, 'created_at', path), '$path.created_at'),
+      updatedAt: _asDateTime(_required(json, 'updated_at', path), '$path.updated_at'),
+    );
+    if (result.scheduleId.length < 1) {
+      throw FormatException('$path.schedule_id must contain at least 1 characters');
+    }
+    if (result.scheduleId.length > 128) {
+      throw FormatException('$path.schedule_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$').hasMatch(result.scheduleId)) {
+      throw FormatException('$path.schedule_id has an invalid format');
+    }
+    if (result.title.length < 1) {
+      throw FormatException('$path.title must contain at least 1 characters');
+    }
+    if (result.title.length > 200) {
+      throw FormatException('$path.title must contain at most 200 characters');
+    }
+    if (result.timezone.length < 1) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone.length > 128) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.start)) {
+      throw FormatException('$path.start has an invalid format');
+    }
+    if (result.revision < 1) {
+      throw FormatException('$path.revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class ScheduleCreateRequest {
+  final ScheduleDraft schedule;
+  final bool announce;
+
+  const ScheduleCreateRequest({
+    required this.schedule,
+    required this.announce,
+  });
+
+  factory ScheduleCreateRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule', 'announce'}, path);
+    final result = ScheduleCreateRequest(
+      schedule: ScheduleDraft.fromJson(_asMap(_required(json, 'schedule', path), '$path.schedule'), path: '$path.schedule'),
+      announce: _asBool(_required(json, 'announce', path), '$path.announce'),
+    );
+    return result;
+  }
+}
+
+class ScheduleDraft {
+  final ScheduleKind kind;
+  final String title;
+  final bool enabled;
+  final String timezone;
+  final String start;
+  final ScheduleRecurrence recurrence;
+  final ScheduleConfirmationPolicy confirmationPolicy;
+  final ScheduleReminderPayload payload;
+
+  const ScheduleDraft({
+    required this.kind,
+    required this.title,
+    required this.enabled,
+    required this.timezone,
+    required this.start,
+    required this.recurrence,
+    required this.confirmationPolicy,
+    required this.payload,
+  });
+
+  factory ScheduleDraft.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'kind', 'title', 'enabled', 'timezone', 'start', 'recurrence', 'confirmation_policy', 'payload'}, path);
+    final result = ScheduleDraft(
+      kind: _decodeScheduleKind(_required(json, 'kind', path), '$path.kind'),
+      title: _asString(_required(json, 'title', path), '$path.title'),
+      enabled: _asBool(_required(json, 'enabled', path), '$path.enabled'),
+      timezone: _asString(_required(json, 'timezone', path), '$path.timezone'),
+      start: _asString(_required(json, 'start', path), '$path.start'),
+      recurrence: ScheduleRecurrence.fromJson(_asMap(_required(json, 'recurrence', path), '$path.recurrence'), path: '$path.recurrence'),
+      confirmationPolicy: _decodeScheduleConfirmationPolicy(_required(json, 'confirmation_policy', path), '$path.confirmation_policy'),
+      payload: ScheduleReminderPayload.fromJson(_asMap(_required(json, 'payload', path), '$path.payload'), path: '$path.payload'),
+    );
+    if (result.title.length < 1) {
+      throw FormatException('$path.title must contain at least 1 characters');
+    }
+    if (result.title.length > 200) {
+      throw FormatException('$path.title must contain at most 200 characters');
+    }
+    if (result.timezone.length < 1) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone.length > 128) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})?$').hasMatch(result.start)) {
+      throw FormatException('$path.start has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleWriteImpact {
+  final String action;
+  final int? previousRevision;
+  final bool deleted;
+  final String announcement;
+
+  const ScheduleWriteImpact({
+    required this.action,
+    required this.previousRevision,
+    required this.deleted,
+    required this.announcement,
+  });
+
+  factory ScheduleWriteImpact.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'action', 'previous_revision', 'deleted', 'announcement'}, path);
+    final result = ScheduleWriteImpact(
+      action: _asString(_required(json, 'action', path), '$path.action'),
+      previousRevision: _required(json, 'previous_revision', path) == null ? null : _asInt(_required(json, 'previous_revision', path), '$path.previous_revision'),
+      deleted: _asBool(_required(json, 'deleted', path), '$path.deleted'),
+      announcement: _asString(_required(json, 'announcement', path), '$path.announcement'),
+    );
+    if (result.previousRevision != null && (result.previousRevision! < 1)) {
+      throw FormatException('$path.previous_revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class ScheduleWriteData {
+  final ScheduleDefinition schedule;
+  final ScheduleWriteImpact impact;
+
+  const ScheduleWriteData({
+    required this.schedule,
+    required this.impact,
+  });
+
+  factory ScheduleWriteData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule', 'impact'}, path);
+    final result = ScheduleWriteData(
+      schedule: ScheduleDefinition.fromJson(_asMap(_required(json, 'schedule', path), '$path.schedule'), path: '$path.schedule'),
+      impact: ScheduleWriteImpact.fromJson(_asMap(_required(json, 'impact', path), '$path.impact'), path: '$path.impact'),
+    );
+    return result;
+  }
+}
+
+class ScheduleWriteSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final ScheduleWriteData data;
+
+  const ScheduleWriteSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory ScheduleWriteSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = ScheduleWriteSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: ScheduleWriteData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    return result;
+  }
+}
+
 class BatteryStatusSuccessEnvelope {
   final String schemaVersion;
   final String requestId;
@@ -357,6 +865,481 @@ class BatteryDetails {
     }
     if (result.percentage != null && (result.percentage! > 100)) {
       throw FormatException('$path.percentage must be at most 100');
+    }
+    return result;
+  }
+}
+
+class ScheduleListSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final ScheduleListData data;
+
+  const ScheduleListSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory ScheduleListSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = ScheduleListSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: ScheduleListData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleDetailSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final ScheduleDetailData data;
+
+  const ScheduleDetailSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory ScheduleDetailSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = ScheduleDetailSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: ScheduleDetailData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]+$').hasMatch(result.requestId)) {
+      throw FormatException('$path.request_id has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleDetailData {
+  final String timezone;
+  final ScheduleSummary schedule;
+  final List<ScheduleOccurrenceRecord> occurrences;
+  final ScheduleHistoryAvailability history;
+  final DateTime observedAt;
+  final bool stale;
+  final String? staleReason;
+
+  const ScheduleDetailData({
+    required this.timezone,
+    required this.schedule,
+    required this.occurrences,
+    required this.history,
+    required this.observedAt,
+    required this.stale,
+    required this.staleReason,
+  });
+
+  factory ScheduleDetailData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'timezone', 'schedule', 'occurrences', 'history', 'observed_at', 'stale', 'stale_reason'}, path);
+    final result = ScheduleDetailData(
+      timezone: _asString(_required(json, 'timezone', path), '$path.timezone'),
+      schedule: ScheduleSummary.fromJson(_asMap(_required(json, 'schedule', path), '$path.schedule'), path: '$path.schedule'),
+      occurrences: _asList(_required(json, 'occurrences', path), '$path.occurrences').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.occurrences' + '[${entry.key}]';
+        return ScheduleOccurrenceRecord.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+      history: ScheduleHistoryAvailability.fromJson(_asMap(_required(json, 'history', path), '$path.history'), path: '$path.history'),
+      observedAt: _asDateTime(_required(json, 'observed_at', path), '$path.observed_at'),
+      stale: _asBool(_required(json, 'stale', path), '$path.stale'),
+      staleReason: _required(json, 'stale_reason', path) == null ? null : _asString(_required(json, 'stale_reason', path), '$path.stale_reason'),
+    );
+    if (result.timezone.length < 1) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone.length > 128) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (result.staleReason != null && (result.staleReason!.length > 160)) {
+      throw FormatException('$path.stale_reason must contain at most 160 characters');
+    }
+    return result;
+  }
+}
+
+class ScheduleListData {
+  final String timezone;
+  final ScheduleDateRange range;
+  final List<ScheduleSummary> items;
+  final ScheduleHistoryAvailability history;
+  final DateTime observedAt;
+  final bool stale;
+  final String? staleReason;
+
+  const ScheduleListData({
+    required this.timezone,
+    required this.range,
+    required this.items,
+    required this.history,
+    required this.observedAt,
+    required this.stale,
+    required this.staleReason,
+  });
+
+  factory ScheduleListData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'timezone', 'range', 'items', 'history', 'observed_at', 'stale', 'stale_reason'}, path);
+    final result = ScheduleListData(
+      timezone: _asString(_required(json, 'timezone', path), '$path.timezone'),
+      range: ScheduleDateRange.fromJson(_asMap(_required(json, 'range', path), '$path.range'), path: '$path.range'),
+      items: _asList(_required(json, 'items', path), '$path.items').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.items' + '[${entry.key}]';
+        return ScheduleSummary.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+      history: ScheduleHistoryAvailability.fromJson(_asMap(_required(json, 'history', path), '$path.history'), path: '$path.history'),
+      observedAt: _asDateTime(_required(json, 'observed_at', path), '$path.observed_at'),
+      stale: _asBool(_required(json, 'stale', path), '$path.stale'),
+      staleReason: _required(json, 'stale_reason', path) == null ? null : _asString(_required(json, 'stale_reason', path), '$path.stale_reason'),
+    );
+    if (result.timezone.length < 1) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone.length > 128) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (result.staleReason != null && (result.staleReason!.length > 160)) {
+      throw FormatException('$path.stale_reason must contain at most 160 characters');
+    }
+    return result;
+  }
+}
+
+class ScheduleDateRange {
+  final String startDate;
+  final String endDate;
+
+  const ScheduleDateRange({
+    required this.startDate,
+    required this.endDate,
+  });
+
+  factory ScheduleDateRange.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'start_date', 'end_date'}, path);
+    final result = ScheduleDateRange(
+      startDate: _asString(_required(json, 'start_date', path), '$path.start_date'),
+      endDate: _asString(_required(json, 'end_date', path), '$path.end_date'),
+    );
+    return result;
+  }
+}
+
+class ScheduleSummary {
+  final String scheduleId;
+  final String title;
+  final ScheduleSource source;
+  final String timezone;
+  final String? scheduledAt;
+  final ScheduleNextOccurrence? nextOccurrence;
+  final ScheduleAvailability availability;
+
+  const ScheduleSummary({
+    required this.scheduleId,
+    required this.title,
+    required this.source,
+    required this.timezone,
+    required this.scheduledAt,
+    required this.nextOccurrence,
+    required this.availability,
+  });
+
+  factory ScheduleSummary.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule_id', 'title', 'source', 'timezone', 'scheduled_at', 'next_occurrence', 'availability'}, path);
+    final result = ScheduleSummary(
+      scheduleId: _asString(_required(json, 'schedule_id', path), '$path.schedule_id'),
+      title: _asString(_required(json, 'title', path), '$path.title'),
+      source: _decodeScheduleSource(_required(json, 'source', path), '$path.source'),
+      timezone: _asString(_required(json, 'timezone', path), '$path.timezone'),
+      scheduledAt: _required(json, 'scheduled_at', path) == null ? null : _asString(_required(json, 'scheduled_at', path), '$path.scheduled_at'),
+      nextOccurrence: _required(json, 'next_occurrence', path) == null ? null : ScheduleNextOccurrence.fromJson(_asMap(_required(json, 'next_occurrence', path), '$path.next_occurrence'), path: '$path.next_occurrence'),
+      availability: _decodeScheduleAvailability(_required(json, 'availability', path), '$path.availability'),
+    );
+    if (result.scheduleId.length < 1) {
+      throw FormatException('$path.schedule_id must contain at least 1 characters');
+    }
+    if (result.scheduleId.length > 128) {
+      throw FormatException('$path.schedule_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$').hasMatch(result.scheduleId)) {
+      throw FormatException('$path.schedule_id has an invalid format');
+    }
+    if (result.title.length < 1) {
+      throw FormatException('$path.title must contain at least 1 characters');
+    }
+    if (result.title.length > 240) {
+      throw FormatException('$path.title must contain at most 240 characters');
+    }
+    if (result.timezone.length < 1) {
+      throw FormatException('$path.timezone must contain at least 1 characters');
+    }
+    if (result.timezone.length > 128) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (result.scheduledAt != null && (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.scheduledAt!))) {
+      throw FormatException('$path.scheduled_at has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleNextOccurrence {
+  final String occurrenceId;
+  final String scheduledAt;
+
+  const ScheduleNextOccurrence({
+    required this.occurrenceId,
+    required this.scheduledAt,
+  });
+
+  factory ScheduleNextOccurrence.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'occurrence_id', 'scheduled_at'}, path);
+    final result = ScheduleNextOccurrence(
+      occurrenceId: _asString(_required(json, 'occurrence_id', path), '$path.occurrence_id'),
+      scheduledAt: _asString(_required(json, 'scheduled_at', path), '$path.scheduled_at'),
+    );
+    if (result.occurrenceId.length < 1) {
+      throw FormatException('$path.occurrence_id must contain at least 1 characters');
+    }
+    if (result.occurrenceId.length > 256) {
+      throw FormatException('$path.occurrence_id must contain at most 256 characters');
+    }
+    if (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.scheduledAt)) {
+      throw FormatException('$path.scheduled_at has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleOccurrenceRecord {
+  final String occurrenceId;
+  final String? scheduledAt;
+  final ScheduleDeliveryStatus deliveryStatus;
+  final String? outcome;
+  final String? recordedAt;
+
+  const ScheduleOccurrenceRecord({
+    required this.occurrenceId,
+    required this.scheduledAt,
+    required this.deliveryStatus,
+    required this.outcome,
+    required this.recordedAt,
+  });
+
+  factory ScheduleOccurrenceRecord.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'occurrence_id', 'scheduled_at', 'delivery_status', 'outcome', 'recorded_at'}, path);
+    final result = ScheduleOccurrenceRecord(
+      occurrenceId: _asString(_required(json, 'occurrence_id', path), '$path.occurrence_id'),
+      scheduledAt: _required(json, 'scheduled_at', path) == null ? null : _asString(_required(json, 'scheduled_at', path), '$path.scheduled_at'),
+      deliveryStatus: _decodeScheduleDeliveryStatus(_required(json, 'delivery_status', path), '$path.delivery_status'),
+      outcome: _required(json, 'outcome', path) == null ? null : _asString(_required(json, 'outcome', path), '$path.outcome'),
+      recordedAt: _required(json, 'recorded_at', path) == null ? null : _asString(_required(json, 'recorded_at', path), '$path.recorded_at'),
+    );
+    if (result.occurrenceId.length < 1) {
+      throw FormatException('$path.occurrence_id must contain at least 1 characters');
+    }
+    if (result.occurrenceId.length > 256) {
+      throw FormatException('$path.occurrence_id must contain at most 256 characters');
+    }
+    if (result.scheduledAt != null && (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.scheduledAt!))) {
+      throw FormatException('$path.scheduled_at has an invalid format');
+    }
+    if (result.outcome != null && (result.outcome!.length > 80)) {
+      throw FormatException('$path.outcome must contain at most 80 characters');
+    }
+    if (result.recordedAt != null && (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.recordedAt!))) {
+      throw FormatException('$path.recorded_at has an invalid format');
+    }
+    return result;
+  }
+}
+
+class ScheduleHistoryAvailability {
+  final ScheduleAvailability availability;
+  final String? reasonCode;
+
+  const ScheduleHistoryAvailability({
+    required this.availability,
+    required this.reasonCode,
+  });
+
+  factory ScheduleHistoryAvailability.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'availability', 'reason_code'}, path);
+    final result = ScheduleHistoryAvailability(
+      availability: _decodeScheduleAvailability(_required(json, 'availability', path), '$path.availability'),
+      reasonCode: _required(json, 'reason_code', path) == null ? null : _asString(_required(json, 'reason_code', path), '$path.reason_code'),
+    );
+    if (result.reasonCode != null && (result.reasonCode!.length > 160)) {
+      throw FormatException('$path.reason_code must contain at most 160 characters');
+    }
+    return result;
+  }
+}
+
+enum ScheduleSource { voice, app, system, unknown }
+
+ScheduleSource _decodeScheduleSource(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'voice' => ScheduleSource.voice,
+      'app' => ScheduleSource.app,
+      'system' => ScheduleSource.system,
+      'unknown' => ScheduleSource.unknown,
+      _ => ScheduleSource.unknown,
+  };
+}
+
+enum ScheduleAvailability { available, unavailable }
+
+ScheduleAvailability _decodeScheduleAvailability(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'available' => ScheduleAvailability.available,
+      'unavailable' => ScheduleAvailability.unavailable,
+      _ => ScheduleAvailability.unavailable,
+  };
+}
+
+enum ScheduleDeliveryStatus { claimed, playing, delivered, completed, snoozed, skipped, unconfirmed, deliveryFailure, unknown }
+
+ScheduleDeliveryStatus _decodeScheduleDeliveryStatus(Object? value, String path) {
+  if (value is! String) {
+    throw FormatException('$path must be a string');
+  }
+  return switch (value) {
+      'claimed' => ScheduleDeliveryStatus.claimed,
+      'playing' => ScheduleDeliveryStatus.playing,
+      'delivered' => ScheduleDeliveryStatus.delivered,
+      'completed' => ScheduleDeliveryStatus.completed,
+      'snoozed' => ScheduleDeliveryStatus.snoozed,
+      'skipped' => ScheduleDeliveryStatus.skipped,
+      'unconfirmed' => ScheduleDeliveryStatus.unconfirmed,
+      'delivery_failure' => ScheduleDeliveryStatus.deliveryFailure,
+      'unknown' => ScheduleDeliveryStatus.unknown,
+      _ => ScheduleDeliveryStatus.unknown,
+  };
+}
+
+class TodayScheduleSummary {
+  final int count;
+  final DeviceHealth status;
+  final String? timezone;
+  final TodayScheduleNext? nextSchedule;
+  final DateTime observedAt;
+  final bool stale;
+  final String? staleReason;
+  final String? reasonCode;
+
+  const TodayScheduleSummary({
+    required this.count,
+    required this.status,
+    required this.timezone,
+    required this.nextSchedule,
+    required this.observedAt,
+    required this.stale,
+    required this.staleReason,
+    required this.reasonCode,
+  });
+
+  factory TodayScheduleSummary.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'count', 'status', 'timezone', 'next_schedule', 'observed_at', 'stale', 'stale_reason', 'reason_code'}, path);
+    final result = TodayScheduleSummary(
+      count: _asInt(_required(json, 'count', path), '$path.count'),
+      status: _decodeDeviceHealth(_required(json, 'status', path), '$path.status'),
+      timezone: _required(json, 'timezone', path) == null ? null : _asString(_required(json, 'timezone', path), '$path.timezone'),
+      nextSchedule: _required(json, 'next_schedule', path) == null ? null : TodayScheduleNext.fromJson(_asMap(_required(json, 'next_schedule', path), '$path.next_schedule'), path: '$path.next_schedule'),
+      observedAt: _asDateTime(_required(json, 'observed_at', path), '$path.observed_at'),
+      stale: _asBool(_required(json, 'stale', path), '$path.stale'),
+      staleReason: _required(json, 'stale_reason', path) == null ? null : _asString(_required(json, 'stale_reason', path), '$path.stale_reason'),
+      reasonCode: _required(json, 'reason_code', path) == null ? null : _asString(_required(json, 'reason_code', path), '$path.reason_code'),
+    );
+    if (result.count < 0) {
+      throw FormatException('$path.count must be at least 0');
+    }
+    if (result.timezone != null && (result.timezone!.length > 128)) {
+      throw FormatException('$path.timezone must contain at most 128 characters');
+    }
+    if (result.staleReason != null && (result.staleReason!.length > 160)) {
+      throw FormatException('$path.stale_reason must contain at most 160 characters');
+    }
+    if (result.reasonCode != null && (result.reasonCode!.length > 160)) {
+      throw FormatException('$path.reason_code must contain at most 160 characters');
+    }
+    return result;
+  }
+}
+
+class TodayScheduleNext {
+  final String scheduleId;
+  final String title;
+  final String scheduledAt;
+
+  const TodayScheduleNext({
+    required this.scheduleId,
+    required this.title,
+    required this.scheduledAt,
+  });
+
+  factory TodayScheduleNext.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schedule_id', 'title', 'scheduled_at'}, path);
+    final result = TodayScheduleNext(
+      scheduleId: _asString(_required(json, 'schedule_id', path), '$path.schedule_id'),
+      title: _asString(_required(json, 'title', path), '$path.title'),
+      scheduledAt: _asString(_required(json, 'scheduled_at', path), '$path.scheduled_at'),
+    );
+    if (result.scheduleId.length < 1) {
+      throw FormatException('$path.schedule_id must contain at least 1 characters');
+    }
+    if (result.scheduleId.length > 128) {
+      throw FormatException('$path.schedule_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$').hasMatch(result.scheduleId)) {
+      throw FormatException('$path.schedule_id has an invalid format');
+    }
+    if (result.title.length < 1) {
+      throw FormatException('$path.title must contain at least 1 characters');
+    }
+    if (result.title.length > 240) {
+      throw FormatException('$path.title must contain at most 240 characters');
+    }
+    if (!RegExp(r'^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(result.scheduledAt)) {
+      throw FormatException('$path.scheduled_at has an invalid format');
     }
     return result;
   }
@@ -582,7 +1565,7 @@ class AppError {
   }
 }
 
-enum ErrorCode { validationFailed, requestExpired, idempotencyConflict, revisionConflict, apiMajorUnsupported, capabilityUnavailable, forceRefreshRateLimited, authenticationRequired, authorizationDenied, idempotencyKeyInvalid, installationKeyInvalid, installationProofExpired, installationProofInvalid, installationProofReplayed, pairedClientNotFound, pairingCodeExpired, pairingCodeInvalid, pairingCodeUsed, pairingDeviceIdentityMismatch, pairingRateLimited, pairingReplayUnavailable, pairingSessionNotFound, revocationPropagationFailed, sessionRevoked, stopOperationNotFound, internalError }
+enum ErrorCode { validationFailed, requestExpired, idempotencyConflict, revisionConflict, apiMajorUnsupported, capabilityUnavailable, invalidDate, rangeTooLarge, scheduleNotFound, scheduleServiceTimeout, scheduleDbUnavailable, scheduleMigrationRequired, unsupportedRecurrence, invalidSchedule, forceRefreshRateLimited, authenticationRequired, authorizationDenied, idempotencyKeyInvalid, installationKeyInvalid, installationProofExpired, installationProofInvalid, installationProofReplayed, pairedClientNotFound, pairingCodeExpired, pairingCodeInvalid, pairingCodeUsed, pairingDeviceIdentityMismatch, pairingRateLimited, pairingReplayUnavailable, pairingSessionNotFound, revocationPropagationFailed, sessionRevoked, stopOperationNotFound, internalError }
 
 ErrorCode _decodeErrorCode(Object? value, String path) {
   if (value is! String) {
@@ -595,6 +1578,14 @@ ErrorCode _decodeErrorCode(Object? value, String path) {
       'REVISION_CONFLICT' => ErrorCode.revisionConflict,
       'API_MAJOR_UNSUPPORTED' => ErrorCode.apiMajorUnsupported,
       'CAPABILITY_UNAVAILABLE' => ErrorCode.capabilityUnavailable,
+      'INVALID_DATE' => ErrorCode.invalidDate,
+      'RANGE_TOO_LARGE' => ErrorCode.rangeTooLarge,
+      'SCHEDULE_NOT_FOUND' => ErrorCode.scheduleNotFound,
+      'SCHEDULE_SERVICE_TIMEOUT' => ErrorCode.scheduleServiceTimeout,
+      'SCHEDULE_DB_UNAVAILABLE' => ErrorCode.scheduleDbUnavailable,
+      'SCHEDULE_MIGRATION_REQUIRED' => ErrorCode.scheduleMigrationRequired,
+      'UNSUPPORTED_RECURRENCE' => ErrorCode.unsupportedRecurrence,
+      'INVALID_SCHEDULE' => ErrorCode.invalidSchedule,
       'FORCE_REFRESH_RATE_LIMITED' => ErrorCode.forceRefreshRateLimited,
       'AUTHENTICATION_REQUIRED' => ErrorCode.authenticationRequired,
       'AUTHORIZATION_DENIED' => ErrorCode.authorizationDenied,
@@ -4021,7 +5012,7 @@ class RobotSnapshotData {
   final SnapshotRobot robot;
   final ProjectionGroups projections;
   final Map<String, Object?> activeSummary;
-  final Map<String, Object?> todaySchedule;
+  final TodayScheduleSummary todaySchedule;
   final Map<String, Object?> privacyMedia;
 
   const RobotSnapshotData({
@@ -4044,7 +5035,7 @@ class RobotSnapshotData {
       robot: SnapshotRobot.fromJson(_asMap(_required(json, 'robot', path), '$path.robot'), path: '$path.robot'),
       projections: ProjectionGroups.fromJson(_asMap(_required(json, 'projections', path), '$path.projections'), path: '$path.projections'),
       activeSummary: _asMap(_required(json, 'active_summary', path), '$path.active_summary'),
-      todaySchedule: _asMap(_required(json, 'today_schedule', path), '$path.today_schedule'),
+      todaySchedule: TodayScheduleSummary.fromJson(_asMap(_required(json, 'today_schedule', path), '$path.today_schedule'), path: '$path.today_schedule'),
       privacyMedia: _asMap(_required(json, 'privacy_media', path), '$path.privacy_media'),
     );
     if (result.snapshotSeq < 0) {

@@ -134,6 +134,70 @@ abstract interface class RobotSnapshotReader {
   Future<RobotSnapshotSuccessEnvelope> getRobotSnapshot();
 }
 
+class ScheduleReadQuery {
+  const ScheduleReadQuery.today()
+      : _date = null,
+        _startDate = null,
+        _endDate = null;
+
+  ScheduleReadQuery.date(DateTime date)
+      : _date = _localDate(date),
+        _startDate = null,
+        _endDate = null;
+
+  ScheduleReadQuery.range(DateTime startDate, DateTime endDate)
+      : _date = null,
+        _startDate = _localDate(startDate),
+        _endDate = _localDate(endDate) {
+    final start = DateTime.utc(startDate.year, startDate.month, startDate.day);
+    final end = DateTime.utc(endDate.year, endDate.month, endDate.day);
+    final inclusiveDays = end.difference(start).inDays + 1;
+    if (inclusiveDays < 1) {
+      throw ArgumentError.value(endDate, 'endDate', 'range is reversed');
+    }
+    if (inclusiveDays > 31) {
+      throw ArgumentError.value(endDate, 'endDate', 'maximum range is 31 days');
+    }
+  }
+
+  final String? _date;
+  final String? _startDate;
+  final String? _endDate;
+
+  Map<String, String> get queryParameters {
+    if (_date != null) return {'date': _date};
+    if (_startDate != null && _endDate != null) {
+      return {'start_date': _startDate, 'end_date': _endDate};
+    }
+    return const {};
+  }
+
+  static String _localDate(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+}
+
+abstract interface class ScheduleReader {
+  Future<ScheduleListSuccessEnvelope> getSchedules([
+    ScheduleReadQuery query = const ScheduleReadQuery.today(),
+  ]);
+
+  Future<ScheduleDetailSuccessEnvelope> getSchedule(String scheduleId);
+}
+
+abstract interface class ScheduleManager {
+  Future<ScheduleDefinitionSuccessEnvelope> getScheduleDefinition(
+      String scheduleId);
+  Future<ScheduleWriteSuccessEnvelope> createSchedule(ScheduleDraft draft,
+      {bool announce = false});
+  Future<ScheduleWriteSuccessEnvelope> updateSchedule(
+      String scheduleId, SchedulePatch changes,
+      {required int expectedRevision, bool announce = false});
+  Future<ScheduleWriteSuccessEnvelope> deleteSchedule(String scheduleId,
+      {required int expectedRevision, bool announce = false});
+}
+
 abstract interface class NavigationMapReader {
   Future<NavigationMapViewSuccessEnvelope> getNavigationMapView();
 
@@ -422,6 +486,7 @@ class EngineeringAppApi
     implements
         EngineeringAppReader,
         RobotSnapshotReader,
+        ScheduleReader,
         NavigationMapReader,
         MapCatalogReader {
   EngineeringAppApi({
@@ -483,6 +548,36 @@ class EngineeringAppApi
     return RobotSnapshotSuccessEnvelope.fromJson(
       await _getPayload(
         '/api/v1/snapshot',
+        requiresCredential: true,
+      ),
+    );
+  }
+
+  @override
+  Future<ScheduleListSuccessEnvelope> getSchedules([
+    ScheduleReadQuery query = const ScheduleReadQuery.today(),
+  ]) async {
+    return ScheduleListSuccessEnvelope.fromJson(
+      await _getPayload(
+        '/api/v1/schedules',
+        requiresCredential: true,
+        query: query.queryParameters,
+      ),
+    );
+  }
+
+  @override
+  Future<ScheduleDetailSuccessEnvelope> getSchedule(String scheduleId) async {
+    if (!RegExp(r'^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$').hasMatch(scheduleId)) {
+      throw ArgumentError.value(
+        scheduleId,
+        'scheduleId',
+        'invalid schedule identity',
+      );
+    }
+    return ScheduleDetailSuccessEnvelope.fromJson(
+      await _getPayload(
+        '/api/v1/schedules/$scheduleId',
         requiresCredential: true,
       ),
     );
@@ -590,6 +685,7 @@ class EngineeringAppApi
   Future<Map<String, Object?>> _getPayload(
     String path, {
     required bool requiresCredential,
+    Map<String, String> query = const {},
   }) async {
     final requestId = _requestIdFactory();
     final headers = <String, String>{
@@ -600,7 +696,10 @@ class EngineeringAppApi
       headers['Authorization'] = 'Bearer $_engineeringToken';
     }
     final response = await _transport.get(
-      _robotOrigin.replace(path: path),
+      _robotOrigin.replace(
+        path: path,
+        queryParameters: query.isEmpty ? null : query,
+      ),
       headers: headers,
     );
     final payload = jsonDecode(response.body);
@@ -651,6 +750,14 @@ String _wireErrorCode(ErrorCode value) => switch (value) {
       ErrorCode.revisionConflict => 'REVISION_CONFLICT',
       ErrorCode.apiMajorUnsupported => 'API_MAJOR_UNSUPPORTED',
       ErrorCode.capabilityUnavailable => 'CAPABILITY_UNAVAILABLE',
+      ErrorCode.invalidDate => 'INVALID_DATE',
+      ErrorCode.rangeTooLarge => 'RANGE_TOO_LARGE',
+      ErrorCode.scheduleNotFound => 'SCHEDULE_NOT_FOUND',
+      ErrorCode.scheduleServiceTimeout => 'SCHEDULE_SERVICE_TIMEOUT',
+      ErrorCode.scheduleDbUnavailable => 'SCHEDULE_DB_UNAVAILABLE',
+      ErrorCode.scheduleMigrationRequired => 'SCHEDULE_MIGRATION_REQUIRED',
+      ErrorCode.invalidSchedule => 'INVALID_SCHEDULE',
+      ErrorCode.unsupportedRecurrence => 'UNSUPPORTED_RECURRENCE',
       ErrorCode.forceRefreshRateLimited => 'FORCE_REFRESH_RATE_LIMITED',
       ErrorCode.authenticationRequired => 'AUTHENTICATION_REQUIRED',
       ErrorCode.authorizationDenied => 'AUTHORIZATION_DENIED',

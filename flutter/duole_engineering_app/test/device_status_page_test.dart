@@ -28,7 +28,7 @@ void main() {
     expect(find.text('运动能力已禁用'), findsOneWidget);
     expect(find.text('Gateway 0.2.0'), findsOneWidget);
     expect(find.text('Runtime 0.3.0'), findsOneWidget);
-    expect(find.text('Schema 1.0.0'), findsOneWidget);
+    expect(find.text('Schema $appContractVersion'), findsOneWidget);
     expect(find.text('req_widget_battery_01'), findsOneWidget);
   });
 
@@ -115,7 +115,7 @@ class _WidgetReader implements EngineeringAppReader {
         displayName: '多乐工程机',
         productModel: 'DUOLE',
         mode: identityMode,
-        apiSchemaVersion: '1.0.0',
+        apiSchemaVersion: appContractVersion,
         gatewayVersion: '0.2.0',
         deviceKeyFingerprint:
             'sha256:34562dc3f676dbb61c97a51dfd38a9957a4e3ad1ad706b9d893fd0f1af78ac85',
@@ -131,7 +131,7 @@ class _WidgetReader implements EngineeringAppReader {
       requestId: 'req_widget_versions_01',
       serverTime: _serverTime,
       data: const VersionsData(
-        apiSchemaVersion: '1.0.0',
+        apiSchemaVersion: appContractVersion,
         gatewayVersion: '0.2.0',
         robotRuntimeVersion: '0.3.0',
         deviceStatusContractVersion: '1.1.0',

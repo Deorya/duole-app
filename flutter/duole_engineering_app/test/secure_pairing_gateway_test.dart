@@ -39,6 +39,12 @@ Future<void> main() async {
       Uri.parse('https://robot.local:8443/api/v1/versions')) {
     throw StateError('paired reader used the wrong robot origin');
   }
+  if (!identical(session.scheduleReader, session.reader)) {
+    throw StateError('paired session did not expose its Schedule reader');
+  }
+  if (session.scheduleManager == null) {
+    throw StateError('schedule.write scope did not create the versioned Schedule manager');
+  }
   if (session.emergencyStopCommander == null) {
     throw StateError('robot.stop scope did not create the stop commander');
   }
@@ -86,6 +92,7 @@ class _GatewayTransport implements PairedRobotHttpTransport {
           'refresh_token': 'refresh-paired-test-only',
           'expires_at': '2026-08-23T02:00:00Z',
           'scopes': [
+            'schedule.write',
             'robot.status.read',
             'robot.stop',
             'maps.manage',
@@ -113,7 +120,7 @@ class _GatewayTransport implements PairedRobotHttpTransport {
         'data': {
           'gateway_version': '0.2.0',
           'robot_runtime_version': '0.2.0',
-          'api_schema_version': '1.0.0',
+          'api_schema_version': appContractVersion,
           'device_status_contract_version': '1.0.0',
         },
       }),

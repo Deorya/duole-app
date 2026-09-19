@@ -29,20 +29,20 @@
       "fixtures": ["versions/incompatible_major.json"]
     },
     {
-      "test": "map_challenge_display_contract_test.dart",
-      "fixtures": []
-    },
-    {
-      "test": "map_challenge_exchange_request_test.dart",
-      "fixtures": []
+      "test": "malformed_envelope_test.dart",
+      "fixtures": ["battery_status/success.json"]
     },
     {
       "test": "manual_mapping_contract_test.dart",
       "fixtures": []
     },
     {
-      "test": "malformed_envelope_test.dart",
-      "fixtures": ["battery_status/success.json"]
+      "test": "map_challenge_display_contract_test.dart",
+      "fixtures": []
+    },
+    {
+      "test": "map_challenge_exchange_request_test.dart",
+      "fixtures": []
     },
     {
       "test": "mock_no_motion_fail_closed_test.dart",
@@ -87,6 +87,17 @@
       "fixtures": ["snapshot/consistent.json"]
     },
     {
+      "test": "schedule_fixture_test.dart",
+      "fixtures": [
+        "schedules/list_today.json",
+        "schedules/detail_delivered.json"
+      ]
+    },
+    {
+      "test": "schedule_write_fixture_test.dart",
+      "fixtures": ["schedules/write.json"]
+    },
+    {
       "test": "session_revoked_error_test.dart",
       "fixtures": ["errors/session_revoked.json"]
     },
@@ -112,6 +123,10 @@
         "forward_compatibility/unknown_health.json",
         "forward_compatibility/unknown_capability_availability.json"
       ]
+    },
+    {
+      "test": "unknown_schedule_source_fail_closed_test.dart",
+      "fixtures": ["forward_compatibility/unknown_schedule_source.json"]
     },
     {
       "test": "valid_battery_fixture_test.dart",

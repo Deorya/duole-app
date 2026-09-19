@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_client/connection_identity.dart';
 import 'package:duole_engineering_client/engineering_app_client.dart';
 import 'package:duole_engineering_client/event_sync.dart';
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'device_status_page.dart';
 import 'pairing_flow.dart';
 import 'robot_snapshot_page.dart';
+import 'schedule_page.dart';
 
 abstract interface class MulticastLease {
   Future<void> acquire();
@@ -758,6 +760,23 @@ class _PairingPageState extends State<PairingPage> {
                 label: const Text('查看机器人状态'),
               ),
               const SizedBox(height: 12),
+              if (session.scheduleReader != null) ...[
+                FilledButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SchedulePage(
+                        reader: _ActiveScheduleReader(
+                          () => mounted ? _session?.scheduleReader : null,
+                        ),
+                        manager: session.scheduleManager,
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.event_note_outlined),
+                  label: const Text('查看日程'),
+                ),
+                const SizedBox(height: 12),
+              ],
               OutlinedButton.icon(
                 onPressed: _refreshing || _revoking ? null : _refresh,
                 icon: const Icon(Icons.sync),
@@ -926,6 +945,28 @@ class TrustedIdentityPage extends StatelessWidget {
       ),
     );
   }
+}
+
+// Routes (including nested details) outlive the credentials that opened them.
+// Resolve the active reader for each request, never retain a closed transport.
+class _ActiveScheduleReader implements ScheduleReader {
+  const _ActiveScheduleReader(this._currentReader);
+
+  final ScheduleReader? Function() _currentReader;
+
+  ScheduleReader get _reader =>
+      _currentReader() ??
+      (throw StateError('schedule_session_unavailable'));
+
+  @override
+  Future<ScheduleListSuccessEnvelope> getSchedules([
+    ScheduleReadQuery query = const ScheduleReadQuery.today(),
+  ]) =>
+      _reader.getSchedules(query);
+
+  @override
+  Future<ScheduleDetailSuccessEnvelope> getSchedule(String scheduleId) =>
+      _reader.getSchedule(scheduleId);
 }
 
 class _RiskFailure extends StatelessWidget {
