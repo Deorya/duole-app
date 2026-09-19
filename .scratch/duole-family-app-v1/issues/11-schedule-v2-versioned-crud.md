@@ -133,3 +133,24 @@ Issue 10 与 Issue 11 的共享 API `3.0.0`、生成 consumer、Runtime facade �
 `a10846139f591a73daa2325e0b6acf7c0ee94f33`。证据与工单记录另行提交，未夹带 Issue 12、
 Issue 33 或其他工作区改动。本次提交整理没有再次部署、迁移正式库或执行 HIL；上方既有
 Issue 11 真机 PASS 仍是对应候选的验收依据。
+
+### 2026-09-19 代码审查延期决定
+
+对 App `04aed9da2aac1812f77a73bdc9f2d638b9b37058` 与 Provider
+`a10846139f591a73daa2325e0b6acf7c0ee94f33` 的 Issue 11 代码审查未发现 P0。维护者决定将以下
+2 个 P1、3 个 P2 记录为后续缺陷，暂缓修复，不重新打开或阻塞 Issue 11：
+
+- **P1**：大量已过期的 V2 定义可能占满提醒扫描上限，使 ID 排序靠后的到期提醒被静默漏扫；
+  位置：`duole_central/skills/schedule/services/service.py`。
+- **P1**：已投递的一次性提醒改期后沿用原 occurrence key，delivery ledger 可能把新时间的提醒
+  判为已投递而不再触发；位置：`duole_central/skills/schedule/application/occurrence_projection.py`。
+- **P2**：旧数据中“每周某日晚上十二点”迁移到次日 `00:00` 后仍保留原 weekday，首次周实例
+  会偏移；位置：`duole_central/skills/schedule/infrastructure/sqlite_repository.py`。
+- **P2**：语音把 recurring 日程改为具体日期时可能保留旧 recurrence，导致次日继续生成实例；
+  位置：`duole_central/skills/schedule/application/service.py`。
+- **P2**：日程页打开期间会话自动刷新后，读取会切到新连接，但写入 manager 仍引用已关闭的旧
+  transport，当前页面的修改可能持续失败；位置：`lib/features/connection/connection_page.dart`。
+
+上述问题均不改变本工单既定验收范围及已经完成的软件验证和 HIL 结果。Issue 11 按维护者设定的
+“无 P0 即可完成”门槛视为完成；由于仓库状态词表没有 `done/closed`，字面状态继续保留
+`ready-for-human`。后续排期修复时应拆为独立缺陷工单，并为对应复现场景补充回归测试。
