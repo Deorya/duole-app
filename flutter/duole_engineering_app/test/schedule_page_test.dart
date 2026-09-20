@@ -418,6 +418,34 @@ class _TimeoutScheduleReader implements ScheduleReader {
   }
 }
 
+class _DbUnavailableScheduleReader implements ScheduleReader {
+  @override
+  Future<ScheduleListSuccessEnvelope> getSchedules([
+    ScheduleReadQuery query = const ScheduleReadQuery.today(),
+  ]) async {
+    throw EngineeringApiException(
+      statusCode: 503,
+      envelope: ErrorEnvelope.fromJson({
+        'schema_version': '1.0',
+        'request_id': 'req_schedule_db_unavailable_widget_01',
+        'server_time': '2026-09-12T01:00:00Z',
+        'error': {
+          'code': 'SCHEDULE_DB_UNAVAILABLE',
+          'message': 'Formal Schedule service unavailable',
+          'retriable': true,
+          'remediation': 'Retry the read request.',
+          'details': {'reason_code': 'formal_schedule_service_unavailable'},
+        },
+      }),
+    );
+  }
+
+  @override
+  Future<ScheduleDetailSuccessEnvelope> getSchedule(String scheduleId) {
+    throw UnimplementedError();
+  }
+}
+
 class _ScheduleManager implements ScheduleManager {
   final readIds = <String>[];
   @override
@@ -450,32 +478,4 @@ class _ScheduleManager implements ScheduleManager {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _DbUnavailableScheduleReader implements ScheduleReader {
-  @override
-  Future<ScheduleListSuccessEnvelope> getSchedules([
-    ScheduleReadQuery query = const ScheduleReadQuery.today(),
-  ]) async {
-    throw EngineeringApiException(
-      statusCode: 503,
-      envelope: ErrorEnvelope.fromJson({
-        'schema_version': '1.0',
-        'request_id': 'req_schedule_db_unavailable_widget_01',
-        'server_time': '2026-09-12T01:00:00Z',
-        'error': {
-          'code': 'SCHEDULE_DB_UNAVAILABLE',
-          'message': 'Formal Schedule service unavailable',
-          'retriable': true,
-          'remediation': 'Retry the read request.',
-          'details': {'reason_code': 'formal_schedule_service_unavailable'},
-        },
-      }),
-    );
-  }
-
-  @override
-  Future<ScheduleDetailSuccessEnvelope> getSchedule(String scheduleId) {
-    throw UnimplementedError();
-  }
 }
