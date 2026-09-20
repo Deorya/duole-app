@@ -6,8 +6,25 @@ binds the public identity response to the actual TLS peer device key, checks API
 compatibility, and requires a full robot-local fingerprint comparison before it
 persists trust.
 
-The connection flow does not pair the App, issue credentials, or expose motion,
-media, navigation, schedules, events, maps, or family data.
+After identity confirmation, the App can establish or restore an
+installation-bound paired session. Authorized sessions expose robot status and
+schedules (today, one date, or an inclusive range of at most 31 days), including
+existing reminder delivery facts. Sessions with `schedule.write` can create,
+edit, enable, disable and delete reminders after the owner migrates the robot
+Schedule database. Conflict refresh reloads the current revision; uncertain
+writes preserve their request for retry instead of reporting success.
+
+Issue 11 uses API contract `3.0.0`. The frozen path/capability changes require a
+major bump; the generated consumer and connection check reject older majors.
+Provider and App need coordinated upgrades. Formal migration, device installation
+and HIL require separate authorization. The optional announcement hook is not
+connected to playback in the default runtime; App writes currently omit it.
+The existing `/api/v1` transport prefix and envelope `schema_version: 1.0` remain
+unchanged. Schedule IDs use `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$` consistently
+across the contract, client, and Gateway. A failed refresh clears the old result
+and offers retry; stale details remain explicitly labelled. Delivery times keep
+their robot-local UTC offset, and absent user outcomes are displayed as missing
+records rather than inferred completion.
 
 ## Verify
 
