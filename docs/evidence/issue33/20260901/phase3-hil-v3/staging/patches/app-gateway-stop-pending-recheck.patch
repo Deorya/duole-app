@@ -1,0 +1,43 @@
+diff --git a/duole_central/app_gateway/mock_manual_mapping.py b/duole_central/app_gateway/mock_manual_mapping.py
+index c66878a..36d761f 100644
+--- a/duole_central/app_gateway/mock_manual_mapping.py
++++ b/duole_central/app_gateway/mock_manual_mapping.py
+@@ -1566,6 +1566,7 @@ class MockManualMappingService:
+                     """
+                     UPDATE mock_manual_mapping_sessions
+-                    SET control_state = ?, lease_id = NULL,
++                    SET control_state = ?,
++                        lease_id = CASE WHEN ? = 1 THEN NULL ELSE lease_id END,
+                         lease_expires_at = NULL, effective_linear = 0.0,
+                         effective_angular = 0.0, blocked_reason = NULL,
+                         stop_confirmed = ?, stop_requested_at = ?,
+@@ -1577,6 +1579,7 @@ class MockManualMappingService:
+                     """,
+                     (
+                         "stopped" if confirmed else "stop_pending",
++                        int(confirmed),
+                         int(confirmed),
+                         now.isoformat(),
+                         now.isoformat() if confirmed else None,
+@@ -1626,6 +1629,21 @@ class MockManualMappingService:
+                     (session_id, actor_id),
+                 ).fetchone()
+                 assert row is not None
++            if (
++                str(row["control_state"]) == "stop_pending"
++                and not bool(row["stop_confirmed"])
++            ):
++                lease_id = row["lease_id"]
++                if lease_id is not None and self.guard.stop_is_confirmed(
++                    session_id,
++                    lease_id=str(lease_id),
++                    epoch=int(row["lease_epoch"]),
++                ):
++                    self._mark_stopped(
++                        connection,
++                        session_id,
++                        now=now,
++                    )
+             if (
+                 str(row["control_state"]) == "connection_lost"
+                 and reconnect_deadline is not None

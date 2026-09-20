@@ -1,0 +1,121 @@
+{
+  "schema_version": "duole.issue33.control-lease-ack-candidate-v6.gate-v8-attempt.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T21:23:52+08:00",
+  "status": "SAFE_ROLLBACK_BLOCKED_PHONE_SECURE_LOCK_NO_MOTION",
+  "authorization": {
+    "operator_onsite_confirmed": true,
+    "one_low_speed_forward_pointer_up_authorized": true,
+    "automatic_motion_retry_authorized": false,
+    "automatic_motion_retry_performed": false
+  },
+  "bound_candidate": {
+    "candidate_manifest_path": "docs/evidence/issue33/20260829/control-lease-ack-candidate-v6.json",
+    "candidate_manifest_sha256": "3ffee589d7ae68824b1121ff3f49fd855aa6725c849498c0b0f64019d20ef3ce",
+    "preliminary_real_evidence_sha256": "f6d33af50acc4eefabc7959dfd0a0b095ad66fab7e98ea8a9a4963235a05296e",
+    "acceptance_permit_sha256": "bbad7d9072691625243080da122e399fb54a94a2f9741eeed45afed6f9c44a3c",
+    "app_candidate": "candidate-v5",
+    "app_apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "adb_serial": "172.22.205.58:42449",
+    "phone": "PHK110:OP5913L1",
+    "gateway_runtime_source_bundle_sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+    "navigation_board_candidate": "candidate-v3",
+    "navigation_board_bundle_sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+    "safety_profile": "manual_mapping_safe_low_speed_v1"
+  },
+  "new_run_preflight": {
+    "installed_app_sha_matched": true,
+    "gateway_port_8443_initially_listening": false,
+    "runtime_socket_initially_present": false,
+    "navigation_board_installed_sha256": {
+      "agent.py": "0a02224081de81713968cd9c9616bcd3d23b80a36dfd47ae6d759ceb0c4ed891",
+      "manual_mapping_guard.py": "687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9",
+      "manual_mapping_guard_ipc.py": "2374346c3cf6a03af2aa2b85f5a526561716b4d073ada16f2ea8342223fd4d85"
+    },
+    "chassis_stationary": true,
+    "active_task_owners": [],
+    "battery_percent": 74,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "minimum_forward_clearance_m": 0.5621371114597915,
+    "minimum_abort_boundary_m": 0.25,
+    "odom_linear_x_mps": 0.0,
+    "odom_angular_z_rps": 0.0
+  },
+  "temporary_activation": {
+    "isolated_source_root": "/tmp/duole-issue33-gate-v8.IYEtVV/source/duole-workspace",
+    "frozen_bundle_regular_files_loaded": 14,
+    "shared_worktree_files_overwritten": false,
+    "isolated_product_runtime_factory_sha256": "2ff0201f0a4a8c0bca0aa4239d80365c97f826fa07881b6c62ce99d2173011ec",
+    "isolated_navigation_board_ssh_sha256": "2f13baa362418311d64249a5f9619351e2e9abb3a59e9be70be871b730a707ac",
+    "isolated_real_manual_mapping_sha256": "df7059ef03d6e30df9769c6e0c95d30da8c24b7f1f31d64bd597ffbe93a8fd4b",
+    "runtime_mode": "REAL",
+    "runtime_ipc_ready": true,
+    "gateway_tls_identity_ready": true,
+    "gateway_device_key_fingerprint": "sha256:284035780ee11b0f5d45c49051aafc79be6c1ffbe8ee472cd668a154f75ca947",
+    "gateway_port": 8443,
+    "gateway_identity_result": "PASS",
+    "manual_mapping_window_ready": true,
+    "manual_mapping_main_pid": 2556555,
+    "manual_mapping_runtime_main_pid": 2556569,
+    "manual_mapping_guard_socket": "ready",
+    "first_guard_readiness_probe": {
+      "result": "PROBE_RACE_SAFE_ROLLBACK",
+      "reason": "the immediate socket check ran while the safety runtime was still importing ROS Python modules",
+      "motion_path_armed": false,
+      "navigation_restored_before_retry": true
+    },
+    "bounded_readiness_retry": {
+      "result": "PASS",
+      "guard_ready_after_seconds_approx": 1.75,
+      "maximum_wait_seconds": 30
+    }
+  },
+  "blocker": {
+    "stage": "App launch before pairing restore",
+    "android_surface": "com.android.systemui secure lock screen",
+    "app_activity_started_behind_lock": true,
+    "secure_lock_bypassed": false,
+    "required_operator_action": "unlock PHK110 locally without sharing the password"
+  },
+  "no_motion_outcome": {
+    "mapping_authorizations": 0,
+    "mapping_operations": 0,
+    "manual_mapping_sessions": 0,
+    "map_switch_operations": 0,
+    "emergency_stop_operations": 0,
+    "pairing_database_changed": false,
+    "joystick_displayed": false,
+    "control_lease_acquired": false,
+    "control_intents_sent": 0,
+    "pointer_up_emitted": false,
+    "physical_motion_observed": false,
+    "single_motion_gesture_consumed": false
+  },
+  "cleanup": {
+    "app_force_stopped": true,
+    "navigation_service": {
+      "state": "active",
+      "main_pid": 2561457,
+      "result": "success",
+      "active_enter_timestamp_monotonic": 639323338405
+    },
+    "manual_mapping_service": "inactive",
+    "manual_mapping_runtime_service": "inactive",
+    "autonomous_mapping_service": "inactive",
+    "manual_mapping_guard_socket": "absent",
+    "persistent_board_session": "absent",
+    "temporary_gateway_stopped": true,
+    "gateway_port_8443_listening": false,
+    "temporary_runtime_stopped_cleanly": true,
+    "runtime_socket_present": false,
+    "final_chassis_stationary": true,
+    "final_active_task_owners": [],
+    "final_battery_percent": 74
+  },
+  "acceptance_effect": {
+    "pointer_up_stop_gate_exercised": false,
+    "real_hil_items_added": 0,
+    "reason": "the secure phone lock blocked App access before any authorization, session, lease, intent, or motion"
+  }
+}

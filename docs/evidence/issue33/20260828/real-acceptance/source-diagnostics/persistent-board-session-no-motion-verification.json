@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "persistent_board_session_no_motion_verification",
+  "recorded_at": "2026-08-28T15:45:03+08:00",
+  "authorization": "user approved no-motion persistent session handshake and cross-request latency verification",
+  "target": "ztl@172.22.205.19",
+  "deployed_navigation_board_cli_sha256": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+  "deployed_board_agent_wrapper_sha256": "f5b092130835d920ab8ee300da97827cc50a305e869ae6ca3aafde30bfe13f0e",
+  "execution": {
+    "motion_actions_sent": false,
+    "state_changing_actions_sent": false,
+    "probe_action": "session_probe_no_side_effect",
+    "probe_action_expected_result": "fail closed before any ROS, systemd, Guard or map transaction access",
+    "ready": {
+      "action": "session_ready",
+      "schema_version": "1.0",
+      "state": "ready"
+    },
+    "ready_ms_including_ssh_and_agent_startup": 1475.022,
+    "remote_python_pid": 664434,
+    "probe_count": 5,
+    "probe_latencies_ms": [
+      28.046,
+      12.965,
+      13.14,
+      13.091,
+      17.513
+    ],
+    "probe_latency_min_ms": 12.965,
+    "probe_latency_max_ms": 28.046,
+    "probe_response": {
+      "error": "navigation_board_request_failed",
+      "schema_version": "1.0"
+    },
+    "single_remote_python_process_observed": true,
+    "session_exit_code": 0,
+    "session_stderr": "",
+    "session_process_present_before": false,
+    "session_process_present_after": false
+  },
+  "threshold_comparison": {
+    "intent_ttl_ms": 200,
+    "base_watchdog_timeout_ms": 400,
+    "maximum_probe_latency_below_intent_ttl": true,
+    "maximum_probe_latency_below_base_watchdog": true,
+    "historical_per_request_process_seconds": [
+      0.728,
+      0.709,
+      0.763,
+      0.791,
+      0.789
+    ]
+  },
+  "service_state": {
+    "before": {
+      "duole-navigation-stack.service": "active",
+      "duole-mapping-manual.service": "inactive",
+      "duole-mapping-autonomous.service": "inactive",
+      "duole-manual-mapping-runtime.service": "inactive"
+    },
+    "after": {
+      "duole-navigation-stack.service": "active",
+      "duole-mapping-manual.service": "inactive",
+      "duole-mapping-autonomous.service": "inactive",
+      "duole-manual-mapping-runtime.service": "inactive"
+    },
+    "unchanged": true
+  },
+  "result": "passed",
+  "not_verified": [
+    "manual_mapping service activation",
+    "interrupted SLAM active/revision 0 recovery",
+    "manual_mapping arm/intent/stop round trip",
+    "app_background HIL stop and unverified save"
+  ]
+}

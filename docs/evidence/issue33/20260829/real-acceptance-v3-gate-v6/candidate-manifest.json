@@ -1,0 +1,82 @@
+{
+  "schema_version": "duole.issue33.real-acceptance-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-real-acceptance-v3-gate-v6",
+  "created_at": "2026-08-29T18:25:00+08:00",
+  "status": "LOCAL_FROZEN_NOT_DEPLOYED",
+  "source_revisions": {
+    "duole_app_git_head": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole_workspace_git_head": "187f8db104a269f2ecefa5dbe39a68025e575da9",
+    "exact_member_hashes_override_dirty_worktree_ambiguity": true
+  },
+  "composition": {
+    "acceptance_versions": {
+      "path": "docs/evidence/issue33/20260829/real-acceptance-v3-gate-v6/versions.json",
+      "sha256": "b25cd237dca11f8eac8c1f4adf71940b01e76fd580542b57bb153151ed9e5e4e"
+    },
+    "app_candidate_v4": {
+      "manifest_path": "docs/evidence/issue33/20260829/app-mapping-start-timeout-candidate-v4.json",
+      "manifest_sha256": "2c6f638c144602adee8c54c8ae0341b776553616ef756a16a4bf360206170465",
+      "apk_path": "flutter/duole_engineering_app/build/issue33-mapping-start-timeout-candidate-v4/duole-engineering-app-issue33-mapping-start-timeout-debug-arm64.apk",
+      "apk_sha256": "b5458aceef8aff09b2675eb3bacdbcdb0a1a9ab8fdbb0fa91b26aefbe8ebde2e",
+      "apk_size_bytes": 96349053
+    },
+    "navigation_board_candidate_v2": {
+      "manifest_path": "docs/evidence/issue33/20260829/no-dock-manual-mapping-artifact-manifest-v2.json",
+      "manifest_sha256": "fd49aba9f33490cda2c5969bfab3e00a2c00e3f3bb45588a9ad925a8307aed8f",
+      "bundle_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-navigation-board-candidate-v2.tar.gz",
+      "bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b"
+    },
+    "gateway_baseline_candidate_v1": {
+      "bundle_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-gateway-candidate-v1.tar.gz",
+      "bundle_sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e"
+    },
+    "gateway_runtime_gate_v5_source_bundle": {
+      "repository": "duole-workspace",
+      "path": "incoming/candidates/issue33-real-acceptance-v3-gate-v5/issue33-real-acceptance-v3-gate-v5-source.tar.gz",
+      "sha256": "b2aec18c4d9cd29d79b6706130a08decca161c000c6a72506e70e03e3416259c",
+      "size_bytes": 148842,
+      "member_count": 14
+    }
+  },
+  "mapping_start_client_timeout_fix": {
+    "root_cause": "The first gate-v5 REAL operation completed in 28595 ms, after the App's 20000 ms paired REST deadline. The backend session and guard were ready, but the App never received manual_mapping_session_id and could not render the joystick.",
+    "route": "POST /api/v1/navigation/mapping-operations",
+    "route_timeout_seconds": 55,
+    "ordinary_rest_timeout_seconds_unchanged": 20,
+    "server_mapping_start_timeout_seconds_unchanged": 35,
+    "guard_begin_retry_timeout_seconds_unchanged": 12,
+    "manual_mapping_intent_ttl_unchanged": true,
+    "manual_mapping_watchdog_unchanged": true,
+    "stop_latency_gate_unchanged": true
+  },
+  "validation": {
+    "real_gate_v5_reproduction": "PASS / operation mapping_221c1538f2f24708a36db39118e1343d started without App joystick because the response exceeded the client deadline",
+    "app_focused_red_green_regression": "PASS",
+    "app_engineering_client_regression": "PASS / 39 tests",
+    "app_static_analysis": "PASS / client and Flutter App",
+    "flutter_widget_tests": "BLOCKED / systemic flutter_tester aarch64 engine segmentation fault at load time",
+    "runtime_gateway_regression": "HISTORICAL PASS / 101 tests on byte-identical gate-v5 Runtime/Gateway source",
+    "apk_integrity_signature_and_metadata": "PASS",
+    "git_diff_check": "PASS / scoped App source and regression test"
+  },
+  "prior_gate_v5_observation": {
+    "successful_operation_id": "mapping_221c1538f2f24708a36db39118e1343d",
+    "manual_mapping_session_id": "manual_mapping_af9341083f2c4c7fbd691d151b3197ba",
+    "server_duration_ms": 28595,
+    "app_joystick_rendered": false,
+    "robot_motion_observed": false,
+    "board_services_restored_to_navigation_active": true,
+    "temporary_gateway_and_runtime_stopped": true
+  },
+  "authorization_boundary": {
+    "local_artifacts_built": true,
+    "combined_manifest_created": true,
+    "gate_v6_activated": false,
+    "app_candidate_v4_installed": false,
+    "service_switched": false,
+    "app_session_created": false,
+    "app_joystick_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "evidence_class": "PRELIMINARY_REAL",
+  "scenario": "fixed_profile_linear_stop_with_raw_wheel_confirmation",
+  "robot_id": "robot-home",
+  "navigation_board": "ztl@172.22.205.19",
+  "runtime_module_sha256": "5d62bae1f80287a7fc5934f9cc20a288cb3ae3dc4e333b9d0a1bca8efaf1c579",
+  "safety_profile": "manual_mapping_safe_low_speed_v1",
+  "lease_id": "mapping_lease_0000000000000000000000000000000d",
+  "last_accepted_seq": 12,
+  "stop_requested_at": "2026-08-27T13:55:45.321157+00:00",
+  "wheels_stopped_at": "2026-08-27T13:55:46.244258+00:00",
+  "zero_output_latency_ms": 2,
+  "stop_latency_ms": 923,
+  "max_effective_linear_mps": 0.1,
+  "odom_displacement_m": 0.09388842386904876,
+  "odom_heading_delta_rad": -0.0040363973331429825,
+  "raw_wheel_motion_samples_after_confirmation": 0,
+  "operator_observation": {
+    "observed_distance_cm": 9,
+    "basically_straight": true,
+    "visible_reverse": false,
+    "continued_sliding": false,
+    "stable_final_stop": true,
+    "manually_returned_to_dock": true
+  },
+  "restored_safe_state": {
+    "navigation_active": true,
+    "motion_inhibited": true,
+    "manual_mapping_inactive": true,
+    "manual_mapping_runtime_inactive": true,
+    "raw_wheel_odometry_zero": true,
+    "bms_charging": true
+  },
+  "verdict": "passed"
+}

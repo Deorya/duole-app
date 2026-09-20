@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "slam_snapshot_control_path_repair_install",
+  "recorded_at": "2026-08-28T17:02:28+08:00",
+  "target": "ztl@172.22.205.19",
+  "authorization": "同意上传并安装 SLAM snapshot control path repair；不重启、不切换服务。",
+  "candidate": {
+    "navigation_board_runtime_cli_sha256": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "navigation_board_slam_runtime_sha256": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d",
+    "gateway_navigation_board_ssh_sha256": "ca97af905cd72e22f821e110094df14e059dd361f68add016707f15428e6debe",
+    "initial_upgrader_sha256": "b2e21ac5937b8e6edf8870a4fbfae54c1de4f934ad9e500f9471247e2aaf93da",
+    "installed_upgrader_sha256": "320db6f7865484d472c47fafc71756ed4e778ffd210aeb595f8ffeba22b0b7f1",
+    "repair_mode": "--repair-slam-snapshot-control-path"
+  },
+  "first_attempt": {
+    "status": "rejected_before_runtime_write",
+    "error": "unexpected sha256 for runtime/duole_central/navigation_board/cli.py: expected cbfd46e7d96955e0c665a2b2f7c39091a3791f754b5afa244b528bc25576845f, got 306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "effect": "no repair backup was created; runtime hashes, navigation PID, active timestamp and all service states remained unchanged"
+  },
+  "deployment_tool_root_cause": {
+    "status": "confirmed",
+    "cause": "the snapshot repair verifier did not model composition with the already-installed persistent board session cli.py",
+    "fix": "pin the exact persistent-session cli.py SHA only for the composed installed-state checks; keep rejecting every unknown SHA and keep the base source bundle manifest unchanged",
+    "safety_limits_changed": false,
+    "service_control_changed": false,
+    "runtime_payload_changed_after_authorization": false
+  },
+  "validation": {
+    "regression_red": "the upgrader composition test failed because the persistent-session CLI SHA and composed verifier were absent",
+    "related_tests": "50 passed",
+    "bash_syntax": "passed",
+    "python_compile": "passed",
+    "diff_check": "passed"
+  },
+  "installation": {
+    "status": "installed_on_disk_not_runtime_exercised",
+    "receipt": "issue33 SLAM snapshot control path repaired; no service state was changed",
+    "installed_files": {
+      "manual_mapping_runtime_cli.py": {
+        "sha256": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+        "mode_owner": "0644 ztl:ztl"
+      },
+      "manual_mapping_slam_runtime.py": {
+        "sha256": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d",
+        "mode_owner": "0644 ztl:ztl"
+      }
+    },
+    "rollback_files": {
+      "manual_mapping_runtime_cli.py": "2159bdbe183d16e1dda5b8677ccc23a4fb882387707e4769d35eefa42392ad28",
+      "manual_mapping_slam_runtime.py": "b57f2e5af96239e363b19acafca99578e4bd78f60c0847a162ccc2e59c494882",
+      "directory_mode_owner": "0755 root:root"
+    },
+    "installed_python_compile": "passed"
+  },
+  "service_state": {
+    "before": {
+      "duole-navigation-stack.service": "active/running; MainPID=726045; ActiveEnterTimestampMonotonic=535912251221",
+      "duole-mapping-manual.service": "inactive/dead",
+      "duole-mapping-autonomous.service": "inactive/dead",
+      "duole-manual-mapping-runtime.service": "inactive/dead"
+    },
+    "after": {
+      "duole-navigation-stack.service": "active/running; MainPID=726045; ActiveEnterTimestampMonotonic=535912251221",
+      "duole-mapping-manual.service": "inactive/dead",
+      "duole-mapping-autonomous.service": "inactive/dead",
+      "duole-manual-mapping-runtime.service": "inactive/dead"
+    },
+    "service_restarted": false,
+    "service_switched": false,
+    "live_persistent_board_session": false,
+    "process_check_note": "an unrelated defunct python3 child of a ROS topic echo process from 2026-08-26 was present; it had no cmdline and was not a board session"
+  },
+  "acceptance_effect": "deployment evidence only; requires a new onsite confirmation and one newly authorized navigation/mapping service switch before the application-layer zero-intent diagnostic can verify the installed runtime"
+}

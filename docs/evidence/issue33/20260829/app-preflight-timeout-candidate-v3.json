@@ -1,0 +1,78 @@
+{
+  "schema_version": "duole.issue33.app-preflight-timeout-candidate.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T14:08:21+08:00",
+  "status": "ARTIFACT_VERIFIED_NOT_INSTALLED",
+  "root_cause": {
+    "symptom": "Gateway returned a valid ready manual-mapping preflight while the installed App rendered the preflight as unavailable.",
+    "client_control_plane_timeout_seconds_before": 3,
+    "navigation_board_command_timeout_seconds": 15,
+    "navigation_board_ros_collection_timeout_seconds": 3,
+    "reproduction": "A full EngineeringMapManagementClient request over the production DeviceKeyPinnedTlsHttpTransport consistently timed out before a valid REAL preflight response delayed by 3250 ms.",
+    "fix": "Increase only the paired REST control-plane transport default timeout to 20 seconds.",
+    "client_control_plane_timeout_seconds_after": 20
+  },
+  "safety_boundary": {
+    "manual_mapping_websocket_timeout_changed": false,
+    "intent_ttl_changed": false,
+    "gateway_watchdog_changed": false,
+    "base_watchdog_changed": false,
+    "velocity_profile_changed": false,
+    "collision_monitor_changed": false,
+    "stop_confirmation_changed": false,
+    "capability_gate_changed": false
+  },
+  "source": {
+    "base_commit": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "dart/duole_engineering_client/lib/pairing_client.dart": "49a09b22e300a67c0ac2189a1efa110c71ee04596801533ab070f923748c3c23",
+    "dart/duole_engineering_client/test/mapping_preflight_control_plane_timeout_test.dart": "d78d08f94fdc22d6e91d225dd7886c2f0856be68f21278907371c3e3619793cc",
+    "flutter/duole_engineering_app/lib/manual_mapping_page.dart": "580310db823a5f858faf79ef8264a432af7ecb7dc4a0c0c3348b23687651577d",
+    "dart/duole_app_contract/lib/app_contract.dart": "bc2bf1a7871969082043a3f54aee793773fdcf5f40382cad4ec85b4510573e07"
+  },
+  "validation": {
+    "regression_red": "PASS / TimeoutException at 3.000 seconds before the fix",
+    "regression_green": "PASS / valid 3250 ms REAL preflight accepted after the fix",
+    "dart_client_analyze": "PASS / no issues found",
+    "dart_related_executable_tests": "PASS / mapping preflight timeout, mapping operation API, manual mapping API, and device-key-pinned transport",
+    "flutter_analyze": "PASS / no issues found",
+    "flutter_test": "PASS / 66 tests",
+    "git_diff_check": "PASS",
+    "isolated_build_source_cmp": "PASS / relevant source files matched the working tree byte-for-byte",
+    "apk_zip_integrity": "PASS",
+    "apk_signature": "PASS / Android debug signer, APK Signature Scheme v2"
+  },
+  "artifact": {
+    "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v3/duole-engineering-app-issue33-no-dock-preflight-timeout-debug-arm64.apk",
+    "sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2",
+    "size_bytes": 96349033,
+    "package_name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "native_abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ],
+    "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f"
+  },
+  "build": {
+    "flutter": "3.47.0 stable / framework 4cf2416426",
+    "dart": "3.13.0",
+    "java": "17.0.20",
+    "target_platform": "android-arm64",
+    "build_mode": "debug",
+    "isolation": "A temporary source copy preserved the flutter/ and dart/ path dependency layout; existing named candidates were not modified."
+  },
+  "authorization_boundary": {
+    "apk_built": true,
+    "apk_installed": false,
+    "gateway_or_runtime_started": false,
+    "navigation_or_mapping_service_switched": false,
+    "robot_connected": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

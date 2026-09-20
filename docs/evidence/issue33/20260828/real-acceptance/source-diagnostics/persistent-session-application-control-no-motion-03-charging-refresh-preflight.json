@@ -1,0 +1,70 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "persistent_session_application_control_charging_refresh_preflight",
+  "recorded_at": "2026-08-28T17:18:30+08:00",
+  "target": "ztl@172.22.205.19",
+  "operator_id": "ztl-onsite",
+  "onsite_confirmation": {
+    "charging_cable_reinserted": true,
+    "screen_showed_charging": true,
+    "robot_fully_stopped": true,
+    "emergency_stop_reachable": true
+  },
+  "formal_mapping_safety_snapshot": {
+    "battery_percent": 100,
+    "docked": false,
+    "charging_confirmed": false,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "chassis_stationary": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "available_storage_bytes": 63487188992,
+    "required_storage_bytes": 1073741824,
+    "version_compatible": true
+  },
+  "diagnostic_execution": {
+    "started": false,
+    "service_switch_occurred": false,
+    "intent_sent": false,
+    "output_written": false,
+    "authorization_consumed": false
+  },
+  "charging_refresh_result": {
+    "observed_at": "2026-08-28T20:52:52+08:00",
+    "raw_bms_samples": {
+      "sample_count": 12,
+      "voltage_range_v": [
+        26.7,
+        26.8
+      ],
+      "current_range_a": [
+        3.7,
+        3.8
+      ],
+      "percentage_range": [
+        0.902,
+        0.903
+      ],
+      "present": true,
+      "power_supply_status": 1
+    },
+    "formal_mapping_safety_snapshot": {
+      "battery_percent": 90,
+      "docked": true,
+      "charging_confirmed": true,
+      "active_task_owners": [],
+      "sensors_ready": true,
+      "chassis_stationary": true,
+      "collision_protection_ready": true,
+      "stop_chain_ready": true,
+      "available_storage_bytes": 63483179008,
+      "required_storage_bytes": 1073741824,
+      "version_compatible": true
+    },
+    "status": "ready_for_fresh_onsite_authorization"
+  },
+  "conclusion": "at 100 percent the cable reinsertion produced no machine-observed positive charging current; screen indication is not substituted for the fail-closed BMS contract",
+  "next_action": "obtain a fresh onsite confirmation and single navigation/mapping service-switch authorization before the third application-layer zero-intent diagnostic"
+}

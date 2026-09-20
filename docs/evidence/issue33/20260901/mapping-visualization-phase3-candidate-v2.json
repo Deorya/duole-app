@@ -1,0 +1,85 @@
+{
+  "schema_version": "duole.issue33.mapping-visualization-phase3-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-mapping-visualization-phase3-candidate-v2",
+  "created_at": "2026-09-01T09:33:50+08:00",
+  "supersedes": "issue33-mapping-visualization-phase3-candidate-v1",
+  "change_reason": "Start the production App projection runtime before IPC so the gateway exposes a valid initial robot snapshot.",
+  "target": {
+    "robot_id": "DUOLE-RK3588-ENG-01",
+    "navigation_board": "ztl@172.22.205.19",
+    "gateway_host": "172.22.205.44",
+    "tablet": "Xiaomi 23043RP34C pipa",
+    "adb_serial": "172.22.205.14:36595"
+  },
+  "artifacts": {
+    "app_apk": {
+      "path": "flutter/duole_engineering_app/build/issue33-mapping-visualization-phase3-candidate-v1/duole-engineering-app-phase3-debug-arm64.apk",
+      "sha256": "44f382687bb67d9bb7a5de77e138343cf202e36bb5e197afebb02fb16fb36714",
+      "version_name": "0.1.0-phase3",
+      "version_code": 2003,
+      "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f"
+    },
+    "gateway_source": {
+      "path": "/home/ztl/duole-workspace/incoming/candidates/issue33-mapping-visualization-phase3-candidate-v1/gateway-source.tar.gz",
+      "sha256": "9f83842d5515b2b7e41d9f471b7f0238e1f616fdcb8a193d7a8d76e6dceea7ca",
+      "materialized_path": "/home/ztl/.local/share/duole-issue33/candidates/issue33-mapping-visualization-phase3-candidate-v1/gateway"
+    },
+    "navigation_board_bundle": {
+      "path": "/home/ztl/duole-workspace/incoming/candidates/issue33-mapping-visualization-phase3-candidate-v1/navigation-board-bundle.tar.gz",
+      "sha256": "fe270948cb6744e675cf6dea570584b8bcc443c726a6ae37cdbba02dc16446c6",
+      "installer_sha256": "679bfccd066a18bddec696af8a396edf8bdfacdd39f2bbcaef290ebfab673758"
+    },
+    "openapi": {
+      "sha256": "2c4b30e8ddf4907188a4073d89c064e0899ef0546acf5d4396f8c3dcbc5ec797"
+    },
+    "hil_runtime_tool": {
+      "path": "tools/issue33_phase3_runtime.py",
+      "sha256": "7fa5afd839a17fb3b4f216186161ca35c03a10bc8721b35c829e79b0a93f1339"
+    }
+  },
+  "installed_navigation_board_sha256": {
+    "agent.py": "b03925e616d8a51c8132eed8a83ce0de66ba094ee4e59103e9a647d10b95d564",
+    "manual_mapping_runtime_cli.py": "3042015a619eeb503870ac7d29c971dffdc6dfd0b7c3ca5d80d7284eff0253af",
+    "manual_mapping_slam_runtime.py": "e8f1bd617cb0aac7ca9ea5c541fad01da4989b65b359d61b2131b6e3ed37cc6e",
+    "ros_manual_mapping_runtime.py": "5e754239b1a27dac7086473798abfab8a7e3b07b05e2deba2e07125d6d05f4c2"
+  },
+  "validation": {
+    "backend": "55 passed",
+    "flutter": "32 passed",
+    "flutter_analyze": "no issues",
+    "dart_analyze": "no issues",
+    "generated_contract_matches_openapi": true,
+    "apk_zip_integrity": true,
+    "apk_v2_signature": true,
+    "gateway_python_sources_compiled": 405,
+    "navigation_board_python_compile": true,
+    "navigation_board_bundle_repeatable": true,
+    "hil_projection_runtime_targeted_tests": "17 passed"
+  },
+  "deployment_state": {
+    "app_installed": true,
+    "app_running": true,
+    "navigation_board_candidate_installed": true,
+    "gateway_candidate_materialized": true,
+    "gateway_started": false,
+    "navigation_service": "inactive/dead",
+    "manual_mapping_service": "inactive/dead",
+    "manual_mapping_runtime_service": "failed/inactive from historical timeout",
+    "guard_socket_present": false,
+    "robot_motion_executed": false
+  },
+  "rollback": {
+    "app_apk_path": "flutter/duole_engineering_app/build/issue33-phase3-rollback-20260901/xiaomi-current-versionCode2002.apk",
+    "app_apk_sha256": "8cfbd50cda74de8107030ad618acca72d3c38b0442acae8fa8bf3a205108ac43",
+    "navigation_board_backup": "/home/ztl/duole-issue31-nav-ws/backups/manual-mapping-visualization-before-phase3-v1",
+    "gateway": "stop Phase 3 transient runtime and gateway; return to no listener on 8443",
+    "service_state": "return all navigation and mapping services to inactive"
+  },
+  "hil_authorization": {
+    "operator_onsite_confirmed": true,
+    "emergency_stop_available": true,
+    "confirmed_at": "2026-09-01T08:53:19+08:00",
+    "motion_pending": true
+  }
+}

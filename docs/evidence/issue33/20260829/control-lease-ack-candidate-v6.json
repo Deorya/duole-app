@@ -1,0 +1,111 @@
+{
+  "schema_version": "duole.issue33.control-lease-ack-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-control-lease-ack-candidate-v6",
+  "created_at": "2026-08-29T20:47:44+08:00",
+  "status": "LOCAL_FROZEN_NOT_DEPLOYED",
+  "repairs_historical_failure": {
+    "evidence_path": "docs/evidence/issue33/20260829/real-acceptance-v3-gate-v7/gate-v7-run-result.json",
+    "evidence_sha256": "c2c8ce10d6c4093d896a3f990c3bbcbdeba3893dd56cd076b23cae2d30bba796",
+    "historical_status": "FAIL_CLOSED_NO_MOTION_SAFE_ROLLBACK",
+    "failure_shape": "lease_epoch=1, last_seq=0, control stopped before the first intent",
+    "confirmed_software_root_cause": "the Gateway began the 400 ms lease before synchronous board guard arm acknowledgement"
+  },
+  "source_revisions": {
+    "duole_app_git_head": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole_workspace_git_head": "187f8db104a269f2ecefa5dbe39a68025e575da9",
+    "exact_member_hashes_override_dirty_worktree_ambiguity": true
+  },
+  "composition": {
+    "app_candidate_v5_reused_unchanged": {
+      "manifest_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5.json",
+      "manifest_sha256": "70138e169602e4815c8bb7c183aa3103f7ae3018783043ce86aa9680af82fb45",
+      "installation_record_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5-installation.json",
+      "installation_record_sha256": "8317d260e924da637f797c39ee2e852a19dbe34726b492737a5011927f0464e7",
+      "apk_path": "flutter/duole_engineering_app/build/issue33-control-clock-stop-recovery-candidate-v5/duole-engineering-app-issue33-control-clock-stop-recovery-debug-arm64.apk",
+      "apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+      "apk_size_bytes": 96349245,
+      "new_apk_built_or_installed": false
+    },
+    "gateway_runtime_source_bundle": {
+      "repository": "duole-workspace",
+      "path": "incoming/candidates/issue33-control-lease-ack-candidate-v6/issue33-control-lease-ack-candidate-v6-source.tar.gz",
+      "sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+      "size_bytes": 149280,
+      "file_count": 14,
+      "base_bundle_sha256": "b2aec18c4d9cd29d79b6706130a08decca161c000c6a72506e70e03e3416259c",
+      "changed_members": [
+        "duole-workspace/duole_central/app_gateway/mock_manual_mapping.py",
+        "duole-workspace/duole_central/app_gateway/navigation_board_ssh.py",
+        "duole-workspace/duole_central/app_gateway/real_manual_mapping.py"
+      ]
+    },
+    "navigation_board_candidate_v3": {
+      "path": "flutter/duole_engineering_app/build/issue33-control-lease-ack-candidate-v6/issue33-navigation-board-lease-ack-candidate-v3.tar.gz",
+      "sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+      "size_bytes": 13085,
+      "file_count": 4,
+      "archive_root": "duole-issue31-nav-ws",
+      "predecessor_bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b",
+      "installer_path": "scripts/upgrade_issue33_navigation_board_lease_ack_candidate_v3.sh",
+      "installer_sha256": "51b2e5fd30f7c7cf99571c2e98764cfcf52ca2d591d22b96b7b8f817da4bc9ad"
+    }
+  },
+  "changed_source_sha256": {
+    "duole_central/app_gateway/mock_manual_mapping.py": "fa1f7174e88fba0a9ba1d5272f5855d3aec8d839fbfcccb815d0de79c92a2743",
+    "duole_central/app_gateway/navigation_board_ssh.py": "2f13baa362418311d64249a5f9619351e2e9abb3a59e9be70be871b730a707ac",
+    "duole_central/app_gateway/real_manual_mapping.py": "df7059ef03d6e30df9769c6e0c95d30da8c24b7f1f31d64bd597ffbe93a8fd4b",
+    "duole_central/navigation_board/agent.py": "0a02224081de81713968cd9c9616bcd3d23b80a36dfd47ae6d759ceb0c4ed891",
+    "duole_central/navigation_board/manual_mapping_guard.py": "687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9",
+    "duole_central/navigation_board/manual_mapping_guard_ipc.py": "2374346c3cf6a03af2aa2b85f5a526561716b4d073ada16f2ea8342223fd4d85"
+  },
+  "fix_contract": {
+    "first_lease_window_origin": "navigation-board ManualMappingTeleopGuard local arm time",
+    "arm_ack_fields": [
+      "profile_id",
+      "armed_at",
+      "expires_at"
+    ],
+    "gateway_accepts_only_exact_window_ms": 400,
+    "intent_ttl_ms_unchanged": 200,
+    "intent_period_ms_unchanged": 100,
+    "base_watchdog_ms_unchanged": 400,
+    "safety_profile_id_unchanged": "manual_mapping_safe_low_speed_v1",
+    "velocity_limits_changed": false,
+    "collision_gate_changed": false,
+    "stop_confirmation_changed": false
+  },
+  "new_software_validation": {
+    "deterministic_reproduction_before_fix": "FAIL as expected / 500 ms arm ACK returned control_granted with session.control_state=stopped",
+    "deterministic_reproduction_after_fix": "PASS / the same 500 ms arm ACK retained controlling state and accepted seq=1",
+    "focused_cross_layer_regression": "PASS / 129 tests",
+    "app_gateway_regression": "PASS / 446 tests, 2 existing TLS deprecation warnings",
+    "installer_contract_tests": "PASS / 2 tests",
+    "python_compile": "PASS / changed runtime and both extracted bundles",
+    "gateway_bundle_repeatability": "PASS / two independent archives were byte-identical",
+    "gateway_bundle_member_binding": "PASS / 14 of 14 files matched the candidate-v5 base or the three changed Gateway sources",
+    "navigation_bundle_repeatability": "PASS / two independent archives were byte-identical",
+    "navigation_bundle_member_binding": "PASS / installer and three runtime modules matched local source bytes",
+    "changed_watchdog_window_negative_cases": "PASS / 399 ms and 401 ms board ACK windows were rejected fail-closed"
+  },
+  "rollback_target": {
+    "navigation_board_candidate": "candidate-v2",
+    "navigation_board_bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b",
+    "predecessor_agent_sha256": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+    "predecessor_manual_mapping_guard_sha256": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+    "predecessor_manual_mapping_guard_ipc_sha256": "cf33d360deeab40c2085c54c84d7b1f712f3a8fe400755123d1a2b259b569339",
+    "gateway_runtime": "temporary candidate-v6 process must be stopped; no selector mutation"
+  },
+  "authorization_boundary": {
+    "artifacts_built": true,
+    "acceptance_permit_created": false,
+    "phone_contacted": false,
+    "apk_installed": false,
+    "navigation_board_bundle_transferred_or_installed": false,
+    "gateway_or_runtime_started": false,
+    "service_switched": false,
+    "selector_changed": false,
+    "real_session_created": false,
+    "robot_motion_executed": false
+  }
+}

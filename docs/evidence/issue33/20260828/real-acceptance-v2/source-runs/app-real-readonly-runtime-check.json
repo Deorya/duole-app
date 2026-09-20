@@ -1,0 +1,157 @@
+{
+  "schema_version": "duole.issue33.app-real-readonly-runtime-check.v1",
+  "issue": 33,
+  "observed_at": "2026-08-28T22:15:10+08:00",
+  "status": "PAIRING_REAL_CAPABILITY_PASS_MAP_POSE_UNAVAILABLE",
+  "authorization": {
+    "runtime_host": "172.22.205.44",
+    "navigation_board": "ztl@172.22.205.19",
+    "allowed": [
+      "temporary_current Issue 33 REAL product runtime and ROS projection",
+      "temporary TLS App Gateway",
+      "no-motion pairing recovery",
+      "REAL page read-only check",
+      "map and pose read-only check",
+      "capability read-only check"
+    ],
+    "forbidden_and_not_performed": [
+      "navigation or mapping systemd service switch",
+      "mapping start",
+      "robot motion"
+    ]
+  },
+  "app": {
+    "device": "OnePlus PHK110 / Android 16",
+    "adb_serial": "172.22.205.58:38779",
+    "package": "com.duole.engineering.duole_engineering_app",
+    "installed_apk_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "manual_gateway_address": "172.22.205.44:8443",
+    "mdns_discovery_found_candidate": false,
+    "manual_address_found_candidate": true,
+    "pairing_session_restored": true,
+    "new_pairing_code_required": false,
+    "identity": {
+      "robot_id": "DUOLE-RK3588-ENG-01",
+      "display_name": "多乐机器人",
+      "mode": "REAL",
+      "gateway_version": "0.3.0",
+      "runtime_version": "0.1.0",
+      "api_schema_version": "1.4.0"
+    },
+    "device_status": {
+      "page_title": "真实设备状态",
+      "battery_percentage": 100,
+      "battery_status": "ok",
+      "battery_reason_code": "battery_ready",
+      "battery_fresh": true,
+      "projected_charging": false,
+      "motion_capability_disabled_on_readonly_page": true
+    },
+    "capabilities": {
+      "battery_status": {
+        "status": "ok",
+        "reason_code": "capability_ready",
+        "write_allowed": false
+      },
+      "navigation": {
+        "status": "unavailable",
+        "reason_code": "navigation_not_configured",
+        "configured": false,
+        "ready": false
+      },
+      "snapshot_continuity": "continuous"
+    },
+    "map_pose": {
+      "ui_result": "当前没有可展示的地图",
+      "catalog_entry_visible": "现场地图 2 / 可用",
+      "projection_status": "unavailable",
+      "reason_code": "navigation_pose_missing",
+      "current_map": null,
+      "robot_pose": null,
+      "dock_pose": null,
+      "image_bytes": 0,
+      "manual_mapping_preflight_ui": "建图准备状态暂时不可用"
+    }
+  },
+  "no_side_effect_evidence": {
+    "mapping_operations": 0,
+    "manual_mapping_sessions": 0,
+    "mapping_authorizations": 0,
+    "map_switch_operations": 0,
+    "motion_commands_issued": 0,
+    "app_force_stopped_after_check": true,
+    "temporary_gateway_stopped": true,
+    "temporary_runtime_stopped": true,
+    "runtime_exit": {
+      "ok": true,
+      "stopped_by": "user_exit",
+      "validation_errors": []
+    },
+    "port_8443_listening_after_cleanup": false,
+    "runtime_ipc_socket_present_after_cleanup": false
+  },
+  "navigation_board_services": {
+    "unchanged": true,
+    "before": {
+      "duole-navigation-stack.service": {
+        "active_state": "active",
+        "sub_state": "running",
+        "main_pid": 1025114,
+        "active_enter_timestamp_monotonic": 552403095697
+      },
+      "duole-mapping-manual.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      },
+      "duole-mapping-autonomous.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      },
+      "duole-manual-mapping-runtime.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      }
+    },
+    "after": {
+      "duole-navigation-stack.service": {
+        "active_state": "active",
+        "sub_state": "running",
+        "main_pid": 1025114,
+        "active_enter_timestamp_monotonic": 552403095697
+      },
+      "duole-mapping-manual.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      },
+      "duole-mapping-autonomous.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      },
+      "duole-manual-mapping-runtime.service": {
+        "active_state": "inactive",
+        "sub_state": "dead",
+        "main_pid": 0,
+        "active_enter_timestamp_monotonic": 0
+      }
+    }
+  },
+  "acceptance_effect": {
+    "pairing_recovery": "PASS",
+    "real_page": "PASS",
+    "capability_readonly": "PASS_WITH_NAVIGATION_UNAVAILABLE",
+    "map_pose": "BLOCKED_NAVIGATION_POSE_MISSING",
+    "issue33_acceptance_count_changed": false,
+    "current_count": "9/23",
+    "capability_marker_created": false
+  }
+}

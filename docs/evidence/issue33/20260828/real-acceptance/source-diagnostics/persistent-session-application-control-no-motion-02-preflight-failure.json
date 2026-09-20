@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "persistent_session_application_control_preflight_failure_analysis",
+  "recorded_at": "2026-08-28T17:08:32+08:00",
+  "target": "ztl@172.22.205.19",
+  "authorization": {
+    "operator_id": "ztl-onsite",
+    "scope": "one application-layer zero-intent diagnostic with one navigation/mapping service switch"
+  },
+  "execution": {
+    "status": "rejected_before_mapping_start",
+    "local_result": "FAIL persistent_session_control_diagnostic_result_invalid",
+    "formal_output_path": "source-diagnostics/persistent-session-application-control-no-motion-02.json",
+    "formal_output_written": false,
+    "automatic_rerun": false,
+    "zero_intent_sent": false,
+    "service_switch_occurred": false
+  },
+  "machine_postflight": {
+    "duole-navigation-stack.service": "active/running; MainPID=726045; ActiveEnterTimestampMonotonic=535912251221",
+    "duole-mapping-manual.service": "inactive/dead; no journal entries in the attempt window",
+    "duole-mapping-autonomous.service": "inactive/dead",
+    "duole-manual-mapping-runtime.service": "inactive/dead; no journal entries in the attempt window",
+    "live_persistent_board_session": false,
+    "encoder_observation": "navigation journal remained L=-1528681 / R=1608813 before, during and after the attempt"
+  },
+  "formal_mapping_safety_snapshot": {
+    "battery_percent": 100,
+    "docked": false,
+    "charging_confirmed": false,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "chassis_stationary": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "available_storage_bytes": 63489830912,
+    "required_storage_bytes": 1073741824,
+    "version_compatible": true
+  },
+  "root_cause": {
+    "board_rejection": "start_mapping requires docked=true and charging_confirmed=true; the current navigation process had not observed positive charging current after its latest start and correctly failed closed at board_mapping_precondition_failed",
+    "local_evidence_loss": "the diagnostic validator incorrectly required session_process_reused=true even when mapping_started had not completed, so it rejected the otherwise recordable failed result",
+    "service_or_runtime_failure": false
+  },
+  "local_diagnostic_repair": {
+    "behavior": "session_process_reused must exactly match whether mapping_started is in completed_stages",
+    "diagnostic_sha256": "7d6997f2644761bf97e0079c856b249e0adc0c63f3b74d33f5c13a3cd52637c2",
+    "test_sha256": "3b351915c3adf18b46dce2a568a93306e8ed394589393c036870df9e21f29f59",
+    "targeted_tests": "8 passed",
+    "all_issue33_tool_tests": "35 passed",
+    "python_compile": "passed",
+    "diff_check": "passed"
+  },
+  "operator_observation": {
+    "operator_id": "ztl-onsite",
+    "observation_type": "direct_onsite",
+    "observed_at": "2026-08-28T17:17:38+08:00",
+    "robot_never_moved": true,
+    "wheel_twitch_or_instant_rotation": false,
+    "robot_fully_stopped": true,
+    "charging_cable_safe": true,
+    "emergency_stop_reachable": true,
+    "charging_cable_reinserted": true,
+    "screen_showed_charging": true
+  },
+  "acceptance_effect": "does not count as a stop scenario or application-layer zero-intent pass; a charging-signal refresh and a fresh onsite authorization are required before another attempt"
+}

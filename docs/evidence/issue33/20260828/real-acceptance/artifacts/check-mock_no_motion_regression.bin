@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "checks": [
+    "mock_no_motion_regression",
+    "ordinary_teleop_remains_unavailable"
+  ],
+  "status": "passed",
+  "executed_at": "2026-08-28T00:40:38+08:00",
+  "provider_base_commit": "f8d24d59062a217a6c22af3c3978992711a65df3",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -p no:cacheprovider -q tests/app_gateway/test_mock_manual_mapping.py tests/app_gateway/test_read_operations.py::test_real_manual_mapping_gate_does_not_enable_ordinary_teleop",
+  "result": "34 passed in 4.89s",
+  "execution_note": "The successful run was approved outside the filesystem/network sandbox because three TLS/WSS tests require binding a local test socket.",
+  "mock_no_motion_test_file": "tests/app_gateway/test_mock_manual_mapping.py",
+  "ordinary_teleop_test": "tests/app_gateway/test_read_operations.py::test_real_manual_mapping_gate_does_not_enable_ordinary_teleop"
+}

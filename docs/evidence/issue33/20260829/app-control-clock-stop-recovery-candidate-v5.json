@@ -1,0 +1,127 @@
+{
+  "schema_version": "duole.issue33.app-control-clock-stop-recovery-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-app-control-clock-stop-recovery-candidate-v5",
+  "created_at": "2026-08-29T19:53:29+08:00",
+  "status": "ARTIFACT_VERIFIED_NOT_INSTALLED",
+  "historical_real_evidence": {
+    "gate": "gate-v6",
+    "operation_id": "mapping_4993db231e9f466081315279482e5190",
+    "session_id": "manual_mapping_3127b957b75042d790b44105c2e69dbf",
+    "observed_result": "The App displayed the joystick, but the robot did not move and the joystick remained disabled after the control failure.",
+    "session_observation": {
+      "lease_epoch": 5,
+      "last_seq": 0,
+      "effective_linear": 0.0,
+      "effective_angular": 0.0,
+      "stop_confirmed": true
+    },
+    "clock_observation": "PHK110 was approximately 707-715 ms behind the Gateway host clock.",
+    "gateway_replay": {
+      "age_ms_710": "REJECT / MANUAL_MAPPING_INTENT_EXPIRED",
+      "age_ms_50": "ACCEPT"
+    },
+    "root_cause": "The client generated intent sent_at from the uncalibrated PHK110 wall clock while the frozen intent TTL remained 200 ms, so the Gateway correctly rejected the intent as expired before any sequence was applied. The control error then left the UI waiting for stop confirmation without consuming the later authoritative stopped snapshot as a safe recovery signal."
+  },
+  "fix": {
+    "trusted_server_time_calibration": "Each successfully decoded manual-mapping server frame received over the device-key-pinned WSS updates a server-to-client clock offset. Intent sent_at uses the local UTC clock plus that offset and fails closed until a trusted server_time has been consumed.",
+    "stop_confirmed_joystick_recovery": "The joystick can leave its local waiting state only when an authoritative session reports stop_confirmed=true with control_state idle or stopped and a replacement control connection exists. Local press, intent timer, velocity, knob and lease state are cleared before recovery.",
+    "same_revision_recovery": "A same-revision session snapshot is accepted only for the narrow awaiting-stop plus stop-confirmed recovery case; stale lower revisions and terminal-to-nonterminal transitions remain rejected."
+  },
+  "safety_boundary": {
+    "intent_ttl_ms_before": 200,
+    "intent_ttl_ms_after": 200,
+    "intent_ttl_changed": false,
+    "intent_period_ms_before": 100,
+    "intent_period_ms_after": 100,
+    "gateway_watchdog_changed": false,
+    "base_watchdog_changed": false,
+    "lease_or_watchdog_threshold_changed": false,
+    "velocity_profile_changed": false,
+    "collision_monitor_changed": false,
+    "capability_gate_changed": false,
+    "mapping_or_navigation_selector_changed": false,
+    "fail_closed_before_trusted_server_time": true,
+    "connection_lost_never_resumes_control": true
+  },
+  "source": {
+    "base_commit": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "bindings": {
+      "dart/duole_app_contract/lib/app_contract.dart": "bc2bf1a7871969082043a3f54aee793773fdcf5f40382cad4ec85b4510573e07",
+      "dart/duole_engineering_client/lib/engineering_app_client.dart": "92af20f8248e94eb72f151d6549cd29e89505f8a866870b022f74c3d7b283560",
+      "dart/duole_engineering_client/lib/manual_mapping_control.dart": "a52c8197302682efc30216d042c1f95685650e2e4aec4bcae641916653f47443",
+      "dart/duole_engineering_client/lib/pairing_client.dart": "3aea6d557b4b87e5c9eded564d731d0095f9ab151fd39e84d0fee40c7b871261",
+      "dart/duole_engineering_client/test/device_key_pinned_transport_test.dart": "cfa5f70ea17546b3b65f29302b374c73279c777f5040bb7fbb56928de807a993",
+      "dart/duole_engineering_client/test/manual_mapping_api_test.dart": "ce1599feee81eb1e79e893de27c3b633247dd7c644bcd65f380f110af3a75eff",
+      "dart/duole_engineering_client/test/manual_mapping_stop_recovery_test.dart": "bde8982fe913cfc500c5e2be7622bb7bce07b6401a37e3e77b57e89ed28cfc80",
+      "dart/duole_engineering_client/test/manual_mapping_websocket_transport_test.dart": "5e2ab0faaa4c807619433f677b0e6dcacce8dcc0c8255f6320cc96d21835019a",
+      "flutter/duole_engineering_app/lib/manual_mapping_page.dart": "70e04d2c059ba3a1ab6f31045513ae46a47920dd3d6ff8e5d784d9dac4f0bb19",
+      "flutter/duole_engineering_app/test/manual_mapping_page_test.dart": "08bfcbae74b077835fa02fdb9d179eb6284ce468e27f64ca8c8aba4680b6784f",
+      "flutter/duole_engineering_app/pubspec.yaml": "59c91af9e92cd342d5b3ec67584a356f48f5f8a556ab22fb74ef02044441e9d7",
+      "flutter/duole_engineering_app/pubspec.lock": "bfaf644b2ee334b3edeb304568a00afb9f624f8a998d22ad3cca812210c393e3"
+    }
+  },
+  "validation": {
+    "server_time_tdd_red": "PASS / the new skewed-clock assertion failed before implementation with manual mapping WSS frames or trusted server clock semantics lost",
+    "server_time_tdd_green": "PASS / a client clock 710 ms behind the server emitted server-aligned sent_at with a further 25 ms local progression while ttl_ms remained 200",
+    "stop_recovery_tdd_red": "PASS / the new public recovery predicate was absent before implementation",
+    "stop_recovery_tdd_green": "PASS / stopped and idle require stop_confirmed; connection_lost, stop_pending and controlling remain non-resumable",
+    "dart_client_executable_tests": "PASS / 40 of 40 after the final clock-progression assertion",
+    "dart_client_analyze": "PASS / no issues found after final source changes",
+    "flutter_app_analyze": "PASS / no issues found after final source changes",
+    "flutter_widget_test": "BLOCKED / two focused attempts failed while loading because the aarch64 flutter_tester shell crashed; one reported SIGSEGV and one reported an HttpException after the shell error. No widget test result is claimed.",
+    "scoped_git_diff_check": "PASS",
+    "isolated_source_bindings": "PASS / 12 of 12 remained byte-identical after offline pub resolution",
+    "apk_zip_integrity": "PASS",
+    "apk_signature": "PASS / Android debug signer, APK Signature Scheme v2",
+    "temporary_to_final_artifact_cmp": "PASS / byte-identical",
+    "apk_badging_and_manifest": "PASS"
+  },
+  "artifact": {
+    "path": "flutter/duole_engineering_app/build/issue33-control-clock-stop-recovery-candidate-v5/duole-engineering-app-issue33-control-clock-stop-recovery-debug-arm64.apk",
+    "sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "size_bytes": 96349245,
+    "mode": "0444",
+    "package_name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "native_abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ],
+    "signing_scheme": "APK Signature Scheme v2",
+    "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f"
+  },
+  "build": {
+    "flutter": "3.47.0 stable / framework 4cf2416426",
+    "dart": "3.13.0",
+    "java": "Temurin 17.0.20+8",
+    "requested_target_platform": "android-arm64",
+    "build_mode": "debug",
+    "gradle_mode": "offline",
+    "aapt2_override": "/home/ztl/.local/share/duole-hil-toolchain/android-sdk-tools-arm64/build-tools/aapt2",
+    "command": "flutter build apk --debug --target-platform android-arm64 --no-pub -Pandroid.aapt2FromMavenOverride=<local-arm64-aapt2> --suppress-analytics",
+    "isolation": "Temporary source copy preserving flutter/ and dart/ relative path dependencies; the workspace build tree was used only for the final named read-only artifact.",
+    "non_fatal_toolchain_warnings": [
+      "mobile_scanner still applies Kotlin Gradle Plugin and will require a future Built-in Kotlin migration",
+      "host SDK XML version compatibility warning",
+      "host cross-strip tool did not recognize bundled x86/x86_64 plugin libraries; Gradle completed and the final signed APK passed ZIP integrity"
+    ]
+  },
+  "authorization_boundary": {
+    "requested_future_adb_serial": "172.22.205.58:42449",
+    "adb_contacted": false,
+    "apk_built": true,
+    "apk_installed": false,
+    "gateway_or_runtime_started": false,
+    "navigation_or_mapping_service_switched": false,
+    "robot_connected": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false,
+    "activation_manifest_created": false
+  }
+}

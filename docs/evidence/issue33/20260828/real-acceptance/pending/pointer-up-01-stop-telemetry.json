@@ -1,0 +1,1 @@
+{"fault_at":"2026-08-28T01:25:09.737178+00:00","issue":33,"kind":"stop_telemetry","last_accepted_seq":13,"lease_id":"mapping_lease_89fe95501cb7e71ffe3e00df7783ef39","scenario":"pointer_up","schema_version":"1.0","stop_latency_ms":900,"wheels_stopped_at":"2026-08-28T01:25:10.637369+00:00","zero_at":"2026-08-28T01:25:09.739569+00:00"}

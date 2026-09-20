@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "check": "hil_collision_slowdown_block",
+  "status": "passed",
+  "evidence_policy": "carry_forward_only_when_all_behavior_owning_components_are_byte_identical",
+  "source": {
+    "path": "../real-acceptance/source-checks/hil-collision-slowdown-block.json",
+    "sha256": "a16e3d7df3d5a639dd1fc777528f70ece7be76dac8e2814b9cefc48f39e5675f"
+  },
+  "unchanged_behavior_owners": {
+    "manual_mapping_guard.py": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+    "ros_manual_mapping_runtime.py": "800bc3792d4732f74614505182691eedac738e08f938aeb206f2a1efa4f369b4",
+    "duole-mapping-manual.service": "c4760979763ccb39f22bb104a320718fde838140909af915762612c08cb8b40d",
+    "safety_profile": "manual_mapping_safe_low_speed_v1"
+  },
+  "changed_components_outside_check_scope": [
+    "navigation_board_ssh.py",
+    "manual_mapping_runtime_cli.py snapshot scheduling",
+    "manual_mapping_slam_runtime.py snapshot scheduling"
+  ]
+}

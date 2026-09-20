@@ -1,0 +1,184 @@
+{
+  "schema_version": "duole.issue33.real-acceptance-v3.gate-v7-run-result.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T20:26:11+08:00",
+  "status": "FAIL_CLOSED_NO_MOTION_SAFE_ROLLBACK",
+  "authorization": {
+    "gate": "gate-v7",
+    "operator_onsite_ready": true,
+    "front_clear": true,
+    "emergency_stop_accessible": true,
+    "one_low_speed_forward_pointer_up_authorized": true,
+    "automatic_retry_authorized": false,
+    "automatic_retry_performed": false
+  },
+  "bound_candidate": {
+    "app_candidate": "candidate-v5",
+    "apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "installed_apk_sha256_matched_before_and_after": true,
+    "phone": "PHK110:OP5913L1",
+    "adb_serial": "172.22.205.58:42449",
+    "candidate_manifest_sha256": "d973a6fcb7c5eb6c64663d2dfcbf2a993b6b5cfddd6f995cba41d08589759a66",
+    "acceptance_permit_sha256": "14cf729b536e99f5c5aa4e45cd29eb421b3b26998f00196077294e11ca86b991",
+    "gateway_source_bundle_sha256": "b2aec18c4d9cd29d79b6706130a08decca161c000c6a72506e70e03e3416259c",
+    "navigation_board_bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b",
+    "safety_profile": "manual_mapping_safe_low_speed_v1",
+    "tls_device_key_fingerprint": "sha256:284035780ee11b0f5d45c49051aafc79be6c1ffbe8ee472cd668a154f75ca947"
+  },
+  "new_run_preflight": {
+    "runtime_mode": "REAL",
+    "gateway_host": "172.22.205.44",
+    "gateway_port": 8443,
+    "gateway_identity_result": "PASS",
+    "pairing_restore_result": "PASS",
+    "app_mapping_preflight_result": "PASS",
+    "ready_item_count": 8,
+    "ready_items": [
+      "stationary",
+      "battery",
+      "sensors",
+      "collision_protection",
+      "stop_chain",
+      "storage",
+      "motion_owner",
+      "version"
+    ],
+    "battery_percent": 77,
+    "active_motion_owners": [],
+    "active_task_owners": [],
+    "chassis_stationary": true,
+    "odom_linear_x_mps": -0.0,
+    "odom_angular_z_rps": 0.0,
+    "minimum_forward_clearance_m": 0.34558941826931733,
+    "minimum_abort_boundary_m": 0.25
+  },
+  "real_activation": {
+    "mapping_authorization_count": 1,
+    "mapping_authorization_consumed": true,
+    "mapping_operation_id": "mapping_ebf50cad33f5406a9e3247ba154104af",
+    "mapping_operation_status": "started",
+    "manual_mapping_session_id": "manual_mapping_7b516d1a6900483dabe06ffe3f2e5976",
+    "session_phase": "collecting",
+    "navigation_during_window": "inactive",
+    "manual_mapping_service_during_window": "active",
+    "manual_mapping_safety_runtime_during_window": "active",
+    "manual_mapping_guard_socket_during_window": "ready"
+  },
+  "single_gesture": {
+    "gesture_count": 1,
+    "adb_command_semantics": "one stationary swipe emits pointer_down, held pointer samples, and pointer_up",
+    "screen_coordinate": {
+      "x": 620,
+      "y": 1795
+    },
+    "observed_joystick_center": {
+      "x": 620,
+      "y": 1855
+    },
+    "forward_offset_px": 60,
+    "approximate_normalized_linear": 0.17,
+    "requested_duration_ms": 3000,
+    "host_command_started_at": "2026-08-29T12:22:00.792463733+00:00",
+    "host_command_completed_at": "2026-08-29T12:22:03.913868815+00:00",
+    "android_touch_samples_first_at": "2026-08-29T20:22:00.114+08:00",
+    "android_touch_samples_last_at": "2026-08-29T20:22:03.047+08:00",
+    "pointer_up_emitted": true
+  },
+  "result": {
+    "pointer_up_stop_acceptance": "NOT_COMPLETED",
+    "reason": "control stopped before the first intent while the pointer remained held",
+    "lease_epoch": 1,
+    "last_seq": 0,
+    "accepted_nonzero_intents": 0,
+    "effective_linear_mps": 0.0,
+    "effective_angular_rps": 0.0,
+    "blocked_reason": null,
+    "control_state": "stopped",
+    "stop_confirmed": true,
+    "stop_requested_at": "2026-08-29T12:22:01.099312+00:00",
+    "stop_confirmed_at": "2026-08-29T12:22:01.099312+00:00",
+    "recorded_stop_latency_ms": 0,
+    "physical_motion_observed": false,
+    "encoder_left_before_and_after": -1799581,
+    "encoder_right_before_and_after": 1899275,
+    "encoder_samples_in_gesture_window": 16,
+    "encoder_window_result": "UNCHANGED",
+    "read_only_ros_observer": "armed before the gesture; emitted no nonzero-motion observation and was terminated after the database and encoder window confirmed no motion",
+    "trusted_server_time_intent_acceptance_exercised": false,
+    "stop_confirmed_ui_recovery_observed": true
+  },
+  "root_cause_assessment": {
+    "classification": "HIGH_CONFIDENCE_INFERENCE",
+    "finding": "the 400 ms control lease was consumed during first-use board arm/session round-trip and was already stopped before the App could send seq=1",
+    "evidence": [
+      "Android continued emitting held-touch samples until 20:22:03.047+08:00, but the REAL session recorded stop at 20:22:01.099312+08:00.",
+      "The session advanced to lease_epoch=1 but remained last_seq=0 with effective velocities 0.0/0.0.",
+      "The server acquire path computes lease expiry before guard.arm and then performs a board round-trip before returning control_granted.",
+      "All 16 can_driver samples spanning 20:21:58.187 through 20:22:05.689 retained identical encoder values."
+    ],
+    "safety_limits_changed": false,
+    "recommended_minimum_fix": "anchor the existing 400 ms lease/watchdog window to successful board-arm acknowledgement, or pre-establish the persistent board session before enabling the joystick; do not increase TTL, watchdog, profile limits, or bypass any gate"
+  },
+  "rollback": {
+    "app_force_stopped": true,
+    "board_stop_mapping_ack": "stopped",
+    "board_operation_state": "stopped",
+    "navigation_service": "active/running",
+    "manual_mapping_service": "inactive/dead",
+    "manual_mapping_safety_runtime": "inactive/dead",
+    "autonomous_mapping_service": "inactive/dead",
+    "manual_mapping_guard_socket": "absent",
+    "final_chassis_stationary": true,
+    "final_active_motion_owners": [],
+    "temporary_gateway_stopped": true,
+    "gateway_port_8443_listening": false,
+    "temporary_runtime_stopped_cleanly": true,
+    "runtime_socket_present": false
+  },
+  "artifacts": {
+    "preflight_screenshot": {
+      "path": "run-artifacts/preflight-8-of-8.png",
+      "sha256": "933f3874bd68a1d37295bab0cad83135649824b3ea4df85069600d79fcc98efa",
+      "size_bytes": 192282
+    },
+    "preflight_ui_xml": {
+      "path": "run-artifacts/preflight-8-of-8.xml",
+      "sha256": "71c0c6a38d6806a38fc2566c90fbab7a40ba8448488e570f8d403a17ffc368a5",
+      "size_bytes": 12290
+    },
+    "joystick_ready_screenshot": {
+      "path": "run-artifacts/real-session-joystick-ready.png",
+      "sha256": "245974ca3ad2af6beaee8010cb79bb3ac35fd1244b570f305bee93f652944eb5",
+      "size_bytes": 131085
+    },
+    "post_pointer_up_screenshot": {
+      "path": "run-artifacts/post-pointer-up-zero.png",
+      "sha256": "a74afdd916d640faad9c0815d44ef5ca1118aae5dc3af980bdc512a2af0655c5",
+      "size_bytes": 131067
+    },
+    "post_pointer_up_ui_xml": {
+      "path": "run-artifacts/post-pointer-up-zero.xml",
+      "sha256": "a4c5e67446d42ee2483d8369ee3668ecbdbb1e26c9471f29fb10b5dd4025891f",
+      "size_bytes": 6983
+    },
+    "encoder_window": {
+      "path": "run-artifacts/encoder-window.log",
+      "sha256": "576f633a2e5ce204332f507f109e4fb7339eea69cf7a2e9c67e13d8b49543890",
+      "size_bytes": 2864
+    },
+    "pointer_input_window": {
+      "path": "run-artifacts/pointer-input-window.log",
+      "sha256": "d8c31dba24c14ed8a421f4714484522ccaa67225ed3139705c91614a3e35a6fe",
+      "size_bytes": 8526
+    }
+  },
+  "acceptance_effect": {
+    "real_capability_marker_activated": true,
+    "real_operation_and_session_created": true,
+    "joystick_visible": true,
+    "physical_forward_motion_completed": false,
+    "pointer_up_stop_gate_passed": false,
+    "safe_fail_closed_and_rollback_passed": true,
+    "next_gate_requires_new_candidate_and_new_explicit_motion_authorization": true
+  }
+}

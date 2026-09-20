@@ -1,0 +1,77 @@
+{
+  "schema_version": "duole.issue33.app-control-clock-stop-recovery-candidate.installation.v1",
+  "issue": 33,
+  "candidate_id": "issue33-app-control-clock-stop-recovery-candidate-v5",
+  "created_at": "2026-08-29T20:00:15+08:00",
+  "status": "INSTALLED_NO_MOTION_PREFLIGHT_PASS",
+  "authorization": {
+    "scope": "Install the exact candidate-v5 APK on PHK110, launch the App, and confirm version and current page only.",
+    "gateway_or_runtime_start_authorized": false,
+    "navigation_service_switch_authorized": false,
+    "session_create_or_activate_authorized": false,
+    "robot_motion_authorized": false
+  },
+  "target": {
+    "adb_serial": "172.22.205.58:42449",
+    "adb_state": "device",
+    "model": "PHK110",
+    "device_codename": "OP5913L1",
+    "adb_version": "35.0.2"
+  },
+  "candidate": {
+    "manifest_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5.json",
+    "manifest_sha256": "70138e169602e4815c8bb7c183aa3103f7ae3018783043ce86aa9680af82fb45",
+    "apk_path": "flutter/duole_engineering_app/build/issue33-control-clock-stop-recovery-candidate-v5/duole-engineering-app-issue33-control-clock-stop-recovery-debug-arm64.apk",
+    "authorized_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "local_sha256_verified": true,
+    "apk_signature_verified": "Android debug signer / APK Signature Scheme v2"
+  },
+  "replacement": {
+    "preinstall_apk_sha256": "b5458aceef8aff09b2675eb3bacdbcdb0a1a9ab8fdbb0fa91b26aefbe8ebde2e",
+    "preinstall_candidate": "candidate-v4",
+    "command_result": "Performing Streamed Install / Success",
+    "installed_base_apk_path": "/data/app/~~VpeotHOpW7TTV3Aw_Je5RA==/com.duole.engineering.duole_engineering_app-W0fyGwjgTYaC5-ixKFiPxw==/base.apk",
+    "installed_base_apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "installed_sha_matches_authorized_sha": true
+  },
+  "package": {
+    "name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "first_install_time": "2026-08-21 15:14:27",
+    "last_update_time": "2026-08-29 19:58:32",
+    "launch_activity": "com.duole.engineering.duole_engineering_app/.MainActivity"
+  },
+  "no_motion_preflight": {
+    "activity_start_status": "ok",
+    "resumed_activity_confirmed": true,
+    "initial_black_screenshot_cause": "The device was Dozing with the screen off and keyguard showing; the App process remained alive.",
+    "system_only_display_actions": [
+      "KEYCODE_WAKEUP",
+      "wm dismiss-keyguard"
+    ],
+    "coordinate_touch_events_sent": false,
+    "app_business_controls_clicked": false,
+    "observed_page_title": "连接机器人",
+    "observed_page": "Robot connection page with LAN discovery notice and manual Host/IP plus TLS port 8443 form.",
+    "app_left_foreground_on_observed_page": true,
+    "screenshot_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5-preflight.png",
+    "screenshot_sha256": "69868679ed4547682c438056ff70ff438f2e70f69bdeda1dd0a0c7c106b03610",
+    "screenshot_size_bytes": 141360,
+    "screenshot_mode": "0444"
+  },
+  "authorization_boundary": {
+    "gateway_or_runtime_started": false,
+    "navigation_or_mapping_service_switched": false,
+    "manual_mapping_session_created": false,
+    "manual_mapping_session_activated": false,
+    "joystick_displayed": false,
+    "joystick_operated": false,
+    "robot_connected": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false,
+    "activation_manifest_created": false
+  }
+}

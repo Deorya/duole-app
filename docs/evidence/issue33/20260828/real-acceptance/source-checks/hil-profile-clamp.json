@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "check": "hil_profile_clamp",
+  "status": "passed",
+  "safety_profile": "manual_mapping_safe_low_speed_v1",
+  "linear_limit_mps": 0.1,
+  "observed_max_effective_linear_mps": 0.1,
+  "angular_limit_radps": 0.3,
+  "observed_max_effective_angular_radps": 0.3,
+  "sources": [
+    {
+      "path": "docs/evidence/issue33/20260827/ground-stop-retest-02.json",
+      "sha256": "028c0b83322d9dd3f31b17504d202a4f06624e70231e9f7c337018d2b64c3fde"
+    },
+    {
+      "path": "docs/evidence/issue33/20260827/angular-profile-ground-real-01.json",
+      "sha256": "69e7b1391e96c55d675a05fbdd747a95cb58e5b7ff98176681cde6ca15bce16b"
+    }
+  ]
+}

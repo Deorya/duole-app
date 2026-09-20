@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "hil_control_failure",
+  "scenario": "app_background",
+  "attempt": 4,
+  "recorded_at": "2026-08-28T15:50:34+08:00",
+  "authorization": "operator gave a fresh single-scenario ready confirmation",
+  "hil_attempt_consumed": true,
+  "stop_acceptance_counted": false,
+  "pending_stop_telemetry_created": false,
+  "pending_lifecycle_result_created": false,
+  "execution_boundary": {
+    "corridor_preflight_passed": true,
+    "mapping_started": true,
+    "manual_mapping_runtime_started": true,
+    "interrupted_slam_state_recovered": true,
+    "manual_mapping_session_begun": true,
+    "control_lease_created": "not evidenced",
+    "first_intent_accepted": false,
+    "map_save_started": false
+  },
+  "failure": {
+    "stage": "after manual mapping session begin and before any accepted motion intent",
+    "remote_probe_exit": "nonzero",
+    "exact_remote_error": "not retained after the execution exceeded the first 30 second tool-output window",
+    "root_cause": "unresolved",
+    "automatic_rerun": false
+  },
+  "hardware_evidence": {
+    "source": "duole-mapping-manual.service can_driver journal",
+    "sample_count": 12,
+    "left_encoder_first": -1528681,
+    "left_encoder_last": -1528681,
+    "right_encoder_first": 1608814,
+    "right_encoder_last": 1608814,
+    "wheel_motion_observed": false,
+    "slam_robot_pose": {
+      "x": -0.00009715609885448272,
+      "y": -1.3570922528710703e-08,
+      "yaw": 0.000591618515064507
+    }
+  },
+  "post_failure_state": {
+    "mapping_operation_id": "mapping_ae2d4e0d52d15fea0677d176fdc123b4",
+    "mapping_operation_state": "stopped",
+    "manual_mapping_session_id": "manual_mapping_7bf7a5c34b5e4f4abc0e56c337b675e4",
+    "slam_status": "abandoned",
+    "slam_outcome": "abandoned",
+    "slam_revision": 1,
+    "slam_snapshot_revision": 1,
+    "previous_active_map": "my_map3",
+    "active_map_after_cleanup": "my_map3",
+    "duole-navigation-stack.service": "active",
+    "duole-mapping-manual.service": "inactive",
+    "duole-mapping-autonomous.service": "inactive",
+    "duole-manual-mapping-runtime.service": "inactive",
+    "persistent_board_session_active": false
+  },
+  "next_minimum_action": "run one separately authorized no-motion arm, zero-intent and stop diagnostic with stage-preserving output before another app_background HIL attempt",
+  "operator_observation": {
+    "operator_id": "ztl-onsite",
+    "observed_at": "2026-08-28T15:53:17+08:00",
+    "observation_mode": "direct_onsite",
+    "robot_never_moved": true,
+    "wheel_twitch_or_momentary_rotation": false,
+    "robot_fully_stopped": true,
+    "charging_cable_safe": true,
+    "hardware_estop_reachable": true
+  }
+}

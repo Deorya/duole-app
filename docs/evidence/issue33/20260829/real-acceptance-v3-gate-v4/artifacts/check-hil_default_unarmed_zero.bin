@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "hil_check_log",
+  "run": "baseline",
+  "observed_at": "2026-08-29T08:26:48.912230+00:00",
+  "target": "ztl@172.22.205.19",
+  "operator_readiness": {
+    "direct_onsite": true,
+    "robot_reported_safe": true,
+    "operator_confirmed_forward_clear": true,
+    "operator_instructed_to_keep_emergency_stop_accessible": true
+  },
+  "versions": {
+    "manual_mapping_guard_sha256": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+    "ros_manual_mapping_runtime_sha256": "548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a",
+    "manual_mapping_unit_sha256": "c4760979763ccb39f22bb104a320718fde838140909af915762612c08cb8b40d"
+  },
+  "hil_default_unarmed_zero": {
+    "status": "passed",
+    "rejection": "manual_mapping_guard_lease_mismatch",
+    "cmd_vel_max_abs_linear_mps": 0.0,
+    "cmd_vel_max_abs_angular_radps": 0.0
+  },
+  "hil_profile_clamp": {
+    "status": "passed",
+    "profile_id": "manual_mapping_safe_low_speed_v1",
+    "corridor_before_m": 1.2097616729666043,
+    "all_around_clearance_before_m": 0.7147499918937683,
+    "observed_max_effective_linear_mps": 0.1,
+    "observed_max_effective_angular_radps": 0.3,
+    "linear_displacement_m": 0.06300991461953524,
+    "angular_displacement_rad": 0.20313603291609944,
+    "linear_stop_latency_ms": 846,
+    "angular_stop_latency_ms": 851
+  },
+  "restored_safe_state": {
+    "navigation_active": true,
+    "manual_mapping_inactive": true,
+    "manual_mapping_runtime_inactive": true,
+    "autonomous_mapping_inactive": true,
+    "guard_socket_absent": true
+  },
+  "verdict": "passed"
+}

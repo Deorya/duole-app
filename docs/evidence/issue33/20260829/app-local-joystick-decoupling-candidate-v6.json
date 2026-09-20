@@ -1,0 +1,185 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "app_candidate_build",
+  "candidate": "app-candidate-v6",
+  "created_at": "2026-08-29T15:08:37+00:00",
+  "status": "built_tested_not_installed",
+  "authorization": {
+    "authorized_scope": "split local joystick gesture state from control connection and lease state; prevent parent scrolling from taking the joystick drag; preserve concrete control error_code; add no-motion tests; build only",
+    "ttl_change_authorized": false,
+    "watchdog_change_authorized": false,
+    "velocity_or_safety_gate_change_authorized": false,
+    "installation_authorized": false,
+    "activation_authorized": false,
+    "session_creation_authorized": false,
+    "motion_authorized": false
+  },
+  "target_binding": {
+    "requested_future_device": "Xiaomi tablet",
+    "requested_future_adb_serial": "172.22.205.14:39131",
+    "device_identity_verified": false,
+    "adb_contacted": false,
+    "apk_installed": false
+  },
+  "parent_candidate": {
+    "candidate": "app-candidate-v5",
+    "apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "trusted_server_time_transport_sha256": "a52c8197302682efc30216d042c1f95685650e2e4aec4bcae641916653f47443",
+    "stop_confirmed_page_sha256": "70e04d2c059ba3a1ab6f31045513ae46a47920dd3d6ff8e5d784d9dac4f0bb19",
+    "inherited_transport_changed_in_candidate_v6": false
+  },
+  "implementation": {
+    "runtime_files": {
+      "flutter/duole_engineering_app/lib/manual_mapping_page.dart": "87a0703383182ea66a986b433aa0180005ff46a9e885f1e382a457d9d6892d65",
+      "flutter/duole_engineering_app/lib/manual_mapping_joystick_state.dart": "0a3636b262a3bdc452d60972bd2c3c054a8e088d2b3d3c491c8a981e8bcd324b"
+    },
+    "test_files": {
+      "flutter/duole_engineering_app/test/manual_mapping_page_test.dart": "56b96b54321a1f324b46fdfe5c02f9270bf4f1e11322f690791bf5d1a19c0e2a",
+      "flutter/duole_engineering_app/test/manual_mapping_joystick_state_test.dart": "01d83aea59d6772a70b0fa0df6941db674e59fcfb19a039199bbd1916f58bbac"
+    },
+    "behavior": [
+      "pointer_down and pointer_move always update local joystick position while the manual-mapping session remains non-terminal",
+      "control channel loss revokes control eligibility for the held pointer without cancelling or recentering the local gesture",
+      "intent transmission still requires the same held gesture to be control-eligible, stop not pending, a live connection, and a current lease id and epoch",
+      "stop-confirmed channel recovery never upgrades an already-held pointer; pointer_up followed by a fresh pointer_down is required before acquire",
+      "pointer_up and pointer_cancel recenter the local knob and zero the local displayed values",
+      "the joystick owns its pan gesture and disables parent scrolling for the active pointer",
+      "a protocol error frame keeps its exact error_code visible instead of reducing it to the generic control-channel message"
+    ]
+  },
+  "safety_invariants": {
+    "manual_mapping_control_transport_sha256": "a52c8197302682efc30216d042c1f95685650e2e4aec4bcae641916653f47443",
+    "manual_mapping_control_transport_matches_candidate_v5": true,
+    "intent_ttl_ms": 200,
+    "intent_ttl_changed": false,
+    "intent_timer_interval_ms": 100,
+    "intent_timer_interval_changed": false,
+    "watchdog_changed": false,
+    "velocity_limits_changed": false,
+    "safety_gates_changed": false,
+    "gateway_runtime_changed": false,
+    "navigation_board_changed": false,
+    "selector_changed": false
+  },
+  "feedback_loop": {
+    "red": {
+      "command": "dart run test/manual_mapping_joystick_state_test.dart",
+      "exit_code": 254,
+      "result": "expected failure before implementation: manual_mapping_joystick_state.dart and ManualMappingJoystickState did not exist"
+    },
+    "green": {
+      "command": "dart run test/manual_mapping_joystick_state_test.dart",
+      "exit_code": 0,
+      "assertions": [
+        "channel loss preserves the active local pointer and local values",
+        "channel loss revokes control eligibility",
+        "recovery does not reactivate the held pointer",
+        "pointer_up recenters and zeros locally",
+        "a fresh pointer after release may acquire control"
+      ]
+    }
+  },
+  "validation": {
+    "flutter_analyze": {
+      "result": "PASS",
+      "detail": "No issues found"
+    },
+    "widget_tests": {
+      "backend": "Chromium",
+      "command": "flutter test --platform chrome --reporter expanded test/manual_mapping_page_test.dart with localhost proxy variables unset",
+      "result": "PASS",
+      "passed": 20,
+      "failed": 0,
+      "candidate_v6_regressions": [
+        "protocol error keeps local drag but stops intent and shows code",
+        "reconnect never resumes control for an already-held pointer"
+      ],
+      "scroll_assertion": "the SingleChildScrollView pixel offset remains unchanged during the joystick drag"
+    },
+    "native_widget_runner": {
+      "result": "BLOCKED_BY_HOST_TOOLCHAIN",
+      "detail": "the Flutter 3.47.0 linux-arm64 flutter_tester exits with SIGSEGV (-11) while loading every tested widget file, including an unrelated emergency-stop test",
+      "application_assertions_executed": false,
+      "replacement_evidence": "the same manual_mapping_page_test.dart completed all 20 tests on the Chromium Flutter widget backend"
+    },
+    "manual_mapping_wss_transport": {
+      "command": "dart run test/manual_mapping_websocket_transport_test.dart",
+      "result": "PASS exit 0",
+      "test_sha256": "5e2ab0faaa4c807619433f677b0e6dcacce8dcc0c8255f6320cc96d21835019a"
+    },
+    "manual_mapping_contract": {
+      "command": "dart run test/manual_mapping_contract_test.dart",
+      "result": "PASS exit 0",
+      "contract_sha256": "bc2bf1a7871969082043a3f54aee793773fdcf5f40382cad4ec85b4510573e07",
+      "test_sha256": "48ccc76ef261fcb3df77114fcc66a843922d24b805517e11a2859da28a4c43c9"
+    },
+    "format_and_diff": {
+      "dart_format": "PASS",
+      "git_diff_check": "PASS",
+      "debug_instrumentation_absent": true
+    }
+  },
+  "build": {
+    "flutter": "3.47.0 stable / framework 4cf2416426",
+    "dart": "3.13.0",
+    "java": "Temurin 17.0.20+8",
+    "mode": "debug",
+    "requested_target_platform": "android-arm64",
+    "gradle_mode": "offline",
+    "aapt2_override_path": "/home/ztl/.local/share/duole-hil-toolchain/android-sdk-tools-arm64/build-tools/aapt2",
+    "aapt2_override_sha256": "db737b3bbee99dd8a9e56108cc05d032597874d3f8ac557a69f3c5de5efaf57f",
+    "source_isolation": "/tmp/duole-issue33-app-candidate-v6-build.m5w8v4",
+    "source_isolation_original_path_absent_after_cleanup": true,
+    "source_isolation_moved_to_trash": true,
+    "source_isolation_size_before_cleanup": "1.1G",
+    "existing_candidate_apk_overwritten": false,
+    "attempt_notes": [
+      "the first isolated online Gradle attempt was stopped without an artifact after external Maven connectivity remained in SYN-SENT retries",
+      "the first offline attempt failed before packaging because Gradle selected the Maven x86_64 aapt2 on the ARM64 host",
+      "the final offline attempt reused the repository's established ARM64 aapt2 override and produced the verified APK"
+    ],
+    "non_fatal_warnings": [
+      "mobile_scanner still applies Kotlin Gradle Plugin and will require a future Built-in Kotlin migration",
+      "host SDK XML version compatibility warning",
+      "the host cross-strip tool did not recognize bundled x86 and x86_64 plugin libraries; packaging completed and ZIP and signature verification passed"
+    ]
+  },
+  "artifact": {
+    "path": "flutter/duole_engineering_app/build/issue33-local-joystick-decoupling-candidate-v6/duole-engineering-app-issue33-local-joystick-decoupling-debug-arm64.apk",
+    "sha256": "1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735",
+    "size_bytes": 96351281,
+    "mode": "0444",
+    "zip_integrity": "PASS",
+    "package_name": "com.duole.engineering.duole_engineering_app",
+    "launchable_activity": "com.duole.engineering.duole_engineering_app.MainActivity",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "native_abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ],
+    "signature": {
+      "v2_verified": true,
+      "signers": 1,
+      "certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f"
+    }
+  },
+  "authorization_boundary": {
+    "apk_built": true,
+    "adb_contacted": false,
+    "apk_installed": false,
+    "app_launched": false,
+    "gateway_or_runtime_started": false,
+    "navigation_or_mapping_service_switched": false,
+    "manual_mapping_session_created": false,
+    "control_lease_acquired": false,
+    "control_intent_sent": false,
+    "robot_connected": false,
+    "physical_motion": false
+  }
+}

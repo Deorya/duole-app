@@ -1,0 +1,151 @@
+{
+  "schema_version": "duole.issue33.control-lease-ack-candidate-v6-navigation-board-installation.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T21:03:16+08:00",
+  "status": "INSTALLED_NOT_ACTIVATED",
+  "evidence_class": "INSTALLATION_ONLY",
+  "authorization_boundary": {
+    "authorized": [
+      "install the exact navigation-board candidate-v3 on ztl@172.22.205.19",
+      "perform read-only preflight and post-install verification"
+    ],
+    "prohibited": [
+      "start Runtime or Gateway on 172.22.205.44",
+      "start, restart, stop, or switch services on 172.22.205.19",
+      "create a persistent navigation-board control session",
+      "interact with the App or ADB device",
+      "create or activate a REAL session",
+      "send a control intent or move the robot",
+      "claim REAL HIL acceptance"
+    ]
+  },
+  "candidate_manifest": {
+    "path": "docs/evidence/issue33/20260829/control-lease-ack-candidate-v6.json",
+    "sha256": "3ffee589d7ae68824b1121ff3f49fd855aa6725c849498c0b0f64019d20ef3ce"
+  },
+  "navigation_board": {
+    "host": "ztl@172.22.205.19",
+    "hostname": "RK3588",
+    "candidate_bundle": {
+      "local_path": "flutter/duole_engineering_app/build/issue33-control-lease-ack-candidate-v6/issue33-navigation-board-lease-ack-candidate-v3.tar.gz",
+      "remote_path": "/home/ztl/duole-issue31-nav-ws/incoming/candidates/issue33-control-lease-ack-candidate-v6/issue33-navigation-board-lease-ack-candidate-v3.tar.gz",
+      "sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+      "size_bytes": 13085,
+      "remote_mode": "0444",
+      "remote_owner": "ztl:ztl"
+    },
+    "installer": {
+      "path": "/home/ztl/duole-issue31-nav-ws/bin/upgrade-issue33-navigation-board-lease-ack-candidate-v3",
+      "sha256": "51b2e5fd30f7c7cf99571c2e98764cfcf52ca2d591d22b96b7b8f817da4bc9ad",
+      "mode": "0755",
+      "argument": "--install",
+      "exit_code": 0,
+      "credential_handling": "board-scoped operator-provided credential passed only on sudo stdin; value was not printed or recorded"
+    },
+    "predecessor_sha256": {
+      "agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+      "manual_mapping_guard.py": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+      "manual_mapping_guard_ipc.py": "cf33d360deeab40c2085c54c84d7b1f712f3a8fe400755123d1a2b259b569339"
+    },
+    "installed_candidate_sha256": {
+      "agent.py": "0a02224081de81713968cd9c9616bcd3d23b80a36dfd47ae6d759ceb0c4ed891",
+      "manual_mapping_guard.py": "687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9",
+      "manual_mapping_guard_ipc.py": "2374346c3cf6a03af2aa2b85f5a526561716b4d073ada16f2ea8342223fd4d85"
+    },
+    "rollback_backup": {
+      "path": "/home/ztl/duole-issue31-nav-ws/backups/manual-mapping-lease-ack-before-candidate-v3/runtime",
+      "sha256": {
+        "agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+        "manual_mapping_guard.py": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+        "manual_mapping_guard_ipc.py": "cf33d360deeab40c2085c54c84d7b1f712f3a8fe400755123d1a2b259b569339"
+      }
+    },
+    "receipt": {
+      "path": "/home/ztl/duole-issue31-nav-ws/backups/manual-mapping-lease-ack-before-candidate-v3/install-receipt.txt",
+      "sha256": "0d65f78a351a95b04c904842d2de3c4f99571116ab1ef7bd7d0f0e69541401fa",
+      "text": "issue33 lease-ack candidate-v3 installed; no service state was changed"
+    },
+    "service_invariant": {
+      "preflight_observed_at": "2026-08-29T20:55:54+08:00",
+      "post_install_observed_at": "2026-08-29T21:02:41+08:00",
+      "duole-navigation-stack.service": {
+        "state_before": "active",
+        "state_after": "active",
+        "main_pid_before": 2498950,
+        "main_pid_after": 2498950,
+        "result_before": "success",
+        "result_after": "success",
+        "active_enter_timestamp_monotonic_before": 635733783967,
+        "active_enter_timestamp_monotonic_after": 635733783967
+      },
+      "duole-mapping-manual.service": {
+        "state_before": "inactive",
+        "state_after": "inactive"
+      },
+      "duole-mapping-autonomous.service": {
+        "state_before": "inactive",
+        "state_after": "inactive"
+      },
+      "duole-manual-mapping-runtime.service": {
+        "state_before": "inactive",
+        "state_after": "inactive"
+      },
+      "unchanged": true
+    },
+    "read_only_safety_snapshots": {
+      "preflight": {
+        "observed_at": "2026-08-29T12:57:07.706Z",
+        "chassis_stationary": true,
+        "active_task_owners": [],
+        "collision_protection_ready": true,
+        "stop_chain_ready": true,
+        "sensors_ready": true,
+        "version_compatible": true,
+        "battery_percent": 75
+      },
+      "post_install": {
+        "observed_at": "2026-08-29T13:02:34.803Z",
+        "chassis_stationary": true,
+        "active_task_owners": [],
+        "collision_protection_ready": true,
+        "stop_chain_ready": true,
+        "sensors_ready": true,
+        "version_compatible": true,
+        "battery_percent": 75
+      },
+      "entrypoint": "/home/ztl/duole-issue31-nav-ws/bin/issue31-navigation-board-agent",
+      "persistent_session_created": false
+    },
+    "post_install_process_state": {
+      "observed_at": "2026-08-29T21:02:54+08:00",
+      "manual_mapping_guard_socket": "absent",
+      "persistent_board_session": "absent",
+      "one_shot_board_agents": 0,
+      "temporary_install_files": "absent"
+    }
+  },
+  "new_run_validation": {
+    "remote_bundle_sha_matches_frozen_candidate": true,
+    "installer_sha_matches_frozen_candidate": true,
+    "installed_module_shas_match_candidate": true,
+    "rollback_backup_shas_match_predecessor": true,
+    "service_state_and_navigation_pid_unchanged": true,
+    "post_install_chassis_stationary": true,
+    "post_install_active_task_owners_empty": true,
+    "persistent_control_session_absent": true
+  },
+  "not_performed": [
+    "Runtime or Gateway start on 172.22.205.44",
+    "service start, restart, stop, or switch on 172.22.205.19",
+    "manual-mapping guard activation",
+    "persistent board session creation",
+    "App launch or ADB interaction",
+    "REAL session creation or activation",
+    "joystick input or any robot motion",
+    "REAL HIL acceptance"
+  ],
+  "acceptance_effect": {
+    "real_hil_items_added": 0,
+    "reason": "candidate-v3 is installed on disk only; it was not activated or exercised with motion"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "persistent_session_application_control_no_motion_diagnostic_analysis",
+  "recorded_at": "2026-08-28T20:55:22+08:00",
+  "target": "ztl@172.22.205.19",
+  "authorization": {
+    "operator_id": "ztl-onsite",
+    "scope": "one application-layer zero-intent diagnostic with one navigation/mapping service switch"
+  },
+  "source_result": {
+    "path": "source-diagnostics/persistent-session-application-control-no-motion-03.json",
+    "sha256": "81b7e121cc0af744c2ce611f2b8e97e5f6e724326fed0a47179e826028d74a8b",
+    "status": "passed",
+    "completed_stage_count": 8,
+    "operation_id": "mapping_5afebf27f93ef6e0ccb12ad6e86d234f",
+    "session_id": "manual_mapping_6f426a6ee2b3461a94e56456e8777d9b",
+    "lease_id": "mapping_lease_f871aac5298944aea136847bb2d61ded",
+    "accepted_seq": 1,
+    "intent_status": "applied",
+    "zero_intent": {
+      "linear": 0.0,
+      "angular": 0.0
+    },
+    "stop_confirmed": true,
+    "terminal_phase": "abandoned",
+    "terminal_outcome": "abandoned",
+    "cleanup_errors": []
+  },
+  "runtime_binding": {
+    "provider_bundle_sha256": "c648fe4b5948480a5166e99b2eb71ef1e4dcc39a508e9b09c980698966bd455d",
+    "navigation_board_runtime_cli_sha256": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "navigation_board_slam_runtime_sha256": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d"
+  },
+  "machine_postflight": {
+    "duole-navigation-stack.service": "active/running; MainPID=1002464; ActiveEnterTimestampMonotonic=551234119625",
+    "duole-mapping-manual.service": "inactive/dead",
+    "duole-mapping-autonomous.service": "inactive/dead",
+    "duole-manual-mapping-runtime.service": "inactive/dead",
+    "live_persistent_board_session": false,
+    "mapping_operation_state": "stopped",
+    "slam_state": {
+      "status": "abandoned",
+      "outcome": "abandoned",
+      "revision": 1,
+      "snapshot_revision": 1,
+      "prior_active_map_id": "my_map3",
+      "active_map_after_cleanup": "my_map3"
+    }
+  },
+  "machine_motion_observation": {
+    "mapping_window_encoder_samples": "L=-1578180 / R=1652334 throughout",
+    "navigation_after_restore_encoder_samples": "L=-1578179 / R=1652334 throughout",
+    "continuous_motion_detected": false,
+    "note": "one left-encoder count difference across service reinitialization is treated as quantization only; direct onsite observation remains required"
+  },
+  "operator_observation": {
+    "operator_id": "ztl-onsite",
+    "observation_type": "direct_onsite",
+    "observed_at": "2026-08-28T20:57:09+08:00",
+    "robot_never_moved": true,
+    "wheel_twitch_or_instant_rotation": false,
+    "robot_fully_stopped": true,
+    "charging_cable_safe": true,
+    "emergency_stop_reachable": true,
+    "screen_showed_charging": true
+  },
+  "acceptance_effect": "passes the installed application-layer zero-intent control-path diagnostic; diagnostic only and does not count as a nonzero-motion stop scenario"
+}

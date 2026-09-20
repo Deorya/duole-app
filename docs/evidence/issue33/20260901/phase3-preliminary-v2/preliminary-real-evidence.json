@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "candidate_manifest_sha256": "54790e65d966a6a1f29e9501ddd9479e2bc2fdeac7a0c95a06ba18c4e4fb4add",
+  "evidence_class": "PRELIMINARY_REAL",
+  "robot_id": "DUOLE-RK3588-ENG-01",
+  "started_at": "2026-09-01T08:53:19+08:00",
+  "completed_at": null,
+  "versions": {
+    "app": "0.1.0-phase3+2003@sha256:44f382687bb67d9bb7a5de77e138343cf202e36bb5e197afebb02fb16fb36714",
+    "gateway": "phase3-candidate-v1@sha256:9f83842d5515b2b7e41d9f471b7f0238e1f616fdcb8a193d7a8d76e6dceea7ca",
+    "runtime": "phase3-candidate-v1@sha256:9f83842d5515b2b7e41d9f471b7f0238e1f616fdcb8a193d7a8d76e6dceea7ca;hil-tool@sha256:7fa5afd839a17fb3b4f216186161ca35c03a10bc8721b35c829e79b0a93f1339",
+    "teleop_guard": "manual_mapping_guard.v1@sha256:687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9",
+    "slam": "manual_mapping_slam_runtime.py@sha256:e8f1bd617cb0aac7ca9ea5c541fad01da4989b65b359d61b2131b6e3ed37cc6e",
+    "navigation_board": "phase3-candidate-v1@sha256:fe270948cb6744e675cf6dea570584b8bcc443c726a6ae37cdbba02dc16446c6",
+    "base": "can_driver.py@sha256:1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031",
+    "schema": "openapi@sha256:2c4b30e8ddf4907188a4073d89c064e0899ef0546acf5d4396f8c3dcbc5ec797",
+    "hardware": "DUOLE-RK3588-ENG-01:RK3588:172.22.205.19;app=Xiaomi:23043RP34C:pipa;adb=172.22.205.14:36595;gateway=172.22.205.44:8443",
+    "safety_profile": "manual_mapping_safe_low_speed_v1"
+  },
+  "artifacts": {
+    "check-hil_collision_slowdown_block": {
+      "path": "artifacts/check-hil_collision_slowdown_block.bin",
+      "sha256": "5870b80caf9cbdbdf70c89681d9afcc3a55784cbcb501d0e52d7ef2f54fd3104",
+      "kind": "log"
+    },
+    "check-hil_default_unarmed_zero": {
+      "path": "artifacts/check-hil_default_unarmed_zero.bin",
+      "sha256": "6158bf78d1cbb1c2ecbb716e51626212c65e61d7f5b2f9818a66acdd092ae430",
+      "kind": "log"
+    },
+    "check-hil_profile_clamp": {
+      "path": "artifacts/check-hil_profile_clamp.bin",
+      "sha256": "6158bf78d1cbb1c2ecbb716e51626212c65e61d7f5b2f9818a66acdd092ae430",
+      "kind": "log"
+    },
+    "check-mock_no_motion_regression": {
+      "path": "artifacts/check-mock_no_motion_regression.bin",
+      "sha256": "e5ecdb9f53c695778c0f53af4798810a7a6ba7ac03802b65797c9a255c74c856",
+      "kind": "log"
+    },
+    "check-ordinary_teleop_remains_unavailable": {
+      "path": "artifacts/check-ordinary_teleop_remains_unavailable.bin",
+      "sha256": "f3a49191e7a02fd6022033cc80c7680812aae0dba3432a4851b5a756222d3fdf",
+      "kind": "log"
+    }
+  },
+  "stops": {
+    "pointer_up": {"status": "pending"},
+    "app_background": {"status": "pending"},
+    "screen_locked": {"status": "pending"},
+    "app_process_ended": {"status": "pending"},
+    "reconnect_timeout": {"status": "pending"},
+    "ap_wifi_failure": {"status": "pending"},
+    "ipc_failure": {"status": "pending"},
+    "gateway_restart": {"status": "pending"},
+    "guard_restart": {"status": "pending"},
+    "slam_restart": {"status": "pending"},
+    "navigation_board_restart": {"status": "pending"}
+  },
+  "checks": {
+    "hil_profile_clamp": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_profile_clamp"]
+    },
+    "hil_collision_slowdown_block": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_collision_slowdown_block"]
+    },
+    "hil_default_unarmed_zero": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_default_unarmed_zero"]
+    },
+    "real_app_start_cover_manual_stop": {"status": "pending"},
+    "normal_no_dock_unverified_save": {"status": "pending"},
+    "unverified_save": {"status": "pending"},
+    "immediate_stop_save": {"status": "pending"},
+    "abandon_delete_and_operator_reposition": {"status": "pending"},
+    "atomic_snapshot_recovery_without_lease": {"status": "pending"},
+    "previous_map_restored_without_activation": {"status": "pending"},
+    "mock_no_motion_regression": {
+      "status": "passed",
+      "evidence_ids": ["check-mock_no_motion_regression"]
+    },
+    "ordinary_teleop_remains_unavailable": {
+      "status": "passed",
+      "evidence_ids": ["check-ordinary_teleop_remains_unavailable"]
+    }
+  }
+}

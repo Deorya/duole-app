@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "checks": [
+    "mock_no_motion_regression",
+    "ordinary_teleop_remains_unavailable"
+  ],
+  "status": "passed",
+  "executed_at": "2026-08-28T20:58:55+08:00",
+  "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -p no:cacheprovider -q tests/app_gateway/test_mock_manual_mapping.py tests/app_gateway/test_read_operations.py::test_real_manual_mapping_gate_does_not_enable_ordinary_teleop",
+  "result": "34 passed in 4.99s",
+  "runtime_binding": {
+    "real_manual_mapping.py": "e928846e4fab0f341b4a9e32acc0cca0c57ab32db995ad8bb15c21672cce1a99",
+    "navigation_board_ssh.py": "ca97af905cd72e22f821e110094df14e059dd361f68add016707f15428e6debe",
+    "manual_mapping_runtime_cli.py": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "manual_mapping_slam_runtime.py": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d"
+  }
+}

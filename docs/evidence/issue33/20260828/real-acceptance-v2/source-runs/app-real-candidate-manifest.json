@@ -1,0 +1,67 @@
+{
+  "schema_version": "duole.issue33.app-real-candidate.v1",
+  "issue": 33,
+  "created_at": "2026-08-28T21:47:55+08:00",
+  "status": "BUILD_VERIFIED_NOT_INSTALLED",
+  "base_commit": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+  "candidate": {
+    "path": "flutter/duole_engineering_app/build/issue33-app-real-candidate/duole-engineering-app-issue33-real-debug-arm64.apk",
+    "sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "size_bytes": 96348925,
+    "package_name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "compile_sdk": 36,
+    "signing": "Android Debug / APK Signature Scheme v2",
+    "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f",
+    "native_abis": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86_64"
+    ]
+  },
+  "build": {
+    "flutter": "3.47.0 stable / framework 4cf2416426",
+    "dart": "3.13.0",
+    "java": "Temurin 17.0.20+8",
+    "target_platform": "android-arm64",
+    "build_mode": "debug",
+    "dart_defines": [],
+    "aapt2_override": "/home/ztl/.local/share/duole-hil-toolchain/android-sdk-tools-arm64/build-tools/aapt2",
+    "command": "flutter build apk --debug --target-platform android-arm64 -Pandroid.aapt2FromMavenOverride=<local-arm64-aapt2> --suppress-analytics"
+  },
+  "source_bindings": {
+    "flutter/duole_engineering_app/lib/manual_mapping_page.dart": "1c29e46f2aeea1e252f08424ba4715532e45404f14f86800b0cd4747e3ebf03a",
+    "flutter/duole_engineering_app/test/manual_mapping_page_test.dart": "1d6296b92613896505aab4f77315d317486885f6871ab05ae6c9e18283cab3d7",
+    "flutter/duole_engineering_app/pubspec.yaml": "59c91af9e92cd342d5b3ec67584a356f48f5f8a556ab22fb74ef02044441e9d7",
+    "flutter/duole_engineering_app/pubspec.lock": "bfaf644b2ee334b3edeb304568a00afb9f624f8a998d22ad3cca812210c393e3",
+    "dart/duole_app_contract/lib/app_contract.dart": "bc2bf1a7871969082043a3f54aee793773fdcf5f40382cad4ec85b4510573e07",
+    "dart/duole_engineering_client/lib/pairing_client.dart": "9c745674469307fdce0a27c242527075c593d5fc44e1c1d6e893effa46642652"
+  },
+  "validation": {
+    "tdd_red": "REAL physical-motion warning test failed because the warning was absent",
+    "tdd_green": "REAL physical-motion warning test passed after the minimal UI change",
+    "real_touch_characterization": "REAL pointer down/grant/intent/pointer_up release passed without a production control-path change",
+    "flutter_analyze": "PASS / no issues found",
+    "flutter_test": "PASS / 65 tests",
+    "manual_mapping_contract_script": "PASS",
+    "manual_mapping_api_script": "PASS",
+    "apk_zip_integrity": "PASS",
+    "apk_signature": "PASS"
+  },
+  "authorization_boundary": {
+    "apk_installed": false,
+    "services_switched": false,
+    "robot_motion_executed": false,
+    "app_real_device_end_to_end_verified": false,
+    "capability_marker_created": false
+  },
+  "historical_output_incident": {
+    "documented_issue32_sha256": "d4e1d472172509524e23fcdb27866bbeb4651c01cbbe7c716883f95dadc47600",
+    "default_output_path_current_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "exact_local_restore_available": false,
+    "note": "Flutter accepted a separate build-dir setting but still wrote the Android APK to the default ignored build/app path. The new candidate was copied to its named path; Issue 32 source and historical documentation were not changed. A clean HEAD rebuild did not reproduce the historical binary SHA and was not substituted for it."
+  }
+}

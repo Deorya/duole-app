@@ -1,0 +1,41 @@
+{
+  "schema_version": "duole.issue33.app-real-installation.v1",
+  "issue": 33,
+  "observed_at": "2026-08-28T22:02:51+08:00",
+  "status": "INSTALLED_GATEWAY_RUNTIME_NOT_ACTIVE",
+  "device": {
+    "adb_serial": "172.22.205.58:38779",
+    "manufacturer": "OnePlus",
+    "model": "PHK110",
+    "android_release": "16",
+    "primary_abi": "arm64-v8a"
+  },
+  "package": {
+    "name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "first_install_time": "2026-08-21T15:14:27+08:00",
+    "last_update_time": "2026-08-28T21:59:09+08:00",
+    "previous_installed_apk_sha256": "ce8a6ea58ad0d9f9ff133ad9b45e14014e7d4c5c7698c6d1400485df22c5ee11",
+    "candidate_apk_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "installed_base_apk_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "installed_byte_identical_to_candidate": true,
+    "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f",
+    "app_data_preserved": true
+  },
+  "no_motion_check": {
+    "app_launched": true,
+    "initial_page": "连接机器人",
+    "mdns_result": "未发现候选机器人",
+    "expected_gateway": "172.22.205.44:8443",
+    "gateway_listening": false,
+    "pairing_checked": false,
+    "real_page_checked": false,
+    "map_pose_checked": false,
+    "capability_checked": false,
+    "app_force_stopped_after_probe": true,
+    "robot_services_switched": false,
+    "robot_motion_executed": false
+  },
+  "blocker": "Current REAL product runtime/ROS projection and TLS Gateway are not active. Starting them is a separate runtime activation authorization gate; historical databases or MOCK data cannot satisfy the requested current REAL checks."
+}

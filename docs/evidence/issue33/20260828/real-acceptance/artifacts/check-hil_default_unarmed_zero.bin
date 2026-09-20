@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "check": "hil_default_unarmed_zero",
+  "status": "passed",
+  "rejection": "manual_mapping_guard_lease_mismatch",
+  "observed_max_cmd_vel_linear_mps": 0.0,
+  "observed_max_cmd_vel_angular_radps": 0.0,
+  "source_path": "docs/evidence/issue33/20260827/default-unarmed-zero-real-01.json",
+  "source_sha256": "ddea512866a706bd9d95fd8d54f061824e72d70cd24b5b1d7a1ca5f09f2e4f77"
+}

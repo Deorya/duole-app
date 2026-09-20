@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "operator_observation_supplement",
+  "scenario": "pointer_up",
+  "operator_id": "ztl-onsite",
+  "observation_mode": "direct_onsite",
+  "observed_at": "2026-08-28T09:29:59+08:00",
+  "reported_distance_m": 0.085,
+  "automatic_stop_after_pointer_release": true,
+  "visible_reverse": false,
+  "continued_sliding": false,
+  "stable_final_stop": true,
+  "emergency_stop_accessible": true,
+  "charging_cable_clear_of_tension_tangling_and_crushing": true,
+  "formal_evidence": [
+    {
+      "evidence_id": "pointer_up-stop-telemetry",
+      "sha256": "b2cd52672c52fa3c7f7f3e78bda74a5e83eb871668972f6c1c382bba8b7ea028"
+    },
+    {
+      "evidence_id": "pointer_up-operator-observation",
+      "sha256": "c84551107a8c7613c70a74e126f8567ce522562e19005c1da7b1b23da59ab1e6"
+    }
+  ],
+  "note": "Supplemental audit context only; the formal gate remains bound to the immutable artifacts listed above."
+}

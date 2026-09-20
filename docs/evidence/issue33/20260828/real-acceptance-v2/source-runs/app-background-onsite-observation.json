@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "scenario": "app_background",
+  "kind": "supplemental_onsite_observation",
+  "operator_id": "ztl-onsite",
+  "observation_mode": "direct_onsite",
+  "observed_at": "2026-08-28T21:05:04.527799+08:00",
+  "recorded_at": "2026-08-28T21:11:44+08:00",
+  "actual_forward_distance_cm": 8,
+  "automatic_stop_after_background": true,
+  "noticeable_stop_delay": false,
+  "visible_reverse": false,
+  "continued_forward_sliding": false,
+  "stable_final_stop": true,
+  "obstacle_contact": false,
+  "charging_cable_safe": true,
+  "emergency_stop_accessible": true,
+  "screen_showed_charging": true,
+  "telemetry_sha256": "5f592b1cc439e0fa419e1c059a00be55a776036a8c8c3ff0830dc209827f723c",
+  "lifecycle_sha256": "e2e4578c7ba0a9aed63ab1a0af183441c9341750de6771c96129b496f76e1bef"
+}

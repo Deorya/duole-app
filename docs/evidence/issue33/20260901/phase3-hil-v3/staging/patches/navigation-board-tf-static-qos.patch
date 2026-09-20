@@ -1,0 +1,57 @@
+--- a/duole_central/navigation_board/ros_manual_mapping_runtime.py
++++ b/duole_central/navigation_board/ros_manual_mapping_runtime.py
+@@ -46,6 +46,7 @@ class RosManualMappingIo:
+         message_types: RosManualMappingMessageTypes,
+         clock: Callable[[], datetime],
+         laser_forward_angle_rad: float = 0.0,
++        tf_static_qos_profile: object = 10,
+     ) -> None:
+         if not math.isfinite(float(laser_forward_angle_rad)):
+             raise ValueError("manual_mapping_laser_forward_angle_invalid")
+@@ -125,7 +126,7 @@ class RosManualMappingIo:
+                 message_types.tf_message,
+                 "/tf_static",
+                 self.observe_transforms,
+-                10,
++                tf_static_qos_profile,
+             )
+ 
+     def observe_scan(self, message: object) -> None:
+--- a/duole_central/navigation_board/manual_mapping_runtime_cli.py
++++ b/duole_central/navigation_board/manual_mapping_runtime_cli.py
+@@ -99,6 +99,7 @@ def build_runtime(
+     message_types: RosManualMappingMessageTypes,
+     map_saver: ManualMappingMapSaver,
+     clock: Callable[[], datetime] | None = None,
++    tf_static_qos_profile: object = 10,
+ ) -> ManualMappingRuntime:
+     state = Path(state_directory)
+     now = clock or (lambda: datetime.now(timezone.utc))
+@@ -107,6 +108,7 @@ def build_runtime(
+         message_types=message_types,
+         clock=now,
+         laser_forward_angle_rad=_NAVIGATION_BOARD_LASER_FORWARD_ANGLE_RAD,
++        tf_static_qos_profile=tf_static_qos_profile,
+     )
+     guard = ManualMappingTeleopGuard(
+         ManualMappingSafetyProfile(
+@@ -205,6 +207,7 @@ def main(argv: Sequence[str] | None = None) -> int:
+     from sensor_msgs.msg import BatteryState, LaserScan
+     from std_msgs.msg import Bool, String
+     from tf2_msgs.msg import TFMessage
++    from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile
+     from rclpy.signals import SignalHandlerOptions
+ 
+     rclpy.init(args=None, signal_handler_options=SignalHandlerOptions.NO)
+@@ -236,6 +239,11 @@ def main(argv: Sequence[str] | None = None) -> int:
+             tf_message=TFMessage,
+         ),
+         map_saver=Nav2MapSaver(),
++        tf_static_qos_profile=QoSProfile(
++            depth=100,
++            durability=DurabilityPolicy.TRANSIENT_LOCAL,
++            history=HistoryPolicy.KEEP_LAST,
++        ),
+     )
+     try:
+         run_runtime_until_shutdown(

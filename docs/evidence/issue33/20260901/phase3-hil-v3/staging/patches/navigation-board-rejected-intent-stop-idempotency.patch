@@ -1,0 +1,30 @@
+diff --git a/duole_central/navigation_board/manual_mapping_guard.py b/duole_central/navigation_board/manual_mapping_guard.py
+index a08a586..932838a 100644
+--- a/duole_central/navigation_board/manual_mapping_guard.py
++++ b/duole_central/navigation_board/manual_mapping_guard.py
+@@ -404,11 +404,24 @@ class ManualMappingTeleopGuard:
+         )
+ 
+     def _reject(self, code: str) -> None:
++        active = self._active
++        now = self._clock()
+         self._active = None
+         self._linear_mps = 0.0
+         self._angular_radps = 0.0
+-        self._last_output_at = self._clock()
++        self._last_output_at = now
+         self._velocity_sink.publish(linear_mps=0.0, angular_radps=0.0)
++        if active is not None:
++            session_id, lease_id, epoch, _expires_at = active
++            confirmed_at = now if self._wheels_stopped() else None
++            self._stop_context = (
++                session_id,
++                lease_id,
++                epoch,
++                code,
++                now,
++                confirmed_at,
++            )
+         raise ManualMappingGuardError(code)
+ 
+ 

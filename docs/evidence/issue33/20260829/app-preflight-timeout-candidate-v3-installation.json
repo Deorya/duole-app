@@ -1,0 +1,75 @@
+{
+  "schema_version": "duole.issue33.app-preflight-timeout-candidate-installation.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T14:12:28+08:00",
+  "status": "INSTALLED_NOT_LAUNCHED",
+  "authorization_boundary": {
+    "authorized": [
+      "identify the current ADB serial for the specified PHK110",
+      "install the exact candidate v3 APK",
+      "verify the installed package without launching it"
+    ],
+    "not_authorized": [
+      "temporarily start Runtime or Gateway on 172.22.205.44",
+      "switch services on 172.22.205.19",
+      "start a mapping operation",
+      "send joystick or other motion commands"
+    ]
+  },
+  "candidate": {
+    "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v3/duole-engineering-app-issue33-no-dock-preflight-timeout-debug-arm64.apk",
+    "sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2",
+    "manifest": "docs/evidence/issue33/20260829/app-preflight-timeout-candidate-v3.json",
+    "manifest_sha256": "de20805801d6ba5e10ddcbfc43e83e4f16a496f02c5b849e24a12df363cda024"
+  },
+  "android_device": {
+    "adb_serial": "172.22.205.58:40939",
+    "model": "PHK110",
+    "device": "OP5913L1",
+    "package": "com.duole.engineering.duole_engineering_app"
+  },
+  "before_install": {
+    "installed_apk_sha256": "eaabea4dfbd2d665ced5927f3c37bd943786cd4633029fed442317845dc22838",
+    "version_code": 1,
+    "version_name": "0.1.0",
+    "first_install_time": "2026-08-21 15:14:27",
+    "last_update_time": "2026-08-29 09:16:39",
+    "app_process_was_running": true,
+    "app_force_stopped_before_install": true
+  },
+  "installation": {
+    "command_semantics": "adb -s 172.22.205.58:40939 install -r <exact-candidate-v3-apk>",
+    "result": "Success",
+    "preserved_existing_app_data": true
+  },
+  "after_install": {
+    "installed_apk_sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2",
+    "candidate_sha256_matched": true,
+    "version_code": 1,
+    "version_name": "0.1.0",
+    "min_sdk": 24,
+    "target_sdk": 36,
+    "first_install_time": "2026-08-21 15:14:27",
+    "last_update_time": "2026-08-29 14:12:07",
+    "app_running": false,
+    "app_launched": false
+  },
+  "not_performed": [
+    "App launch",
+    "Runtime or Gateway start",
+    "navigation-board service switch",
+    "mapping authorization or operation creation",
+    "robot connection or motion",
+    "capability marker creation"
+  ],
+  "next_gate": {
+    "status": "WAITING_FOR_SEPARATE_NO_MOTION_ACTIVATION_AUTHORIZATION",
+    "required_authority": [
+      "temporarily start the exact Runtime and Gateway on 172.22.205.44",
+      "perform the exact no-motion manual-mapping service switch on 172.22.205.19",
+      "launch the installed App and read only pairing, REAL status, map/pose, capability, and preflight",
+      "restore safe service state and stop temporary processes"
+    ],
+    "motion_remains_separately_prohibited": true
+  }
+}

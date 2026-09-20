@@ -1,0 +1,236 @@
+{
+  "schema_version": "duole.issue33.app-preflight-candidate-v3-no-motion-activation.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T14:21:53+08:00",
+  "finalized_at": "2026-08-29T14:29:18+08:00",
+  "status": "PASS_NO_MOTION_PREFLIGHT",
+  "authorization": {
+    "operator_onsite_ready": true,
+    "phone_serial": "172.22.205.58:40939",
+    "authorized": [
+      "temporarily start the current Issue 33 REAL Runtime and TLS App Gateway on 172.22.205.44",
+      "switch 172.22.205.19 from navigation to manual mapping once",
+      "restore the existing pairing and inspect REAL status, map/pose, capability, and manual-mapping preflight",
+      "restore the safe navigation state and stop all temporary processes"
+    ],
+    "prohibited": [
+      "create a mapping authorization, session, or operation",
+      "start mapping",
+      "open the manual-mapping WSS control path",
+      "send joystick or any other motion command"
+    ]
+  },
+  "candidate": {
+    "app_apk_sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2",
+    "installed_apk_sha256_matched": true,
+    "app_candidate_evidence_sha256": "de20805801d6ba5e10ddcbfc43e83e4f16a496f02c5b849e24a12df363cda024",
+    "app_installation_evidence_sha256": "80b64180d3495d18c27b2af03f2e95207b45c50e6f89f58aebc33c9137df39c0",
+    "gateway_bundle_sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e",
+    "gateway_candidate_source_matched_bundle": true,
+    "navigation_board_bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b",
+    "navigation_board_runtime_sha256": {
+      "agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+      "manual_mapping_map_store.py": "352a3e07e6511347d8c41d3f0223c935fc691c476fe8305b3ec76b1cf73d019c",
+      "manual_mapping_slam_runtime.py": "4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+      "ros_manual_mapping_runtime.py": "548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a"
+    }
+  },
+  "prestate": {
+    "app_running": false,
+    "gateway_port_8443_listening": false,
+    "runtime_socket_present": false,
+    "navigation_service": "active",
+    "manual_mapping_service": "inactive",
+    "manual_mapping_runtime_service": "inactive",
+    "autonomous_mapping_service": "inactive",
+    "mapping_safety": {
+      "battery_percent": 95,
+      "docked": false,
+      "charging_confirmed": false,
+      "chassis_stationary": true,
+      "active_task_owners": [],
+      "sensors_ready": true,
+      "collision_protection_ready": true,
+      "stop_chain_ready": true,
+      "version_compatible": true
+    }
+  },
+  "temporary_activation": {
+    "runtime": {
+      "mode": "REAL",
+      "ipc_protocol": "duole.app-read.v1",
+      "successful_ros_interface": "wlan1",
+      "startup_diagnostics": [
+        "The first invocation bound CycloneDDS to the navigation-board interface name wlan0, which does not exist on 172.22.205.44; it was stopped cleanly before Gateway start or service switch.",
+        "A second invocation exited before Runtime start because the board-only /home/ztl/elderbot_ws setup path is absent on 172.22.205.44.",
+        "The corrected invocation retained the ROS Python environment, bound CycloneDDS to wlan1, and started the REAL projection and IPC server without ROS errors."
+      ]
+    },
+    "gateway": {
+      "host": "172.22.205.44",
+      "port": 8443,
+      "runtime_mode": "REAL",
+      "device_key_fingerprint": "sha256:284035780ee11b0f5d45c49051aafc79be6c1ffbe8ee472cd668a154f75ca947",
+      "controlled_lan_network": "172.22.205.0/24",
+      "discovery_disabled": true
+    },
+    "navigation_board_service_window": {
+      "navigation_during_window": "inactive",
+      "manual_mapping_service": {
+        "state": "active",
+        "main_pid": 2118775
+      },
+      "manual_mapping_runtime_service": {
+        "state": "active",
+        "main_pid": 2118797
+      },
+      "autonomous_mapping_service": "inactive",
+      "manual_guard_socket_present": true,
+      "mapping_safety_during_window": {
+        "battery_percent": 94,
+        "chassis_stationary": true,
+        "active_task_owners": [],
+        "sensors_ready": true,
+        "collision_protection_ready": true,
+        "stop_chain_ready": true,
+        "version_compatible": true
+      }
+    }
+  },
+  "new_run_validation": {
+    "pairing_restore": {
+      "result": "PASS",
+      "ui": "配对成功",
+      "new_pairing_code_required": false,
+      "scopes": [
+        "maps.manage",
+        "robot.status.read",
+        "robot.status.refresh",
+        "robot.stop"
+      ]
+    },
+    "real_device_status": {
+      "result": "PASS",
+      "robot_id": "DUOLE-RK3588-ENG-01",
+      "mode": "REAL",
+      "battery_percent": 95,
+      "battery_state": "battery_ready",
+      "motion_capability_enabled": false,
+      "gateway_version": "0.3.0",
+      "runtime_version": "0.1.0",
+      "schema_version": "1.4.0",
+      "device_status_version": "1.0.0"
+    },
+    "robot_snapshot": {
+      "result": "PASS",
+      "continuous": true,
+      "battery_percent": 95
+    },
+    "map_pose": {
+      "result": "FAIL_CLOSED_EXPECTED",
+      "navigation_reason_code": "navigation_not_configured",
+      "current_map_and_pose": "unavailable",
+      "ui": "当前没有可展示的地图",
+      "map_catalog_visible": "现场地图 2"
+    },
+    "manual_mapping_capability": {
+      "result": "FAIL_CLOSED_EXPECTED_BEFORE_ACCEPTANCE",
+      "supported": false,
+      "reason_code": "real_mapping_guard_not_accepted",
+      "capability_marker_created": false,
+      "evidence_source": "unchanged REAL RuntimeInfo acceptance state and absence of a capability marker"
+    },
+    "manual_mapping_preflight": {
+      "result": "PASS",
+      "app_ui_result": "PASS",
+      "ready": true,
+      "ready_item_count": 8,
+      "ready_items": [
+        "stationary",
+        "battery",
+        "sensors",
+        "collision_protection",
+        "stop_chain",
+        "storage",
+        "motion_owner",
+        "version"
+      ],
+      "ui_labels": [
+        "底盘静止",
+        "电量",
+        "传感器",
+        "防碰撞保护",
+        "停止链路",
+        "存储空间",
+        "运动控制权",
+        "软件版本"
+      ],
+      "previous_timeout_symptom_present": false,
+      "start_button_present_and_enabled": true,
+      "start_button_tapped": false,
+      "scanner_opened": false
+    }
+  },
+  "safety_and_no_side_effect_evidence": {
+    "mapping_authorizations": 0,
+    "mapping_operations": 0,
+    "new_manual_mapping_sessions_created": 0,
+    "board_active_mapping_state": "stopped",
+    "board_active_mapping_state_last_modified": "2026-08-28T21:05:07+08:00",
+    "map_switch_operations": 0,
+    "emergency_stop_operations": 0,
+    "motion_commands_sent": 0,
+    "mapping_started": false,
+    "wss_opened": false,
+    "capability_marker_created": false,
+    "machine_stationary_before_during_and_after": true,
+    "active_motion_owners_before_during_and_after": []
+  },
+  "cleanup": {
+    "app_force_stopped": true,
+    "temporary_gateway_stopped": true,
+    "temporary_runtime_stopped_cleanly": true,
+    "gateway_port_8443_listening": false,
+    "runtime_socket_present": false,
+    "adb_debug_forward_present": false,
+    "navigation_service": {
+      "state": "active",
+      "substate": "running",
+      "main_pid": 2123975,
+      "result": "success"
+    },
+    "manual_mapping_service": "inactive",
+    "manual_mapping_runtime_service": "inactive",
+    "autonomous_mapping_service": "inactive",
+    "manual_guard_socket_present": false,
+    "final_switch_safety": {
+      "chassis_stationary": true,
+      "active_motion_owners": [],
+      "charging_confirmed": false
+    },
+    "installed_apk_sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2"
+  },
+  "artifacts": {
+    "preflight_screenshot": {
+      "path": "docs/evidence/issue33/20260829/app-preflight-ready-candidate-v3.png",
+      "sha256": "76bf515c2310f97a1c977ead2df3362b50603e4f384659cf20067d9b37d4e249",
+      "size_bytes": 200983
+    },
+    "preflight_ui_xml": {
+      "path": "docs/evidence/issue33/20260829/app-preflight-ready-candidate-v3.xml",
+      "sha256": "71c0c6a38d6806a38fc2566c90fbab7a40ba8448488e570f8d403a17ffc368a5",
+      "size_bytes": 12290
+    }
+  },
+  "acceptance_effect": {
+    "app_preflight_timeout_gap_closed": true,
+    "no_motion_preflight_passed": true,
+    "motion_authorized": false,
+    "motion_test_performed": false,
+    "remaining_gaps": [
+      "REAL map/pose remains unavailable because navigation is not configured in the temporary projection.",
+      "The REAL manual-mapping acceptance marker remains absent.",
+      "Any physical joystick motion still requires a separate explicit authorization."
+    ]
+  }
+}

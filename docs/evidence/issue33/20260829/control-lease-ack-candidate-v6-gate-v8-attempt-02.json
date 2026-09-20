@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "real_hil_gate_attempt",
+  "gate": "gate-v8",
+  "attempt": 2,
+  "recorded_at": "2026-08-29T13:45:15Z",
+  "status": "failed_safe",
+  "authorization": {
+    "onsite_operator_present": true,
+    "phone_unlocked": true,
+    "forward_path_clear": true,
+    "emergency_stop_reachable": true,
+    "allowed_motion": "one low-speed forward joystick gesture followed by pointer_up",
+    "automatic_retry_allowed": false
+  },
+  "candidates": {
+    "app_candidate": "candidate-v5",
+    "app_apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "gateway_runtime_candidate": "candidate-v6",
+    "gateway_runtime_bundle_sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+    "candidate_manifest_sha256": "3ffee589d7ae68824b1121ff3f49fd855aa6725c849498c0b0f64019d20ef3ce",
+    "navigation_board_candidate": "candidate-v3",
+    "navigation_board_bundle_sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+    "acceptance_permit_sha256": "bbad7d9072691625243080da122e399fb54a94a2f9741eeed45afed6f9c44a3c"
+  },
+  "targets": {
+    "adb_serial": "172.22.205.58:42449",
+    "gateway_host": "172.22.205.44",
+    "navigation_board_host": "172.22.205.19"
+  },
+  "preflight": {
+    "app_runtime_mode": "REAL",
+    "battery_percent": 73,
+    "chassis_stationary": true,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "version_compatible": true,
+    "ros_linear_x_mps": -0.0,
+    "ros_angular_z_rps": 0.0,
+    "forward_clearance_m": 1.523809106086957,
+    "forward_clearance_abort_boundary_m": 0.25
+  },
+  "operation": {
+    "authorization_id": "mapping_auth_01c5dec28ae00a29eb35a1ce075ca63b",
+    "operation_id": "mapping_e61e68dd39c946d097d03e0a0009a7a2",
+    "mode": "manual_mapping",
+    "requested_at": "2026-08-29T13:41:40.364203+00:00",
+    "updated_at": "2026-08-29T13:41:48.602716+00:00",
+    "status": "failed",
+    "failure_reason": "mapping_board_start_and_stop_failed:MappingOperationError:MappingOperationError",
+    "manual_mapping_session_id": null
+  },
+  "acceptance_observation": {
+    "manual_session_created": false,
+    "lease_created": false,
+    "intent_sent": false,
+    "joystick_displayed": false,
+    "pointer_up_performed": false,
+    "motion_observed": false,
+    "automatic_retry_performed": false
+  },
+  "root_cause": {
+    "code": "manual_mapping_unit_preactivation_conflict",
+    "summary": "The manual mapping systemd unit was activated before the App operation. SystemdMappingService correctly rejected an already-active mapping unit with no active-mapping.json record bound to the new operation_id.",
+    "candidate_v6_lease_reached": false,
+    "next_attempt_correction": "Keep navigation active before the App operation and let the pinned board agent start the manual mapping unit and create the operation-bound durable record. Do not preactivate the manual mapping unit."
+  },
+  "cleanup": {
+    "app_process_absent": true,
+    "navigation_active": true,
+    "manual_mapping_inactive": true,
+    "manual_mapping_runtime_inactive": true,
+    "manual_mapping_guard_socket_absent": true,
+    "active_mapping_record_absent": true,
+    "gateway_port_8443_closed": true,
+    "runtime_socket_absent": true,
+    "temporary_processes_absent": true,
+    "chassis_stationary": true,
+    "active_task_owners": []
+  }
+}

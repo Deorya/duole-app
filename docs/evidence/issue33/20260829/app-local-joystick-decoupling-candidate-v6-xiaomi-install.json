@@ -1,0 +1,100 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "app_candidate_device_install",
+  "candidate": "app-candidate-v6",
+  "created_at": "2026-08-29T23:17:00+08:00",
+  "status": "installed_launched_page_verified_no_session_no_control_no_motion",
+  "authorization": {
+    "requested_target": "Xiaomi tablet at 172.22.205.14:39131",
+    "requested_apk_sha256": "1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735",
+    "authorized_actions": [
+      "read-only device identity verification",
+      "install the exact app-candidate-v6 APK after identity and SHA match",
+      "launch only the app",
+      "confirm package name, version, and current page"
+    ],
+    "forbidden_actions": [
+      "start 172.22.205.44 Runtime or Gateway",
+      "access or switch 172.22.205.19 services",
+      "create or activate a session",
+      "send control intents",
+      "cause robot motion"
+    ]
+  },
+  "device_identity": {
+    "adb_serial": "172.22.205.14:39131",
+    "adb_state": "device",
+    "manufacturer": "Xiaomi",
+    "brand": "Xiaomi",
+    "model": "23043RP34C",
+    "device": "pipa",
+    "hardware_serial": "41f736f9",
+    "android_release": "14",
+    "keyguard_showing_before_install": false,
+    "identity_gate": "PASS"
+  },
+  "artifact": {
+    "path": "flutter/duole_engineering_app/build/issue33-local-joystick-decoupling-candidate-v6/duole-engineering-app-issue33-local-joystick-decoupling-debug-arm64.apk",
+    "local_sha256": "1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735",
+    "local_size_bytes": 96351281,
+    "local_mode": "0444",
+    "package_name": "com.duole.engineering.duole_engineering_app",
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "launchable_activity": "com.duole.engineering.duole_engineering_app.MainActivity",
+    "artifact_gate": "PASS"
+  },
+  "pre_install_state": {
+    "package_present": true,
+    "version_name": "0.1.0",
+    "version_code": 1,
+    "last_update_time": "2026-08-27 00:19:23",
+    "base_apk_path": "/data/app/~~sWXUB50AEhkh59EQh6pvrw==/com.duole.engineering.duole_engineering_app-atDl8BgA96_27e1UPJSAFg==/base.apk",
+    "base_apk_sha256": "ce8a6ea58ad0d9f9ff133ad9b45e14014e7d4c5c7698c6d1400485df22c5ee11",
+    "matched_candidate_v6": false
+  },
+  "installation": {
+    "adb_serial": "172.22.205.14:39131",
+    "mode": "adb install -r",
+    "result": "Success",
+    "last_update_time": "2026-08-29 23:15:55",
+    "installed_base_apk_path": "/data/app/~~7P0U6WtzHNUybKLLMhHPLA==/com.duole.engineering.duole_engineering_app-najM2cXTIrCtknp_9D2cfQ==/base.apk",
+    "installed_base_apk_sha256": "1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735",
+    "installed_base_apk_size_bytes": 96351281,
+    "device_hash_matches_authorized_hash": true,
+    "installed_package_name": "com.duole.engineering.duole_engineering_app",
+    "installed_version_name": "0.1.0",
+    "installed_version_code": 1,
+    "result_gate": "PASS"
+  },
+  "launch_and_page": {
+    "component": "com.duole.engineering.duole_engineering_app/com.duole.engineering.duole_engineering_app.MainActivity",
+    "am_start_status": "ok",
+    "launch_state": "COLD",
+    "top_resumed_activity_matches": true,
+    "current_focused_window_matches": true,
+    "observed_page": "连接机器人",
+    "observed_state": "未发现候选机器人；显示局域网候选和手动地址区域",
+    "ui_actions_after_launch": [],
+    "page_gate": "PASS"
+  },
+  "page_evidence": {
+    "screenshot_path": "docs/evidence/issue33/20260829/app-candidate-v6-xiaomi-install/page.png",
+    "screenshot_sha256": "c6866dcfb5eb500a88c43e02ee406a0db7b4fc8c9d7341335ea7f4002e6b8360",
+    "ui_tree_path": "docs/evidence/issue33/20260829/app-candidate-v6-xiaomi-install/page.xml",
+    "ui_tree_sha256": "b029526b24b87edf5024848b0c59972a6bb87cac735030d459622c6cff7482b8"
+  },
+  "authorization_boundary": {
+    "app_installed": true,
+    "app_launched": true,
+    "refresh_or_manual_address_button_pressed": false,
+    "gateway_or_runtime_start_command_invoked": false,
+    "navigation_board_command_invoked": false,
+    "session_create_or_activate_action_invoked": false,
+    "control_lease_action_invoked": false,
+    "control_intent_action_invoked": false,
+    "joystick_action_invoked": false,
+    "robot_motion_action_invoked": false
+  }
+}

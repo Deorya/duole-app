@@ -1,0 +1,83 @@
+{
+  "schema_version": "duole.issue33.no-dock-manual-mapping-artifacts.v2",
+  "issue": 33,
+  "candidate_id": "issue33-no-dock-manual-mapping-candidate-v2",
+  "created_at": "2026-08-29T00:30:40+08:00",
+  "status": "ARTIFACTS_VERIFIED_NOT_INSTALLED",
+  "supersedes": {
+    "path": "docs/evidence/issue33/20260828/real-acceptance-v2/source-runs/no-dock-manual-mapping-artifact-manifest.json",
+    "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847"
+  },
+  "repairs_failure": {
+    "path": "docs/evidence/issue33/20260829/no-dock-install-attempt-01.json",
+    "sha256": "6091bd64280d0ac70a90836e53e569e6a1c09a9511462554cdffb2e45d015279",
+    "failure": "The v1 upgrade script rejected the packaged persistent-session cli.py because ISSUE33_SOURCE_SHA still bound the pre-persistent source hash."
+  },
+  "repair_delta": {
+    "upgrade_script_before_sha256": "31268ff9b686ae1ad067c76f75ff5c8d6c9b7643193603f8f538b8bfa85c317c",
+    "upgrade_script_sha256": "f2b8dc600867413c7170cbfe8d5f911599dac70c1c800cebdac7aacb3a32fb8b",
+    "source_bundle_cli_sha256": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "test_sha256": "9c69bc04d9920ff0a16de781202d85a25b0f3ffce82003a7c92e70698aa99f99",
+    "behavior": "Every ISSUE33_SOURCE_SHA entry now matches the corresponding module in the packaged navigation-board source bundle."
+  },
+  "artifacts": {
+    "app_apk": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/duole-engineering-app-issue33-no-dock-debug-arm64.apk",
+      "sha256": "eaabea4dfbd2d665ced5927f3c37bd943786cd4633029fed442317845dc22838",
+      "size_bytes": 96345869,
+      "changed_from_v1": false
+    },
+    "navigation_board_bundle": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-navigation-board-candidate-v2.tar.gz",
+      "sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b",
+      "size_bytes": 32606,
+      "file_count": 14,
+      "archive_root": "duole-issue31-nav-ws",
+      "changed_from_v1": true
+    },
+    "gateway_bundle": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-gateway-candidate-v1.tar.gz",
+      "sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e",
+      "size_bytes": 23817,
+      "changed_from_v1": false
+    }
+  },
+  "navigation_board_bundle_files": {
+    "duole-issue31-nav-ws/bin/upgrade-issue33-navigation-board-manual-mapping-runtime": "f2b8dc600867413c7170cbfe8d5f911599dac70c1c800cebdac7aacb3a32fb8b",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-manual-mapping-runtime.service": "e01fc80561d14e45172cc53475da367f552ee8166fd3ff8fc2b56bc2b212e742",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-mapping-autonomous.service": "85b7d9f437740b65f794d97e2d3fd5cd97900cedbe7e4f50edf23fa54127ca3d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-mapping-manual.service": "c4760979763ccb39f22bb104a320718fde838140909af915762612c08cb8b40d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/cli.py": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_guard.py": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_guard_ipc.py": "cf33d360deeab40c2085c54c84d7b1f712f3a8fe400755123d1a2b259b569339",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_map_store.py": "352a3e07e6511347d8c41d3f0223c935fc691c476fe8305b3ec76b1cf73d019c",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_runtime_cli.py": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_slam_runtime.py": "4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/ros_manual_mapping_runtime.py": "548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/ros_mapping_safety.py": "2b72b5cdf11be28f893ed649b1112bd228f3bc91e8316a5271553716b54c2fc7",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/systemd_mapping.py": "0b08cbebc69bb35a58db7c00a1275536174c5b6d9f9f3ce3e86613c4ea5a56eb"
+  },
+  "validation": {
+    "tdd_red": "The source-bundle contract test failed only for cli.py: declared cbfd46e7... versus packaged 306097da...",
+    "tdd_green": "The source-bundle contract test passed after the single hash binding repair.",
+    "targeted_regression": "PASS / 14 tests",
+    "upgrade_script_syntax": "PASS",
+    "navigation_bundle_repeatability": "PASS / independently repeated archive was byte-identical",
+    "bundle_extract_and_source_cmp": "PASS / 14 of 14 files matched",
+    "bundle_source_hash_contract": "PASS / 10 of 10 module hashes matched ISSUE33_SOURCE_SHA",
+    "navigation_python_compile": "PASS",
+    "systemd_unit_verify": "PASS with unrelated host warnings for snapd RestartMode and rkaiq_3A world-writable configuration"
+  },
+  "authorization_boundary": {
+    "artifacts_built": true,
+    "repair_executed": false,
+    "apk_installed": false,
+    "gateway_installed_or_activated": false,
+    "services_restarted": false,
+    "services_switched": false,
+    "runtime_or_ros_started": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

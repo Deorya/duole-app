@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "evidence_class": "PRELIMINARY_REAL",
+  "robot_id": "DUOLE-RK3588-ENG-01",
+  "candidate_manifest_sha256": "7cf2cc1100df68356e0592ce05e4bff96e70116516fa1c6f3444c948291db95d",
+  "started_at": "2026-08-29T23:42:26+08:00",
+  "completed_at": null,
+  "provenance": {
+    "candidate_manifest": "docs/evidence/issue33/20260829/control-lease-budget-candidate-v7.json",
+    "historical_safety_artifacts": "docs/evidence/issue33/20260829/real-acceptance-v3-gate-v7/artifacts",
+    "historical_artifacts_reused_only_for_unchanged_profile_collision_and_default-zero_checks": true,
+    "new_pointer_up_result_pre_recorded": false
+  },
+  "versions": {
+    "app": "candidate-v6-apk@sha256:1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735;manifest@sha256:53af3f86c9b8492a40f367f5dfdcd4a44f10253fe9602b69711a978dae6f232e;installation@sha256:9823d8ab1288254eb38824c1dde41691c3fa4a3f7b2cf0afb5f697110d40bc62",
+    "gateway": "0.3.0;candidate-v7-source@sha256:c4773c4813ad61b68e0d81b0544b1d130cb31285c3a904a229cd76bf5d49312d;mock_manual_mapping.py@sha256:06d2a6bf82284a29b019e7471d4535f8d4d4255c52404ccd56464f503f9bb48c;navigation_board_ssh.py@sha256:2f13baa362418311d64249a5f9619351e2e9abb3a59e9be70be871b730a707ac;real_manual_mapping.py@sha256:df7059ef03d6e30df9769c6e0c95d30da8c24b7f1f31d64bd597ffbe93a8fd4b",
+    "runtime": "0.1.0;candidate-v7-source@sha256:c4773c4813ad61b68e0d81b0544b1d130cb31285c3a904a229cd76bf5d49312d;product_runtime_factory.py@sha256:2ff0201f0a4a8c0bca0aa4239d80365c97f826fa07881b6c62ce99d2173011ec;product_voice_live_session.py@sha256:fe55ad699fe710cb1f296b73ddf7b502ac6cfe5c82dcf0b0326a56b10e6a44a2;product_voice_board_session.py@sha256:3b2b39c346424404c2332ba57dc4dbb978e338d4695de57b2053494469e4e901",
+    "teleop_guard": "manual_mapping_guard.v1@sha256:687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9;lease-window=400ms;gateway-budget=400ms-minus-local-monotonic-arm-round-trip",
+    "slam": "manual_mapping_slam_runtime.py@sha256:4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+    "navigation_board": "candidate-v3-bundle@sha256:ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3;agent.py@sha256:0a02224081de81713968cd9c9616bcd3d23b80a36dfd47ae6d759ceb0c4ed891;manual_mapping_guard.py@sha256:687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9;manual_mapping_guard_ipc.py@sha256:2374346c3cf6a03af2aa2b85f5a526561716b4d073ada16f2ea8342223fd4d85",
+    "base": "can_driver.py@sha256:1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031;odom-unfiltered",
+    "schema": "openapi.json@sha256:1b2b15af3c8f0f6593b75886b850df0a383baccc31876464dd24794957d74f56",
+    "hardware": "DUOLE-RK3588-ENG-01:RK3588:172.22.205.19;app=Xiaomi:23043RP34C:pipa;adb=172.22.205.14:39131;gateway=172.22.205.44:8443",
+    "safety_profile": "manual_mapping_safe_low_speed_v1"
+  },
+  "artifacts": {
+    "check-hil_collision_slowdown_block": {
+      "kind": "log",
+      "path": "real-acceptance-v3-gate-v7/artifacts/check-hil_collision_slowdown_block.bin",
+      "sha256": "5870b80caf9cbdbdf70c89681d9afcc3a55784cbcb501d0e52d7ef2f54fd3104"
+    },
+    "check-hil_default_unarmed_zero": {
+      "kind": "log",
+      "path": "real-acceptance-v3-gate-v7/artifacts/check-hil_default_unarmed_zero.bin",
+      "sha256": "6158bf78d1cbb1c2ecbb716e51626212c65e61d7f5b2f9818a66acdd092ae430"
+    },
+    "check-hil_profile_clamp": {
+      "kind": "log",
+      "path": "real-acceptance-v3-gate-v7/artifacts/check-hil_profile_clamp.bin",
+      "sha256": "6158bf78d1cbb1c2ecbb716e51626212c65e61d7f5b2f9818a66acdd092ae430"
+    },
+    "check-mock_no_motion_regression": {
+      "kind": "log",
+      "path": "real-acceptance-v3-gate-v7/artifacts/check-mock_no_motion_regression.bin",
+      "sha256": "e5ecdb9f53c695778c0f53af4798810a7a6ba7ac03802b65797c9a255c74c856"
+    },
+    "check-ordinary_teleop_remains_unavailable": {
+      "kind": "log",
+      "path": "real-acceptance-v3-gate-v7/artifacts/check-ordinary_teleop_remains_unavailable.bin",
+      "sha256": "f3a49191e7a02fd6022033cc80c7680812aae0dba3432a4851b5a756222d3fdf"
+    }
+  },
+  "stops": {
+    "pointer_up": {"status": "pending"},
+    "app_background": {"status": "pending"},
+    "screen_locked": {"status": "pending"},
+    "app_process_ended": {"status": "pending"},
+    "reconnect_timeout": {"status": "pending"},
+    "ap_wifi_failure": {"status": "pending"},
+    "ipc_failure": {"status": "pending"},
+    "gateway_restart": {"status": "pending"},
+    "guard_restart": {"status": "pending"},
+    "slam_restart": {"status": "pending"},
+    "navigation_board_restart": {"status": "pending"}
+  },
+  "checks": {
+    "hil_profile_clamp": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_profile_clamp"]
+    },
+    "hil_collision_slowdown_block": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_collision_slowdown_block"]
+    },
+    "hil_default_unarmed_zero": {
+      "status": "passed",
+      "evidence_ids": ["check-hil_default_unarmed_zero"]
+    },
+    "real_app_start_cover_manual_stop": {"status": "pending"},
+    "normal_no_dock_unverified_save": {"status": "pending"},
+    "unverified_save": {"status": "pending"},
+    "immediate_stop_save": {"status": "pending"},
+    "abandon_delete_and_operator_reposition": {"status": "pending"},
+    "atomic_snapshot_recovery_without_lease": {"status": "pending"},
+    "previous_map_restored_without_activation": {"status": "pending"},
+    "mock_no_motion_regression": {
+      "status": "passed",
+      "evidence_ids": ["check-mock_no_motion_regression"]
+    },
+    "ordinary_teleop_remains_unavailable": {
+      "status": "passed",
+      "evidence_ids": ["check-ordinary_teleop_remains_unavailable"]
+    }
+  },
+  "activation_boundary": {
+    "gateway_or_runtime_started": false,
+    "navigation_service_switched": false,
+    "real_session_created": false,
+    "control_intent_sent": false,
+    "motion_executed": false,
+    "operator_onsite_confirmation_pending": true
+  }
+}

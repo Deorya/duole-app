@@ -2,6 +2,10 @@
 
 Status: ready-for-human
 
+Implementation: paused-2026-09-20
+
+Acceptance: PARTIAL_HIL — 已保存现有 REAL 手工建图实现、候选链和现场证据；完整停止矩阵与发布门仍未完成。
+
 Category: enhancement
 
 Type: HITL
@@ -759,3 +763,14 @@ TeleopGuard 通过版本化固定安全 profile 施加对称线速度、角速�
   `71c0c6a38d6806a38fc2566c90fbab7a40ba8448488e570f8d403a17ffc368a5`。当前状态为
   `PASS_NO_MOTION_PREFLIGHT`：App 超时缺口已关闭，但地图/pose、REAL capability marker 与真机摇杆
   运动仍未验收；任何物理运动继续需要新的独立明确授权。
+
+### 2026-09-20 暂停与恢复边界
+
+Issue 33 按用户要求暂停。本轮只归档共享工作树中已经存在的现场证据、候选清单和交接说明，
+没有重新启动 App、Gateway、Runtime、ROS 或导航板服务，没有安装或激活候选，也没有向机器人
+发送运动命令。`docs/evidence/issue33/` 保存现有 HIL/REAL 证据；其中 Python 字节码缓存不进入 Git。
+
+当前 `Status` 保持 `ready-for-human`，不把部分通过的 Phase 3 切片扩大为完整 Issue 33 验收。
+恢复开发时应先核对已安装对象与仓库提交、阅读最新 evidence README 和 Provider 的
+`docs/interface_freeze/app_v1/issue_33_real_manual_mapping.md`，再按未勾选的 acceptance criteria
+确认新的现场范围与运动授权。既有证据不得替代尚未执行的停止场景、最差停车时延和完整发布门。

@@ -1,0 +1,80 @@
+{
+  "schema_version": "duole.issue33.real-acceptance-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-real-acceptance-v3-gate-v2",
+  "created_at": "2026-08-29T16:24:04+08:00",
+  "status": "LOCAL_FROZEN_NOT_DEPLOYED",
+  "source_revisions": {
+    "duole_app_git_head": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole_workspace_git_head": "7ec9ecaaf6d117933e79eef0d8f28b20fbb2fc72",
+    "exact_member_hashes_override_dirty_worktree_ambiguity": true
+  },
+  "composition": {
+    "acceptance_versions": {
+      "path": "docs/evidence/issue33/20260829/real-acceptance-v3-gate-v2/versions.json",
+      "sha256": "f983c09cbc66766cb1e4247553b68b5034eff8e6e9a856ec830938c01a707415"
+    },
+    "app_candidate_v3": {
+      "manifest_path": "docs/evidence/issue33/20260829/app-preflight-timeout-candidate-v3.json",
+      "manifest_sha256": "de20805801d6ba5e10ddcbfc43e83e4f16a496f02c5b849e24a12df363cda024",
+      "apk_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v3/duole-engineering-app-issue33-no-dock-preflight-timeout-debug-arm64.apk",
+      "apk_sha256": "01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2",
+      "apk_size_bytes": 96349033
+    },
+    "navigation_board_candidate_v2": {
+      "manifest_path": "docs/evidence/issue33/20260829/no-dock-manual-mapping-artifact-manifest-v2.json",
+      "manifest_sha256": "fd49aba9f33490cda2c5969bfab3e00a2c00e3f3bb45588a9ad925a8307aed8f",
+      "bundle_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-navigation-board-candidate-v2.tar.gz",
+      "bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b"
+    },
+    "gateway_baseline_candidate_v1": {
+      "bundle_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-gateway-candidate-v1.tar.gz",
+      "bundle_sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e"
+    },
+    "gateway_runtime_gate_v2_source_bundle": {
+      "repository": "duole-workspace",
+      "path": "incoming/candidates/issue33-real-acceptance-v3-gate-v2/issue33-real-acceptance-v3-gate-v2-source.tar.gz",
+      "sha256": "2a625e680e6c405a78a0cd2ae8502d39056d9760265bd18c1620e769860042df",
+      "size_bytes": 147953,
+      "member_count": 14,
+      "members": {
+        "duole-app/tools/issue33_real_evidence.template.json": "031c56c0d73ec5d7676966da421c7c1239a7874088743cfb2697e36a451aa626",
+        "duole-app/tools/issue33_real_evidence_collector.py": "788fe91399970f984993423884fa49790bbbfe04e5e814959e0ed55999fcbd35",
+        "duole-app/tools/issue33_real_gate.py": "42341128b816053c92a5cbde499ee76c0644270a5b40996aea6376052a3095fc",
+        "duole-workspace/docs/interface_freeze/app_v1/openapi.json": "1b2b15af3c8f0f6593b75886b850df0a383baccc31876464dd24794957d74f56",
+        "duole-workspace/duole_central/app_gateway/cli.py": "95836f169be41c426f199f82fb45bb9c486c9f9caf7eaba1bf5dd48c78010622",
+        "duole-workspace/duole_central/app_gateway/facade.py": "11fe2fe1b9b46ee3ae20fc09b941df3c25b7ca33e1cfbd53680c9cdbbd61ca3c",
+        "duole-workspace/duole_central/app_gateway/mapping_operation.py": "7d8752adb6bcc12f0ed6b60c4b2419686795c8313eacec72f06d26db9ef2a6c4",
+        "duole-workspace/duole_central/app_gateway/mock_manual_mapping.py": "248fe78b5c85271f66bd0325acfe71a69b9ae2bd0b66f197df2dc41836b53093",
+        "duole-workspace/duole_central/app_gateway/models.py": "6b5d7a5154edef99a9d533ab53f71315e74de350f63fde79ea03904f1c7b89c7",
+        "duole-workspace/duole_central/app_gateway/navigation_board_ssh.py": "ca97af905cd72e22f821e110094df14e059dd361f68add016707f15428e6debe",
+        "duole-workspace/duole_central/app_gateway/real_manual_mapping.py": "b8fff3b1c8eba9f9f3ebbc0c85e8b33a5755be0a5aeee5efdd3e7c739139409c",
+        "duole-workspace/duole_central/runtime/product_runtime_factory.py": "2ff0201f0a4a8c0bca0aa4239d80365c97f826fa07881b6c62ce99d2173011ec",
+        "duole-workspace/duole_central/runtime/product_voice_board_session.py": "3b2b39c346424404c2332ba57dc4dbb978e338d4695de57b2053494469e4e901",
+        "duole-workspace/duole_central/runtime/product_voice_live_session.py": "79707e003c2aca59068f3f7cd2aead487ed69bb10f59df0c745a2f6bd5ace3aa"
+      }
+    }
+  },
+  "permit_bootstrap_fix": {
+    "failure_mode": "acceptance permit incorrectly required all eleven final stop scenarios before the first App acceptance run",
+    "behavior": "pending stop entries are accepted only for PRELIMINARY_REAL acceptance permits; every recorded stop is still fully validated and the final REAL marker remains unchanged",
+    "production_gate_sha256": "42341128b816053c92a5cbde499ee76c0644270a5b40996aea6376052a3095fc"
+  },
+  "validation": {
+    "source_bundle_repeatability": "PASS / two independent archives were byte-identical",
+    "source_bundle_member_binding": "PASS / 14 of 14 archived members matched local source SHA-256",
+    "permit_pending_stop_regression": "PASS",
+    "duole_app_issue33_gate_tests": "PASS / 12 tests",
+    "git_diff_check": "PASS / scoped gate files"
+  },
+  "authorization_boundary": {
+    "local_artifacts_built": true,
+    "combined_manifest_created": true,
+    "deployed": false,
+    "runtime_or_gateway_started": false,
+    "service_switched": false,
+    "app_session_created": false,
+    "app_joystick_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

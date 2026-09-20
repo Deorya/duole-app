@@ -1,0 +1,73 @@
+{
+  "schema_version": "duole.issue33.no-dock-manual-mapping-candidate.v1",
+  "issue": 33,
+  "created_at": "2026-08-28T23:21:23+08:00",
+  "status": "LOCAL_SOURCE_TESTED",
+  "repositories": {
+    "duole-app_base_commit": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole-workspace_base_commit": "b70cd7a1fcba962b8bbdeec1b3223e2198ab6d6e"
+  },
+  "behavior": {
+    "manual_mapping_dock_required": false,
+    "manual_mapping_charging_required": false,
+    "minimum_battery_percent": 50,
+    "session_anchor": "start-pose.json",
+    "normal_finish": "unverified_save",
+    "dock_verified_action": "rejected_by_gateway_and_navigation_board",
+    "automatic_map_activation": false,
+    "operator_repositions_robot_after_save_or_abandon": true,
+    "autonomous_mapping_dock_required": true,
+    "map_switch_and_navigation_localization_dock_policy_changed": false
+  },
+  "source_sha256": {
+    "duole-workspace/duole_central/app_gateway/mapping_operation.py": "87ed42b0f86af2fb0371f19c744f8989cf76384b49a4bbecdcb3266e129a06be",
+    "duole-workspace/duole_central/app_gateway/real_manual_mapping.py": "b8fff3b1c8eba9f9f3ebbc0c85e8b33a5755be0a5aeee5efdd3e7c739139409c",
+    "duole-workspace/duole_central/navigation_board/agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+    "duole-workspace/duole_central/navigation_board/manual_mapping_map_store.py": "352a3e07e6511347d8c41d3f0223c935fc691c476fe8305b3ec76b1cf73d019c",
+    "duole-workspace/duole_central/navigation_board/manual_mapping_slam_runtime.py": "4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+    "duole-workspace/duole_central/navigation_board/ros_manual_mapping_runtime.py": "548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a",
+    "duole-workspace/scripts/upgrade_issue33_navigation_board_manual_mapping_runtime.sh": "31268ff9b686ae1ad067c76f75ff5c8d6c9b7643193603f8f538b8bfa85c317c",
+    "duole-workspace/docs/interface_freeze/app_v1/openapi.json": "1b2b15af3c8f0f6593b75886b850df0a383baccc31876464dd24794957d74f56",
+    "duole-app/flutter/duole_engineering_app/lib/manual_mapping_page.dart": "580310db823a5f858faf79ef8264a432af7ecb7dc4a0c0c3348b23687651577d",
+    "duole-app/tools/issue33_real_gate.py": "3990716dfc0698df39c6f15928ba145e1cc63b19e6fa7dfd524a8188bb10abe8",
+    "duole-app/tools/issue33_real_evidence.template.json": "962de18979be102f1a303a7b77c569a60f8467a87496f35fa2f6cc079f3a4420"
+  },
+  "test_sha256": {
+    "duole-workspace/tests/app_gateway/test_mapping_operations.py": "e14a91f6dab7050f929eea994dc4348d85a103a689f67ac26e9bf26b6f5e1197",
+    "duole-workspace/tests/app_gateway/test_real_manual_mapping.py": "066ca6a4718fbf7ffe9b287d80bc3e5e2f74c5db03f6aa6b3b82e30bc9cc69fb",
+    "duole-workspace/tests/app_gateway/test_navigation_board_agent.py": "4dffffbcaa087d8c3e6832385c425201d0a36870010b93b2a896dd9e7840ce3a",
+    "duole-workspace/tests/app_gateway/test_navigation_board_manual_mapping_map_store.py": "1bac8411f971101ee01b0b1c87500989f6331c14a64f73e71b58b828ad526556",
+    "duole-workspace/tests/app_gateway/test_navigation_board_manual_mapping_slam_runtime.py": "93b005df9816bc7237021476a76b30038b5d28f4c84bcdb1232244230e18fff2",
+    "duole-workspace/tests/app_gateway/test_navigation_board_ros_manual_mapping_runtime.py": "41c6c4b72d0a33e3ba2d9ab4599f28ce4d87af61744275905879a1ac4d0b1396",
+    "duole-workspace/tests/runtime/test_navigation_mapping_systemd_services.py": "5e82a67cc736c902e75a05fae9de4ae9b05485e2926803fbce2ad8513e069d42",
+    "duole-app/flutter/duole_engineering_app/test/manual_mapping_page_test.dart": "95c41ce1914361529543079bc305a7a0b4309b345366bc07882ef82ba201b8b4",
+    "duole-app/tools/test_issue33_real_gate.py": "1e2657968761b5c77a646352831e83b2ac36c3a59b9bbdbf2c243ff29fd50d7e"
+  },
+  "validation": {
+    "provider_gateway_board_contract_and_upgrade": "PASS / 170 tests",
+    "acceptance_gate_and_evidence_tools": "PASS / 14 tests",
+    "flutter_analyze": "PASS / no issues found",
+    "flutter_test": "PASS / 66 tests",
+    "manual_mapping_contract_script": "PASS",
+    "manual_mapping_api_script": "PASS",
+    "python_compile": "PASS",
+    "upgrade_script_syntax": "PASS",
+    "json_syntax": "PASS",
+    "scoped_diff_check": "PASS"
+  },
+  "authorization_boundary": {
+    "candidate_apk_built": false,
+    "files_uploaded": false,
+    "files_installed": false,
+    "services_restarted": false,
+    "services_switched": false,
+    "runtime_or_ros_started": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false
+  },
+  "historical_evidence": {
+    "baseline": "docs/evidence/issue33/20260828/real-acceptance-v2/issue33-real-evidence.json",
+    "recorded_completion": "9/23",
+    "carry_forward": "not_assumed; review owner hashes and rerun the new no-dock matrix after exact candidate activation"
+  }
+}

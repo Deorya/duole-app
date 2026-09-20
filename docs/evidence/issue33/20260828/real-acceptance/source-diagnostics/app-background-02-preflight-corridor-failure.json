@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "hil_preflight_failure",
+  "scenario": "app_background",
+  "recorded_at": "2026-08-28T15:05:32+08:00",
+  "operator_id": "ztl-onsite",
+  "authorization": "app_background retry with unverified save",
+  "failure": "app_background_preflight_corridor_below_1_0m",
+  "hil_attempt_consumed": true,
+  "stop_acceptance_counted": false,
+  "execution_boundary": {
+    "failed_before_start_mapping": true,
+    "mapping_started": false,
+    "control_lease_created": false,
+    "nonzero_intent_sent": false,
+    "motion_command_sent": false,
+    "map_save_started": false,
+    "pending_outputs_created": false
+  },
+  "post_failure_service_state": {
+    "duole-navigation-stack.service": "active",
+    "duole-mapping-manual.service": "inactive",
+    "duole-mapping-autonomous.service": "inactive",
+    "duole-manual-mapping-runtime.service": "inactive"
+  },
+  "readonly_scan_diagnostic": {
+    "topic": "/scan_filtered",
+    "frame_id": "laser",
+    "corridor_half_width_m": 0.28,
+    "required_clearance_m": 1.0,
+    "laser_forward_center_radians": 3.141592653589793,
+    "nearest_clearance_from_laser_m": 0.908,
+    "nearest_lateral_offset_m": 0.2177,
+    "continuous_nearby_points_observed": true,
+    "opposite_direction_clearance_m": 15.9986
+  },
+  "frame_verification": {
+    "transform": "base_link -> laser",
+    "translation_m": [
+      0.17,
+      0.0,
+      0.075
+    ],
+    "yaw_degrees": 180.0,
+    "probe_pi_direction_is_robot_forward": true,
+    "nearest_point_approximate_base_link_coordinates_m": {
+      "x": 1.078,
+      "y": 0.218
+    }
+  },
+  "diagnosis": "the fail-closed corridor gate correctly detected a continuous obstacle cluster about 0.91 m ahead of the laser and about 0.22 m to the robot's left; no threshold change is justified"
+}

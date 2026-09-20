@@ -1,0 +1,140 @@
+{
+  "schema_version": "duole.issue33.no-dock-real-activation-attempt.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T13:39:21+08:00",
+  "finalized_at": "2026-08-29T13:44:05+08:00",
+  "status": "PARTIAL_PASS_BLOCKED_APP_PREFLIGHT",
+  "authorization": {
+    "operator_onsite": true,
+    "phone_serial": "172.22.205.58:40939",
+    "authorized": [
+      "temporarily start the current REAL Runtime and TLS App Gateway on 172.22.205.44",
+      "switch navigation to manual mapping once for no-motion activation checks",
+      "restore existing pairing and inspect REAL page, map/pose, capability, and no-dock preflight",
+      "restore safe service state and stop temporary processes"
+    ],
+    "prohibited": [
+      "start a mapping operation",
+      "create a mapping authorization",
+      "send joystick or other motion commands"
+    ]
+  },
+  "candidate": {
+    "artifact_manifest_v2_sha256": "fd49aba9f33490cda2c5969bfab3e00a2c00e3f3bb45588a9ad925a8307aed8f",
+    "apk_sha256": "eaabea4dfbd2d665ced5927f3c37bd943786cd4633029fed442317845dc22838",
+    "installed_apk_sha256_matched": true,
+    "gateway_bundle_sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e",
+    "navigation_board_bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b"
+  },
+  "new_run_validation": {
+    "bootstrap": {
+      "result": "PASS",
+      "robot_id": "DUOLE-RK3588-ENG-01",
+      "mode": "REAL",
+      "gateway_version": "0.3.0",
+      "runtime_version": "0.1.0",
+      "api_version": "1.4.0"
+    },
+    "pairing_restore": {
+      "result": "PASS",
+      "ui": "配对成功",
+      "scopes": [
+        "maps.manage",
+        "robot.status.read",
+        "refresh",
+        "robot.stop"
+      ]
+    },
+    "real_device_status": {
+      "result": "PASS",
+      "battery_percent": 99,
+      "battery_state": "battery_ready",
+      "charging": false,
+      "motion_capability_enabled": false
+    },
+    "map_pose": {
+      "result": "FAIL_CLOSED",
+      "status": "unavailable",
+      "reason_code": "navigation_pose_missing",
+      "map_catalog_visible": "现场地图 2"
+    },
+    "manual_mapping_capability": {
+      "result": "FAIL_CLOSED_EXPECTED_BEFORE_ACCEPTANCE",
+      "supported": false,
+      "reason_code": "real_mapping_guard_not_accepted"
+    },
+    "no_dock_manual_mapping_preflight": {
+      "gateway_result": "PASS",
+      "http_status": 200,
+      "ready": true,
+      "safety_notice_acknowledgement_required": false,
+      "ready_items": [
+        "stationary",
+        "battery",
+        "sensors",
+        "collision_protection",
+        "stop_chain",
+        "storage",
+        "motion_owner",
+        "version"
+      ],
+      "app_ui_result": "FAIL",
+      "app_ui": "建图准备状态暂时不可用",
+      "diagnostic_boundary": "The exact HTTP 200 payload parsed successfully through the candidate-bound Dart MappingPreflightSuccessEnvelope contract; failure remains inside the installed App transport/protocol/UI path after the valid Gateway response."
+    }
+  },
+  "diagnostics": {
+    "host_https_initial_failure_root_cause": "The host https_proxy routed 172.22.205.44 through 127.0.0.1:7897; NO_PROXY=172.22.205.44 made the same TLS bootstrap pass.",
+    "initial_runtime_status_failure_root_cause": "The first temporary Runtime environment overwrote the ROS PYTHONPATH, causing rclpy import failure; the corrected environment prepended the candidate path and REAL Device Status then passed.",
+    "candidate_contract_parse_probe": "PASS / mode=manualMapping ready=true items=8",
+    "temporary_diagnostic_instrumentation_removed": true
+  },
+  "safety_and_no_side_effect_evidence": {
+    "mapping_operations": 0,
+    "manual_mapping_sessions": 0,
+    "map_switch_operations": 0,
+    "mapping_authorizations": 0,
+    "motion_commands_sent": 0,
+    "mapping_operation_started": false,
+    "capability_marker_created": false,
+    "operator_physical_observation": {
+      "source": "onsite_user_report",
+      "robot_remained_stationary": true,
+      "wheel_twitch_or_momentary_rotation": false,
+      "robot_fully_stopped_after_cleanup": true,
+      "emergency_stop_reachable_throughout": true,
+      "result": "PASS"
+    }
+  },
+  "cleanup": {
+    "app_force_stopped": true,
+    "temporary_gateway_stopped": true,
+    "temporary_runtime_stopped_cleanly": true,
+    "gateway_port_8443_listening": false,
+    "runtime_socket_present": false,
+    "adb_debug_forward_removed": true,
+    "navigation_service": {
+      "state": "active",
+      "substate": "running",
+      "main_pid": 2067010,
+      "result": "success"
+    },
+    "manual_mapping_service": "inactive",
+    "manual_mapping_runtime_service": "inactive",
+    "autonomous_mapping_service": "inactive",
+    "manual_guard_socket_present": false,
+    "read_switch_safety": {
+      "chassis_stationary": true,
+      "active_motion_owners": [],
+      "charging_confirmed": false
+    }
+  },
+  "acceptance_effect": {
+    "real_hil_items_added": 0,
+    "blocking_gaps": [
+      "Installed App does not render the valid ready manual-mapping preflight response.",
+      "REAL map/pose projection remains unavailable with navigation_pose_missing."
+    ],
+    "motion_authorization_eligible": false
+  }
+}

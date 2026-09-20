@@ -1,0 +1,85 @@
+{
+  "schema_version": "duole.issue33.real-acceptance-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-real-acceptance-v3-gate-v7",
+  "created_at": "2026-08-29T20:06:16+08:00",
+  "status": "LOCAL_FROZEN_NOT_DEPLOYED",
+  "source_revisions": {
+    "duole_app_git_head": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole_workspace_git_head": "187f8db104a269f2ecefa5dbe39a68025e575da9",
+    "exact_member_hashes_override_dirty_worktree_ambiguity": true
+  },
+  "composition": {
+    "acceptance_versions": {
+      "path": "docs/evidence/issue33/20260829/real-acceptance-v3-gate-v7/versions.json",
+      "sha256": "2906bd031fc94d481d86a349f639094e9f2071e161a7098154cb1e1ec58fe6e2"
+    },
+    "app_candidate_v5": {
+      "manifest_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5.json",
+      "manifest_sha256": "70138e169602e4815c8bb7c183aa3103f7ae3018783043ce86aa9680af82fb45",
+      "installation_path": "docs/evidence/issue33/20260829/app-control-clock-stop-recovery-candidate-v5-installation.json",
+      "installation_sha256": "8317d260e924da637f797c39ee2e852a19dbe34726b492737a5011927f0464e7",
+      "apk_path": "flutter/duole_engineering_app/build/issue33-control-clock-stop-recovery-candidate-v5/duole-engineering-app-issue33-control-clock-stop-recovery-debug-arm64.apk",
+      "apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+      "apk_size_bytes": 96349245,
+      "installed_on": "PHK110@172.22.205.58:42449",
+      "installed_sha256_matched": true
+    },
+    "navigation_board_candidate_v2": {
+      "manifest_path": "docs/evidence/issue33/20260829/no-dock-manual-mapping-artifact-manifest-v2.json",
+      "manifest_sha256": "fd49aba9f33490cda2c5969bfab3e00a2c00e3f3bb45588a9ad925a8307aed8f",
+      "bundle_path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-navigation-board-candidate-v2.tar.gz",
+      "bundle_sha256": "78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b"
+    },
+    "gateway_runtime_gate_v5_source_bundle": {
+      "repository": "duole-workspace",
+      "path": "incoming/candidates/issue33-real-acceptance-v3-gate-v5/issue33-real-acceptance-v3-gate-v5-source.tar.gz",
+      "sha256": "b2aec18c4d9cd29d79b6706130a08decca161c000c6a72506e70e03e3416259c",
+      "size_bytes": 148842,
+      "member_count": 14
+    }
+  },
+  "candidate_v5_fix": {
+    "trusted_server_time_calibration": true,
+    "fail_closed_before_first_trusted_server_time": true,
+    "stop_confirmed_recovery_states": [
+      "idle",
+      "stopped"
+    ],
+    "connection_lost_resumes_control": false,
+    "intent_ttl_ms_unchanged": 200,
+    "intent_period_ms_unchanged": 100,
+    "gateway_watchdog_changed": false,
+    "base_watchdog_changed": false,
+    "velocity_profile_changed": false,
+    "collision_monitor_changed": false
+  },
+  "validation": {
+    "app_clock_and_recovery_tdd": "PASS",
+    "app_engineering_client_regression": "PASS / 40 of 40",
+    "app_static_analysis": "PASS / client and Flutter App",
+    "flutter_widget_tests": "BLOCKED / systemic aarch64 flutter_tester shell crash at load time",
+    "apk_integrity_signature_install_binding": "PASS",
+    "runtime_gateway_regression": "HISTORICAL PASS / byte-identical gate-v5 Runtime/Gateway source",
+    "navigation_board_runtime_hashes": "PASS / four installed candidate-v2 members",
+    "activation_prestate": "PASS / navigation active, mapping services inactive, chassis stationary, no motion owner, battery 78%, safety checks ready"
+  },
+  "rollback_target": {
+    "navigation_service": "duole-navigation-stack.service active/running",
+    "manual_mapping_service": "duole-mapping-manual.service inactive/dead",
+    "manual_mapping_runtime_service": "duole-manual-mapping-runtime.service inactive/dead",
+    "autonomous_mapping_service": "duole-mapping-autonomous.service inactive/dead",
+    "gateway_port_8443_listening": false,
+    "runtime_socket_present": false
+  },
+  "authorization_boundary": {
+    "operator_onsite_ready": true,
+    "gate_v7_activated": false,
+    "service_switched": false,
+    "app_session_created": false,
+    "single_pointer_up_attempt_authorized": true,
+    "single_pointer_up_attempt_consumed": false,
+    "automatic_retry_authorized": false,
+    "capability_marker_created": false
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "app": "candidate-v3-apk@sha256:01ef64172305d338fcb12130349d83b481ead2b475b025f5ea98893d80ca54b2;manifest@sha256:de20805801d6ba5e10ddcbfc43e83e4f16a496f02c5b849e24a12df363cda024",
+  "gateway": "0.3.0;gate-v3-source@sha256:2f1c95538bd93b05c677e325062b62e8a4de499145a6a7d723c774b0db7632d4;cli.py@sha256:95836f169be41c426f199f82fb45bb9c486c9f9caf7eaba1bf5dd48c78010622;facade.py@sha256:11fe2fe1b9b46ee3ae20fc09b941df3c25b7ca33e1cfbd53680c9cdbbd61ca3c;mapping_operation.py@sha256:7d8752adb6bcc12f0ed6b60c4b2419686795c8313eacec72f06d26db9ef2a6c4",
+  "runtime": "0.1.0;gate-v3-source@sha256:2f1c95538bd93b05c677e325062b62e8a4de499145a6a7d723c774b0db7632d4;product_runtime_factory.py@sha256:2ff0201f0a4a8c0bca0aa4239d80365c97f826fa07881b6c62ce99d2173011ec;product_voice_live_session.py@sha256:fe55ad699fe710cb1f296b73ddf7b502ac6cfe5c82dcf0b0326a56b10e6a44a2;product_voice_board_session.py@sha256:3b2b39c346424404c2332ba57dc4dbb978e338d4695de57b2053494469e4e901",
+  "teleop_guard": "manual_mapping_guard.v1@sha256:d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+  "slam": "manual_mapping_slam_runtime.py@sha256:4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+  "navigation_board": "candidate-v2-bundle@sha256:78a5f23b48cd744d3859f15e80d7bb1c75fe7c83254490d00ff9fb1a0da9c92b;agent.py@sha256:76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446;ros_manual_mapping_runtime.py@sha256:548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a",
+  "base": "can_driver.py@sha256:1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031;odom-unfiltered",
+  "schema": "openapi.json@sha256:1b2b15af3c8f0f6593b75886b850df0a383baccc31876464dd24794957d74f56",
+  "hardware": "DUOLE-RK3588-ENG-01:RK3588:172.22.205.19;app=PHK110:OP5913L1",
+  "safety_profile": "manual_mapping_safe_low_speed_v1"
+}

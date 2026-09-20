@@ -1,0 +1,161 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "no_motion_bms_diagnostic",
+  "scenario": "full_charge_cable_replug",
+  "recorded_at": "2026-08-28T10:10:36+08:00",
+  "operator_id": "ztl-onsite",
+  "motion_authorized": false,
+  "motion_observed": false,
+  "mapping_started": false,
+  "service_state_changed": false,
+  "operator_observation": {
+    "charging_cable_reinserted": true,
+    "screen_displayed_charging": true
+  },
+  "monitor": {
+    "started_at": "2026-08-28T02:07:28.812266+00:00",
+    "duration_seconds": 90,
+    "sample_count": 60,
+    "positive_charge_sample_count": 10,
+    "observed_power_supply_statuses": [
+      1,
+      2,
+      3
+    ]
+  },
+  "state_transitions": [
+    {
+      "observed_at": "2026-08-28T02:08:26.893201+00:00",
+      "phase": "cable_disconnected",
+      "voltage": 29.2,
+      "current": -0.9,
+      "percentage": 0.993,
+      "power_supply_status": 2
+    },
+    {
+      "observed_at": "2026-08-28T02:08:44.894447+00:00",
+      "phase": "charging_after_replug",
+      "voltage": 29.1,
+      "current": 1.7,
+      "percentage": 1.0,
+      "power_supply_status": 1
+    },
+    {
+      "observed_at": "2026-08-28T02:08:57.894478+00:00",
+      "phase": "last_positive_charge_sample",
+      "voltage": 29.3,
+      "current": 0.4,
+      "percentage": 1.0,
+      "power_supply_status": 1
+    },
+    {
+      "observed_at": "2026-08-28T02:09:38.892488+00:00",
+      "phase": "full_charge_current_cutoff",
+      "voltage": 29.3,
+      "current": 0.0,
+      "percentage": 1.0,
+      "power_supply_status": 3
+    }
+  ],
+  "post_replug_formal_mapping_safety": {
+    "active_task_owners": [],
+    "available_storage_bytes": 64637550592,
+    "battery_percent": 100,
+    "charging_confirmed": false,
+    "chassis_stationary": true,
+    "collision_protection_ready": true,
+    "docked": false,
+    "required_storage_bytes": 1073741824,
+    "sensors_ready": true,
+    "stop_chain_ready": true,
+    "version_compatible": true
+  },
+  "diagnosis": {
+    "physical_charge_path_confirmed_during_replug": true,
+    "full_charge_zero_current_persists_as_charging_evidence": false,
+    "root_cause": "can_driver derives power_supply_status only from instantaneous current and loses the observed charging state when full-charge current cuts off",
+    "unsafe_workaround_rejected": "battery percentage or operator observation alone must not satisfy BMS charging confirmation",
+    "minimum_fix": "after positive charge current is observed, publish FULL during zero-current full-charge cutoff; clear the observation immediately on negative discharge current; remain fail-closed after process start until positive charge current is observed"
+  },
+  "candidate_repair": {
+    "can_driver_sha256": "1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031",
+    "upgrader_sha256": "fbb33d48c731625af306e18731a2546851c032016e71a4f4add4fdecee39442b",
+    "predecessor_sha256": "e1544c4f86e3e2a2cf25422cd5efe037b16863900742e148dff8c2c61e317c53",
+    "tdd_and_adjacent_tests": "115 passed",
+    "app_acceptance_tool_tests": "27 passed",
+    "remote_no_hardware_instantiation_sequence": [
+      3,
+      1,
+      4,
+      2,
+      3
+    ],
+    "uploaded": true,
+    "installed": true,
+    "navigation_stack_restarted": true
+  },
+  "deployment_verification": {
+    "verified_at": "2026-08-28T15:01:36+08:00",
+    "target_sha256": {
+      "source": "1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031",
+      "build": "1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031",
+      "install": "1338c614d939b8045097f22b67e2d89c4144917d22908bc19f53b12273830031"
+    },
+    "backup_sha256": {
+      "source": "e1544c4f86e3e2a2cf25422cd5efe037b16863900742e148dff8c2c61e317c53",
+      "build": "e1544c4f86e3e2a2cf25422cd5efe037b16863900742e148dff8c2c61e317c53",
+      "install": "e1544c4f86e3e2a2cf25422cd5efe037b16863900742e148dff8c2c61e317c53"
+    },
+    "install_receipt": "issue33 full-charge state repaired; navigation stack restarted once",
+    "navigation_stack": {
+      "state": "active",
+      "result": "success",
+      "exec_main_status": 0,
+      "active_enter_timestamp": "2026-08-28T14:58:31+08:00"
+    },
+    "mapping_units": {
+      "duole-mapping-manual.service": "inactive",
+      "duole-mapping-autonomous.service": "inactive",
+      "duole-manual-mapping-runtime.service": "inactive"
+    },
+    "post_restart_charge_observation": {
+      "monitor_started_at": "2026-08-28T06:57:15+00:00",
+      "monitor_finished_at": "2026-08-28T07:02:15.179846+00:00",
+      "monitor_total_sample_count": 187,
+      "positive_current_observed": true,
+      "current_amperes_range": [
+        3.7,
+        3.8
+      ],
+      "power_supply_status": 1,
+      "status_name": "CHARGING",
+      "battery_percentage_observed_range": [
+        0.879,
+        0.884
+      ],
+      "last_sample": {
+        "voltage": 26.9,
+        "current": 3.7,
+        "percentage": 0.884,
+        "power_supply_status": 1,
+        "charging": true
+      }
+    },
+    "formal_mapping_safety": {
+      "active_task_owners": [],
+      "available_storage_bytes": 64616693760,
+      "battery_percent": 88,
+      "charging_confirmed": true,
+      "chassis_stationary": true,
+      "collision_protection_ready": true,
+      "docked": true,
+      "required_storage_bytes": 1073741824,
+      "sensors_ready": true,
+      "stop_chain_ready": true,
+      "version_compatible": true
+    },
+    "full_charge_cutoff_reobserved_after_install": false,
+    "full_charge_cutoff_note": "battery was at 88 percent and actively charging during deployment verification; the installed full-charge cutoff transition remains covered by TDD and remote ROS import smoke until the battery next reaches full charge"
+  }
+}

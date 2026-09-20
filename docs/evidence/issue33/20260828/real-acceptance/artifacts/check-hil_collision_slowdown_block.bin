@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "check": "hil_collision_slowdown_block",
+  "status": "passed",
+  "slowdown": {
+    "guard_status": "scaled",
+    "observed_max_effective_linear_mps": 0.05,
+    "source_path": "docs/evidence/issue33/20260827/collision-slowdown-real-01.json",
+    "source_sha256": "7be1987f0607de577c2ace280cfb8fe271a271307a93f5ef467a5707d5bc8a64"
+  },
+  "block": {
+    "guard_status": "blocked",
+    "observed_max_cmd_vel_linear_mps": 0.0,
+    "source_path": "docs/evidence/issue33/20260827/collision-block-real-01.json",
+    "source_sha256": "3d69225b59badc6e9cb9384ccb316b1ca9ea2bce1be5117c93065cf3f8112be9"
+  }
+}

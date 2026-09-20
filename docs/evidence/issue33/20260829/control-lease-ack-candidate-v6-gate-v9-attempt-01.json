@@ -1,0 +1,218 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "real_hil_gate_attempt",
+  "gate": "gate-v9",
+  "attempt": 1,
+  "recorded_at": "2026-08-29T14:20:18+00:00",
+  "status": "failed_safe_no_motion",
+  "authorization": {
+    "onsite_operator_present": true,
+    "forward_path_clear": true,
+    "emergency_stop_reachable": true,
+    "initial_board_state": "navigation_active",
+    "app_operation_switch_authorized": true,
+    "allowed_motion": "one low-speed forward joystick gesture followed by pointer_up",
+    "automatic_retry_allowed": false,
+    "automatic_retry_performed": false,
+    "authorized_motion_gesture_consumed": true
+  },
+  "candidates": {
+    "app_candidate": "candidate-v5",
+    "app_apk_path": "/home/ztl/duole-app/flutter/duole_engineering_app/build/issue33-control-clock-stop-recovery-candidate-v5/duole-engineering-app-issue33-control-clock-stop-recovery-debug-arm64.apk",
+    "app_apk_sha256": "2be49ad42c5f2e534bdc62ec685996d4bb538d5bd1ae4131df94681e54de0330",
+    "gateway_runtime_candidate": "candidate-v6",
+    "gateway_runtime_bundle_path": "/home/ztl/duole-workspace/incoming/candidates/issue33-control-lease-ack-candidate-v6/issue33-control-lease-ack-candidate-v6-source.tar.gz",
+    "gateway_runtime_bundle_sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+    "candidate_manifest_path": "docs/evidence/issue33/20260829/control-lease-ack-candidate-v6.json",
+    "candidate_manifest_sha256": "3ffee589d7ae68824b1121ff3f49fd855aa6725c849498c0b0f64019d20ef3ce",
+    "navigation_board_candidate": "candidate-v3",
+    "navigation_board_bundle_sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+    "acceptance_permit_sha256": "bbad7d9072691625243080da122e399fb54a94a2f9741eeed45afed6f9c44a3c",
+    "gateway_device_key_fingerprint": "sha256:284035780ee11b0f5d45c49051aafc79be6c1ffbe8ee472cd668a154f75ca947"
+  },
+  "targets": {
+    "phone": "PHK110:OP5913L1",
+    "adb_serial": "172.22.205.58:42449",
+    "gateway_host": "172.22.205.44",
+    "navigation_board_host": "172.22.205.19"
+  },
+  "historical_preflight_from_gate_run": {
+    "app_runtime_mode": "REAL",
+    "battery_percent": 73,
+    "chassis_stationary": true,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "version_compatible": true,
+    "ros_linear_x_mps": 0.0,
+    "ros_angular_z_rps": 0.0,
+    "forward_clearance_m_greater_than": 0.25,
+    "forward_clearance_abort_boundary_m": 0.25
+  },
+  "operation": {
+    "operation_id": "mapping_e3166460ad2e4f028706dc4230a2aab9",
+    "manual_mapping_session_id": "manual_mapping_c3b26c87d47b4f2e9bb5747c6c99caf3",
+    "mode": "REAL",
+    "session_started_at": "2026-08-29T13:51:47.486707+00:00"
+  },
+  "acceptance_observation": {
+    "joystick_displayed": true,
+    "joystick_screenshot_path": "/tmp/duole-issue33-gate-v8.IYEtVV/gate-v9-app-before-motion.png",
+    "joystick_screenshot_sha256": "92c7fe9f56851811b006bd857e4114960e08ea6634c43deb27eaa5e37ee7d416",
+    "operator_attempted_authorized_gesture": true,
+    "app_message": "控制通道出现错误，机器人已按停止路径处理。",
+    "app_stop_label": "等待停止确认",
+    "observer_result": "ISSUE33_APP_POINTER_UP_OBSERVER_ERROR=app_pointer_up_motion_not_observed",
+    "observer_exit_code": 6,
+    "accepted_intent_count": 0,
+    "last_accepted_seq": 0,
+    "effective_linear_mps": 0.0,
+    "effective_angular_rps": 0.0,
+    "physical_motion_observed": false,
+    "pointer_up_stop_acceptance_passed": false
+  },
+  "final_session_row": {
+    "phase": "collecting",
+    "control_state": "controlling",
+    "lease_epoch": 37,
+    "lease_id": "mapping_lease_d82a6c6c605644b899869ad52a05dd02",
+    "lease_expires_at": "2026-08-29T13:54:10.585628+00:00",
+    "last_seq": 0,
+    "effective_linear": 0.0,
+    "effective_angular": 0.0,
+    "stop_confirmed": false,
+    "stop_requested_at": "2026-08-29T13:54:09.328633+00:00",
+    "stop_confirmed_at": "2026-08-29T13:54:09.328633+00:00",
+    "transition_reason": "control_reconnected",
+    "updated_at": "2026-08-29T13:54:12.279787+00:00",
+    "revision": 110
+  },
+  "control_chain_diagnosis": {
+    "confirmed_failure": "the final 400 ms board lease was already expired when Gateway recorded the acquire result, before a usable control_granted path could complete",
+    "lease_duration_ms": 400,
+    "board_armed_at_derived_from_fixed_window": "2026-08-29T13:54:10.185628+00:00",
+    "board_lease_expires_at": "2026-08-29T13:54:10.585628+00:00",
+    "gateway_acquire_recorded_at": "2026-08-29T13:54:12.279787+00:00",
+    "board_arm_to_gateway_record_ms": 2094.159,
+    "lease_expired_before_gateway_record_ms": 1694.159,
+    "reasoning": [
+      "candidate-v6 accepts only an exact 400 ms arm window returned by the board",
+      "acquire_control records updated_at immediately after guard.arm returns",
+      "Gateway then reads the session before constructing control_granted; this read advances lease expiry",
+      "last_seq remained 0 and both effective velocities remained zero"
+    ],
+    "observed_stop_error": "MAPPING_GUARD_UNAVAILABLE propagated as MANUAL_MAPPING_GUARD_UNAVAILABLE",
+    "remaining_uncertainty": "the evidence proves a stale lease at the Gateway post-arm stage, but does not by itself distinguish approximately 2.1 s of post-arm acknowledgement/processing delay from a transient historical board/Gateway clock offset",
+    "contemporaneous_clock_checks": {
+      "best_ssh_round_trip_ms": 13.5,
+      "median_ssh_round_trip_ms": 17.0,
+      "board_minus_gateway_ms_approx": -11.0,
+      "gateway_timesync_offset_ms": 1.262,
+      "board_timesync_offset_ms": -12.356,
+      "interpretation": "current clocks are close; this favors a real delayed acknowledgement under mapping load, but is not proof of the historical split"
+    }
+  },
+  "joystick_ui_diagnosis": {
+    "confirmed_direct_cause": "_handleConnectionClosed cancels the intent timer and sets _pressed=false, velocities to zero, knobOffset to Offset.zero, and awaitingStop=true",
+    "source_path": "flutter/duole_engineering_app/lib/manual_mapping_page.dart",
+    "source_sha256": "70e04d2c059ba3a1ab6f31045513ae46a47920dd3d6ff8e5d784d9dac4f0bb19",
+    "additional_gesture_risk": "the raw joystick Listener is nested in SingleChildScrollView, so a forward drag can compete with page scrolling",
+    "desired_boundary_not_implemented": [
+      "local pointer and knob motion remain responsive while the control channel is unavailable",
+      "no control acquire or intent is sent without a valid current connection and lease",
+      "reconnect never resumes motion from a pointer that was already held; pointer_up followed by a fresh pointer_down is required",
+      "pointer_up recenters the local knob",
+      "the parent scroll view does not steal a joystick drag",
+      "the concrete control error code remains visible for diagnosis"
+    ]
+  },
+  "test_gap": {
+    "existing_slow_guard_test": "tests/app_gateway/test_mock_manual_mapping.py::test_control_grant_starts_full_lease_after_slow_guard_arm_ack",
+    "gap": "_SlowAcknowledgingTeleopGuard advances the fake clock before assigning armed_at and then returns a fresh 400 ms window; it does not model delay after the board timestamp is fixed and before the acknowledgement reaches Gateway",
+    "missing_regression": "a board response whose armed_at/expires_at are already stale when guard.arm returns must be rejected or reacquired without issuing a usable grant",
+    "missing_ui_regressions": [
+      "channel loss does not interrupt local knob tracking",
+      "no intents are emitted during channel loss",
+      "reconnect does not resume the held pointer",
+      "fresh pointer_down is required after stop-confirmed recovery",
+      "joystick drag does not scroll the parent"
+    ]
+  },
+  "new_validation_after_gate": {
+    "python_focused": {
+      "command": "pytest -p no:cacheprovider -q tests/app_gateway/test_mock_manual_mapping.py::test_control_grant_starts_full_lease_after_slow_guard_arm_ack tests/app_gateway/test_real_manual_mapping.py::test_slow_slam_snapshot_does_not_expire_active_control_lease",
+      "result": "2 passed in 1.01s",
+      "interpretation": "existing candidate-v6 tests pass but do not cover the newly identified post-timestamp acknowledgement delay"
+    },
+    "dart_wss_transport": {
+      "command": "/home/ztl/.local/share/duole-hil-toolchain/flutter-3.47.0/bin/dart run test/manual_mapping_websocket_transport_test.dart",
+      "result": "PASS exit 0",
+      "source_sha256": "a52c8197302682efc30216d042c1f95685650e2e4aec4bcae641916653f47443",
+      "test_sha256": "5e2ab0faaa4c807619433f677b0e6dcacce8dcc0c8255f6320cc96d21835019a"
+    },
+    "flutter_widget": {
+      "command": "/home/ztl/.local/share/duole-hil-toolchain/flutter-3.47.0/bin/flutter test test/manual_mapping_page_test.dart",
+      "result": "BLOCKED_BEFORE_TEST_LOAD",
+      "runner_error": "HttpException: Connection closed before full header was received",
+      "app_assertions_executed": false,
+      "test_sha256": "08bfcbae74b077835fa02fdb9d179eb6284ce468e27f64ca8c8aba4680b6784f"
+    }
+  },
+  "fresh_cleanup_verification": {
+    "board_safety_observed_at": "2026-08-29T14:17:58.719792+00:00",
+    "navigation_service": "active",
+    "manual_mapping_service": "inactive",
+    "manual_mapping_runtime_service": "inactive",
+    "manual_mapping_guard_socket": "absent",
+    "chassis_stationary": true,
+    "active_task_owners": [],
+    "battery_percent": 71,
+    "sensors_ready": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true,
+    "odom_observed_at": "2026-08-29T14:15:11.810928128+00:00",
+    "odom_linear_x_mps": 9.676395119054358e-296,
+    "odom_angular_z_rps": 0.0,
+    "phone_online": true,
+    "app_process_absent": true,
+    "gateway_port_8443": "closed",
+    "temporary_gateway_runtime_processes": "absent",
+    "runtime_socket": "absent"
+  },
+  "temporary_sensitive_file_cleanup": {
+    "method": "moved to desktop trash",
+    "recoverable": true,
+    "files": [
+      {
+        "path": "/tmp/duole-issue33-gate-v8.IYEtVV/gate-v9-manual-mapping-short-code.json",
+        "size_bytes": 205,
+        "mode": "0600",
+        "sha256": "c12e650d4bf00678bb9aaafbc2c15e3ec061d9c4594d3609b99c3ba8fe5125f0",
+        "original_path_absent": true
+      },
+      {
+        "path": "/tmp/duole-issue33-gate-v8.IYEtVV/gate-v9-map-maintenance.enabled",
+        "size_bytes": 8,
+        "mode": "0600",
+        "sha256": "e056a35db086947e2f5969d747f0a7517bff00c7ffff1f9e7b47b72bfac9d948",
+        "original_path_absent": true
+      }
+    ]
+  },
+  "not_changed_in_this_diagnostic": {
+    "application_source": true,
+    "gateway_runtime_source": true,
+    "navigation_board_source": true,
+    "ttl": true,
+    "watchdog": true,
+    "velocity_limits": true,
+    "safety_gates": true,
+    "selector": true,
+    "candidate_installation": true,
+    "activation": true,
+    "session_creation": true,
+    "motion": true
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "persistent_session_application_control_failure_analysis",
+  "recorded_at": "2026-08-28T16:50:47+08:00",
+  "target": "ztl@172.22.205.19",
+  "authorization": {
+    "operator_id": "ztl-onsite",
+    "scope": "one application-layer zero-intent diagnostic with one navigation/mapping service switch"
+  },
+  "source_result": {
+    "path": "source-diagnostics/persistent-session-application-control-no-motion-01.json",
+    "sha256": "d16968d07b736381f18b07608a3f2ad568f0b9d3406a597d8e6fba4fb1d32162",
+    "status": "failed",
+    "failed_stage": "application_stop_confirmed",
+    "operation_id": "mapping_fa964accf7f971ab582c8a2ad108f977",
+    "session_id": "manual_mapping_423223e0003d43efb3f7bd2e3c629798",
+    "lease_id": "mapping_lease_e8e6fbee81ee4331af309908328ccebd",
+    "accepted_seq": 1,
+    "intent": {
+      "linear": 0.0,
+      "angular": 0.0
+    },
+    "error": "MANUAL_MAPPING_GUARD_UNAVAILABLE <- 'stop_requested_at'"
+  },
+  "postflight": {
+    "duole-navigation-stack.service": "active",
+    "duole-mapping-manual.service": "inactive",
+    "duole-mapping-autonomous.service": "inactive",
+    "duole-manual-mapping-runtime.service": "inactive",
+    "persistent_board_session_process": "none",
+    "mapping_operation_state": "stopped",
+    "slam_state": {
+      "status": "active",
+      "revision": 1,
+      "snapshot_revision": 1,
+      "started_at": "2026-08-28T08:39:24.704451+00:00",
+      "updated_at": "2026-08-28T08:39:25.442462+00:00",
+      "prior_active_map_id": "my_map3"
+    },
+    "residual_risk": "no runtime or control lease remains; the active SLAM state is an interrupted-state recovery input for the next authorized mapping start"
+  },
+  "root_cause": {
+    "status": "confirmed_by_real_failure_and_deterministic_regression_test",
+    "primary": "the first application intent synchronously requested a heavy SLAM observation and atomic snapshot after arming the fixed 400 ms board watchdog; the lease was revoked before application release_control requested stop",
+    "secondary": "the SSH stop response parser read stop_requested_at before validating an error response, leaking KeyError and obscuring the board lease-mismatch failure",
+    "excluded": [
+      "persistent board session transport failure",
+      "manual mapping begin failure",
+      "control acquisition or guard arm failure",
+      "zero intent rejection",
+      "terminal_abandon reason rejection"
+    ]
+  },
+  "software_candidate": {
+    "behavior": "capture the initial SLAM snapshot before control acquisition, serve cached progress during control, and refresh heavy snapshots on an independent runtime thread without changing the 400 ms watchdog or 200 ms intent TTL",
+    "navigation_board_runtime_cli_sha256": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "navigation_board_slam_runtime_sha256": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d",
+    "gateway_navigation_board_ssh_sha256": "ca97af905cd72e22f821e110094df14e059dd361f68add016707f15428e6debe",
+    "upgrader_sha256": "320db6f7865484d472c47fafc71756ed4e778ffd210aeb595f8ffeba22b0b7f1",
+    "provider_bundle_sha256": "c648fe4b5948480a5166e99b2eb71ef1e4dcc39a508e9b09c980698966bd455d",
+    "repair_mode": "--repair-slam-snapshot-control-path",
+    "deployment_status": "installed_on_disk_not_runtime_exercised",
+    "deployment_evidence": "source-diagnostics/slam-snapshot-control-path-repair-install.json",
+    "validation": {
+      "real_failure_regression_tests": "3 passed",
+      "provider_related_tests": "134 passed",
+      "app_issue33_tools": "34 passed",
+      "static_checks": "passed",
+      "deployment_composition_regression": "failed before fix; 50 related tests passed after fix"
+    }
+  },
+  "operator_observation": {
+    "operator_id": "ztl-onsite",
+    "observation_type": "direct_onsite",
+    "observed_at": "2026-08-28T16:55:01+08:00",
+    "robot_never_moved": true,
+    "wheel_twitch_or_instant_rotation": false,
+    "robot_fully_stopped": true,
+    "charging_cable_safe": true,
+    "emergency_stop_reachable": true
+  },
+  "acceptance_effect": "diagnostic only; does not count as a stop scenario pass"
+}

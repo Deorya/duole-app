@@ -1,0 +1,118 @@
+{
+  "schema_version": "duole.issue33.no-dock-manual-mapping-artifacts.v1",
+  "issue": 33,
+  "candidate_id": "issue33-no-dock-manual-mapping-candidate-v1",
+  "created_at": "2026-08-28T23:54:46+08:00",
+  "status": "ARTIFACTS_VERIFIED_NOT_UPLOADED",
+  "source_candidate": {
+    "path": "docs/evidence/issue33/20260828/real-acceptance-v2/source-runs/no-dock-manual-mapping-local-candidate.json",
+    "sha256": "8f5a71c50678da8ef98214278f8a74453cba5e740ac7599b365de47155898dd4"
+  },
+  "artifacts": {
+    "app_apk": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/duole-engineering-app-issue33-no-dock-debug-arm64.apk",
+      "sha256": "eaabea4dfbd2d665ced5927f3c37bd943786cd4633029fed442317845dc22838",
+      "size_bytes": 96345869,
+      "package_name": "com.duole.engineering.duole_engineering_app",
+      "version_name": "0.1.0",
+      "version_code": 1,
+      "min_sdk": 24,
+      "target_sdk": 36,
+      "compile_sdk": 36,
+      "native_abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86_64"
+      ],
+      "signing": "Android Debug / APK Signature Scheme v2",
+      "signer_certificate_sha256": "fa9601d8d671b83f6d167dbd16001f2224b1f0e78fa35c2468da44b260cf3c0f"
+    },
+    "navigation_board_bundle": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-navigation-board-candidate-v1.tar.gz",
+      "sha256": "f921b179237405d4ab6a32091210894855ef65ea6d31b100095c8c1e4ff49c73",
+      "size_bytes": 32649,
+      "file_count": 14,
+      "archive_root": "duole-issue31-nav-ws"
+    },
+    "gateway_bundle": {
+      "path": "flutter/duole_engineering_app/build/issue33-no-dock-manual-mapping-candidate-v1/issue33-no-dock-gateway-candidate-v1.tar.gz",
+      "sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e",
+      "size_bytes": 23817,
+      "file_count": 3,
+      "archive_root": "duole-workspace"
+    }
+  },
+  "app_source_bindings": {
+    "flutter/duole_engineering_app/lib/manual_mapping_page.dart": "580310db823a5f858faf79ef8264a432af7ecb7dc4a0c0c3348b23687651577d",
+    "flutter/duole_engineering_app/pubspec.yaml": "59c91af9e92cd342d5b3ec67584a356f48f5f8a556ab22fb74ef02044441e9d7",
+    "flutter/duole_engineering_app/pubspec.lock": "bfaf644b2ee334b3edeb304568a00afb9f624f8a998d22ad3cca812210c393e3",
+    "dart/duole_app_contract/lib/app_contract.dart": "bc2bf1a7871969082043a3f54aee793773fdcf5f40382cad4ec85b4510573e07",
+    "dart/duole_engineering_client/lib/engineering_app_client.dart": "92af20f8248e94eb72f151d6549cd29e89505f8a866870b022f74c3d7b283560",
+    "dart/duole_engineering_client/lib/manual_mapping_control.dart": "a9f0b11154c7998b85a69b6e8012be16085397ec37e8115b3fb9124fc9b085a3",
+    "dart/duole_engineering_client/lib/pairing_client.dart": "9c745674469307fdce0a27c242527075c593d5fc44e1c1d6e893effa46642652"
+  },
+  "navigation_board_bundle_files": {
+    "duole-issue31-nav-ws/bin/upgrade-issue33-navigation-board-manual-mapping-runtime": "31268ff9b686ae1ad067c76f75ff5c8d6c9b7643193603f8f538b8bfa85c317c",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-manual-mapping-runtime.service": "e01fc80561d14e45172cc53475da367f552ee8166fd3ff8fc2b56bc2b212e742",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-mapping-autonomous.service": "85b7d9f437740b65f794d97e2d3fd5cd97900cedbe7e4f50edf23fa54127ca3d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/deploy/systemd/duole-mapping-manual.service": "c4760979763ccb39f22bb104a320718fde838140909af915762612c08cb8b40d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/agent.py": "76bf376325441316b9a719c2dbae63d5c82163dea01f3ae191d502b856877446",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/cli.py": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_guard.py": "d66de1f9c73e0253e1ae31100c0190baf632c86ec94da3cf1766e4391e74570d",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_guard_ipc.py": "cf33d360deeab40c2085c54c84d7b1f712f3a8fe400755123d1a2b259b569339",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_map_store.py": "352a3e07e6511347d8c41d3f0223c935fc691c476fe8305b3ec76b1cf73d019c",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_runtime_cli.py": "dbdd293756ccba256f24e10f12f6f96db17290ce41dd12a46ff2aef45fb30853",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/manual_mapping_slam_runtime.py": "4771a80cdc7a2ba947473cdcf334774a39337b57d1262c02527c3e3af6cf87b2",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/ros_manual_mapping_runtime.py": "548fa8d1d5e411486e0903d4b592697711d20f5cd410aea6170a9e7e579dfc1a",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/ros_mapping_safety.py": "2b72b5cdf11be28f893ed649b1112bd228f3bc91e8316a5271553716b54c2fc7",
+    "duole-issue31-nav-ws/incoming/issue33-manual-mapping-runtime-v1/runtime/duole_central/navigation_board/systemd_mapping.py": "0b08cbebc69bb35a58db7c00a1275536174c5b6d9f9f3ce3e86613c4ea5a56eb"
+  },
+  "gateway_bundle_files": {
+    "duole-workspace/docs/interface_freeze/app_v1/openapi.json": "1b2b15af3c8f0f6593b75886b850df0a383baccc31876464dd24794957d74f56",
+    "duole-workspace/duole_central/app_gateway/mapping_operation.py": "87ed42b0f86af2fb0371f19c744f8989cf76384b49a4bbecdcb3266e129a06be",
+    "duole-workspace/duole_central/app_gateway/real_manual_mapping.py": "b8fff3b1c8eba9f9f3ebbc0c85e8b33a5755be0a5aeee5efdd3e7c739139409c"
+  },
+  "build": {
+    "flutter": "3.47.0 stable / framework 4cf2416426",
+    "dart": "3.13.0",
+    "java": "Temurin 17.0.20+8",
+    "target_platform": "android-arm64",
+    "build_mode": "debug",
+    "dart_defines": [],
+    "aapt2_override": "/home/ztl/.local/share/duole-hil-toolchain/android-sdk-tools-arm64/build-tools/aapt2",
+    "command": "flutter build apk --debug --target-platform android-arm64 --no-pub -Pandroid.aapt2FromMavenOverride=<local-arm64-aapt2> --suppress-analytics",
+    "isolation": "built from a temporary copy preserving flutter/ and dart/ relative path dependencies; original build outputs were not changed",
+    "first_attempt": "failed before artifact creation because the initial temporary copy omitted ../../dart path dependencies; corrected isolation layout was used for the successful build"
+  },
+  "validation": {
+    "source_candidate_hashes": "PASS / 11 of 11 bindings matched before build",
+    "apk_zip_integrity": "PASS",
+    "apk_badging_and_manifest": "PASS",
+    "apk_v2_signature": "PASS",
+    "apk_source_copy_bindings": "PASS / 7 of 7 bindings matched",
+    "navigation_bundle_repeatability": "PASS / independently repeated archive was byte-identical",
+    "gateway_bundle_repeatability": "PASS / independently repeated archive was byte-identical",
+    "bundle_extract_and_source_cmp": "PASS / 17 of 17 files matched",
+    "navigation_python_compile": "PASS",
+    "gateway_python_compile": "PASS",
+    "gateway_openapi_json": "PASS",
+    "upgrade_script_syntax": "PASS",
+    "systemd_unit_verify": "PASS with unrelated host warnings for snapd RestartMode and rkaiq_3A world-writable configuration"
+  },
+  "preserved_existing_artifacts": {
+    "flutter/duole_engineering_app/build/app/outputs/flutter-apk/app-debug.apk": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "flutter/duole_engineering_app/build/issue33-app-real-candidate/duole-engineering-app-issue33-real-debug-arm64.apk": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae"
+  },
+  "authorization_boundary": {
+    "artifacts_built": true,
+    "files_uploaded": false,
+    "apk_installed": false,
+    "board_files_installed": false,
+    "gateway_files_activated": false,
+    "services_restarted": false,
+    "services_switched": false,
+    "runtime_or_ros_started": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

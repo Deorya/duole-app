@@ -1,0 +1,123 @@
+{
+  "schema_version": "duole.issue33.control-lease-budget-candidate.v1",
+  "issue": 33,
+  "candidate_id": "issue33-control-lease-budget-candidate-v7",
+  "created_at": "2026-08-29T23:42:26+08:00",
+  "status": "LOCAL_FROZEN_NOT_ACTIVATED",
+  "requested_outcome": {
+    "gateway_runtime_host": "172.22.205.44",
+    "navigation_board_host": "172.22.205.19",
+    "app_device": "Xiaomi 23043RP34C at 172.22.205.14:39131",
+    "services_remain_running_after_activation": true,
+    "autostart_configuration_requested": false,
+    "operator_controls_joystick": true,
+    "agent_generated_motion": false
+  },
+  "source_revisions": {
+    "duole_app_git_head": "3bbd6ef46b3c320b5bf0c75f7b051542e6cf3273",
+    "duole_workspace_git_head": "187f8db104a269f2ecefa5dbe39a68025e575da9",
+    "exact_member_hashes_override_dirty_worktree_ambiguity": true
+  },
+  "repairs_historical_failure": {
+    "evidence_path": "docs/evidence/issue33/20260829/control-lease-ack-candidate-v6-gate-v9-attempt-01.json",
+    "evidence_sha256": "56360bcdbf21ebdab6d4e3e1b0a7124b0aa885c6bf6493b8a015d889a53911fe",
+    "historical_status": "failed_safe_no_motion",
+    "historical_symptom": "lease_epoch advanced while last_seq remained 0 and the App reported a control-channel error",
+    "root_cause": "Gateway compared navigation-board wall-clock lease timestamps with its own wall clock, so an otherwise valid 400 ms arm window could already appear expired before control_granted"
+  },
+  "composition": {
+    "app_candidate_v6": {
+      "manifest_path": "docs/evidence/issue33/20260829/app-local-joystick-decoupling-candidate-v6.json",
+      "manifest_sha256": "53af3f86c9b8492a40f367f5dfdcd4a44f10253fe9602b69711a978dae6f232e",
+      "installation_path": "docs/evidence/issue33/20260829/app-local-joystick-decoupling-candidate-v6-xiaomi-install.json",
+      "installation_sha256": "9823d8ab1288254eb38824c1dde41691c3fa4a3f7b2cf0afb5f697110d40bc62",
+      "apk_sha256": "1b09b1b07bb46c18f76334af73af6d73d729b7c8d26ef301ca466a0a76645735",
+      "installed_device_apk_sha256_matched": true,
+      "adb_serial": "172.22.205.14:39131"
+    },
+    "gateway_runtime_candidate_v7": {
+      "repository": "duole-workspace",
+      "path": "incoming/candidates/issue33-control-lease-budget-candidate-v7/issue33-control-lease-budget-candidate-v7-source.tar.gz",
+      "sha256": "c4773c4813ad61b68e0d81b0544b1d130cb31285c3a904a229cd76bf5d49312d",
+      "size_bytes": 149430,
+      "regular_file_count": 14,
+      "base_candidate_v6_sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+      "member_list_matches_base": true,
+      "changed_regular_file_count": 1,
+      "changed_member": "duole-workspace/duole_central/app_gateway/mock_manual_mapping.py",
+      "changed_member_sha256": "06d2a6bf82284a29b019e7471d4535f8d4d4255c52404ccd56464f503f9bb48c"
+    },
+    "navigation_board_candidate_v3": {
+      "installation_path": "docs/evidence/issue33/20260829/control-lease-ack-candidate-v6-navigation-board-installation.json",
+      "installation_sha256": "9b21914b0291a4b9017137f918266ff752edd6e5df0664c1f211e948965ccaeb",
+      "bundle_sha256": "ebdd2da2892f3098fa7d8fd9616e12075fc4f9e8cac6e3b4d8e8c3d7a22349b3",
+      "installed_runtime_sha256": {
+        "agent.py": "0a02224081de81713968cd9c9616bcd3d23b80a36dfd47ae6d759ceb0c4ed891",
+        "manual_mapping_guard.py": "687e8e15f0a6b2b80f8c3dd2dad359a5c264c2561abf362cfddf79f22b6093c9",
+        "manual_mapping_guard_ipc.py": "2374346c3cf6a03af2aa2b85f5a526561716b4d073ada16f2ea8342223fd4d85",
+        "cli.py": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+        "issue31-navigation-board-agent": "f5b092130835d920ab8ee300da97827cc50a305e869ae6ca3aafde30bfe13f0e"
+      }
+    }
+  },
+  "fix_contract": {
+    "board_arm_window_ms": 400,
+    "intent_ttl_ms": 200,
+    "intent_period_ms": 100,
+    "gateway_lease_budget_origin": "Gateway monotonic clock immediately before the arm request",
+    "gateway_remaining_budget": "400 ms minus the complete local monotonic arm round trip",
+    "board_absolute_timestamp_use": "validate only that the returned board arm window is exactly 400 ms; never compare its absolute wall-clock value with Gateway wall clock",
+    "exhausted_budget_behavior": "request zero for the armed lease and reject with MANUAL_MAPPING_GUARD_ACK_EXPIRED before persisting or granting control",
+    "automatic_control_retry_added": false,
+    "watchdog_changed": false,
+    "velocity_limits_changed": false,
+    "collision_gate_changed": false,
+    "stop_confirmation_changed": false
+  },
+  "validation": {
+    "red_reproduction": "PASS as expected: clock-skew regression failed with MANUAL_MAPPING_LEASE_MISMATCH before the fix",
+    "new_regressions": "PASS 2/2: cross-board clock skew retains a bounded usable lease; an arm ACK consuming at least 400 ms is zeroed and rejected",
+    "focused_regressions": "PASS 5/5",
+    "manual_mapping_and_navigation_board_regressions": "PASS 72/72",
+    "full_app_gateway_regression": "PASS 448/448 with two existing TLS deprecation warnings",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "debug_instrumentation_absent": true,
+    "formatter": "NOT_AVAILABLE_ON_HOST; source follows existing formatting and diff check passed",
+    "bundle_repeatability": "PASS; two independent deterministic archives were byte-identical",
+    "bundle_member_binding": "PASS; member list matches candidate-v6 and only mock_manual_mapping.py changed"
+  },
+  "current_preactivation_state": {
+    "observed_at": "2026-08-29T23:41:13+08:00",
+    "gateway_port_8443_listening": false,
+    "runtime_socket_present": false,
+    "navigation_service": "active/running",
+    "manual_mapping_service": "inactive/dead",
+    "manual_mapping_runtime_service": "inactive/dead",
+    "autonomous_mapping_service": "inactive/dead",
+    "manual_mapping_guard_socket": "absent",
+    "persistent_navigation_board_agent": "absent",
+    "durable_previous_operation_record": "mapping_e3166460ad2e4f028706dc4230a2aab9 started while unit inactive",
+    "durable_record_handling": "formal start_mapping may atomically replace it because no mapping unit is active; no direct deletion authorized or performed"
+  },
+  "rollback_target": {
+    "gateway_runtime": "stop candidate-v7 transient processes and return to no listener/no Runtime socket",
+    "gateway_source_bundle_sha256": "81ad2c194d97821864a69b54fcbd7575c3884ca8862b096994372bdfc5b28c54",
+    "navigation_board_candidate": "candidate-v3 remains installed",
+    "navigation_service": "duole-navigation-stack.service active/running",
+    "manual_mapping_services": "inactive/dead"
+  },
+  "authorization_boundary": {
+    "software_fix_implemented": true,
+    "software_tests_run": true,
+    "candidate_frozen": true,
+    "autostart_configured": false,
+    "gateway_or_runtime_started": false,
+    "navigation_service_switched": false,
+    "real_session_created": false,
+    "control_lease_acquired": false,
+    "control_intent_sent": false,
+    "robot_motion_executed": false,
+    "exact_candidate_activation_pending_operator_onsite_confirmation": true
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "schema_version": "duole.issue33.no-dock-manual-mapping-staging.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T00:15:09+08:00",
+  "status": "STAGED_NOT_INSTALLED",
+  "authorization": "Upload and stage the exact candidate artifacts, verify hashes, and do not install or activate anything.",
+  "artifact_manifest": {
+    "path": "docs/evidence/issue33/20260828/real-acceptance-v2/source-runs/no-dock-manual-mapping-artifact-manifest.json",
+    "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847"
+  },
+  "targets": {
+    "android_app": {
+      "serial": "172.22.205.58:38779",
+      "model": "PHK110",
+      "stage_directory": "/data/local/tmp/issue33-no-dock-manual-mapping-candidate-v1",
+      "staged_files": {
+        "duole-engineering-app-issue33-no-dock-debug-arm64.apk": {
+          "sha256": "eaabea4dfbd2d665ced5927f3c37bd943786cd4633029fed442317845dc22838",
+          "size_bytes": 96345869,
+          "mode": "0444"
+        },
+        "no-dock-manual-mapping-artifact-manifest.json": {
+          "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847",
+          "size_bytes": 8480,
+          "mode": "0444"
+        }
+      },
+      "installed_package": {
+        "package_name": "com.duole.engineering.duole_engineering_app",
+        "base_apk_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+        "version_code": 1,
+        "version_name": "0.1.0",
+        "last_update_time": "2026-08-28 21:59:09",
+        "changed_by_staging": false
+      }
+    },
+    "navigation_board": {
+      "host": "ztl@172.22.205.19",
+      "stage_directory": "/home/ztl/duole-issue31-nav-ws/incoming/candidates/issue33-no-dock-manual-mapping-candidate-v1",
+      "staged_files": {
+        "issue33-no-dock-navigation-board-candidate-v1.tar.gz": {
+          "sha256": "f921b179237405d4ab6a32091210894855ef65ea6d31b100095c8c1e4ff49c73",
+          "size_bytes": 32649,
+          "mode": "0444",
+          "archive_regular_files": 14
+        },
+        "no-dock-manual-mapping-artifact-manifest.json": {
+          "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847",
+          "size_bytes": 8480,
+          "mode": "0444"
+        }
+      },
+      "service_state": {
+        "duole-navigation-stack.service": "active",
+        "duole-mapping-manual.service": "inactive",
+        "duole-mapping-autonomous.service": "inactive",
+        "duole-manual-mapping-runtime.service": "inactive",
+        "navigation_main_pid": 1025114,
+        "navigation_result": "success",
+        "navigation_active_enter_timestamp_monotonic": 552403095697
+      },
+      "formal_runtime_sha256": {
+        "agent.py": "b6230dd833ca6183e25ebd27c26c1d37acc36f66bbf000a4ec02a7840f77e886",
+        "manual_mapping_map_store.py": "7a39ea6ad7f1f27101bab8e00509cb8e0dbc591d89cbc6f6ec162bcafd562baa",
+        "manual_mapping_slam_runtime.py": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d",
+        "ros_manual_mapping_runtime.py": "800bc3792d4732f74614505182691eedac738e08f938aeb206f2a1efa4f369b4"
+      }
+    },
+    "gateway_host": {
+      "host": "172.22.205.44",
+      "stage_directory": "/home/ztl/duole-workspace/incoming/candidates/issue33-no-dock-manual-mapping-candidate-v1",
+      "staged_files": {
+        "issue33-no-dock-gateway-candidate-v1.tar.gz": {
+          "sha256": "e2c2b7fd2f15944ffd364bad7ec8285c3645b836b1692108f43f9326173bea3e",
+          "size_bytes": 23817,
+          "mode": "0444",
+          "archive_regular_files": 3
+        },
+        "no-dock-manual-mapping-artifact-manifest.json": {
+          "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847",
+          "size_bytes": 8480,
+          "mode": "0444"
+        }
+      },
+      "tls_gateway_port_8443_listening": false
+    }
+  },
+  "verification": {
+    "all_staged_artifact_hashes_match_manifest": true,
+    "archives_extracted": false,
+    "apk_installed": false,
+    "navigation_board_runtime_modified": false,
+    "gateway_runtime_activated": false,
+    "services_restarted": false,
+    "services_switched": false,
+    "runtime_or_ros_started": false,
+    "robot_motion_executed": false,
+    "capability_marker_created": false
+  }
+}

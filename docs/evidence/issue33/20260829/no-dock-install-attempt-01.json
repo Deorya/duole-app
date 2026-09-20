@@ -1,0 +1,61 @@
+{
+  "schema_version": "duole.issue33.no-dock-install-attempt.v1",
+  "issue": 33,
+  "created_at": "2026-08-29T00:24:15+08:00",
+  "status": "BLOCKED_BY_CANDIDATE_SOURCE_HASH_INCONSISTENCY",
+  "authorized_scope": "Install the exact staged APK and navigation-board repair without activation, restart, service switch, Gateway/Runtime/ROS start, or robot motion.",
+  "authorized_artifact_manifest": {
+    "path": "docs/evidence/issue33/20260828/real-acceptance-v2/source-runs/no-dock-manual-mapping-artifact-manifest.json",
+    "sha256": "d6082b2c38aa1459e55327e244fb19a5c0e17ced575cdfaa9749dd7e95922847"
+  },
+  "attempt": {
+    "host": "ztl@172.22.205.19",
+    "command": "sudo upgrade-issue33-navigation-board-manual-mapping-runtime --repair-no-dock-manual-mapping",
+    "result": "failed_before_formal_runtime_write",
+    "error": "unexpected sha256 for incoming cli.py: expected cbfd46e7d96955e0c665a2b2f7c39091a3791f754b5afa244b528bc25576845f, got 306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a"
+  },
+  "root_cause": {
+    "upgrade_script_sha256": "31268ff9b686ae1ad067c76f75ff5c8d6c9b7643193603f8f538b8bfa85c317c",
+    "issue33_source_sha_cli": "cbfd46e7d96955e0c665a2b2f7c39091a3791f754b5afa244b528bc25576845f",
+    "persistent_session_cli_sha": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "candidate_cli_sha": "306097da8fe40ae9935acaf6ca93f8857ab038bbd3203ce6b6c2765477f47a3a",
+    "analysis": "verify_source_bundle uses the stale ISSUE33_SOURCE_SHA entry, while the repair's formal-target verification already explicitly expects PERSISTENT_SESSION_CLI_SHA. The packaged current source is therefore correct for the deployed composition but rejected by the stale source-bundle binding."
+  },
+  "navigation_board_after_failure": {
+    "formal_runtime_sha256": {
+      "agent.py": "b6230dd833ca6183e25ebd27c26c1d37acc36f66bbf000a4ec02a7840f77e886",
+      "manual_mapping_map_store.py": "7a39ea6ad7f1f27101bab8e00509cb8e0dbc591d89cbc6f6ec162bcafd562baa",
+      "manual_mapping_slam_runtime.py": "4f52ea32d5bae70339c5ddb11a2dc58d8d66cb3b8dbfe45f4341d1015785578d",
+      "ros_manual_mapping_runtime.py": "800bc3792d4732f74614505182691eedac738e08f938aeb206f2a1efa4f369b4"
+    },
+    "repair_backup_created": false,
+    "repair_receipt_created": false,
+    "source_bundle_installed": true,
+    "preinstall_source_backup_regular_files": 14,
+    "service_state": {
+      "duole-navigation-stack.service": "active",
+      "duole-mapping-manual.service": "inactive",
+      "duole-mapping-autonomous.service": "inactive",
+      "duole-manual-mapping-runtime.service": "inactive",
+      "navigation_main_pid": 1025114,
+      "navigation_result": "success",
+      "navigation_active_enter_timestamp_monotonic": 552403095697
+    }
+  },
+  "android_after_failure": {
+    "candidate_apk_installed": false,
+    "installed_base_apk_sha256": "c7a17a49e3e69e8b03cb6d06fab4ba767eac0d767f0a2687ff2e423acf402bae",
+    "last_update_time": "2026-08-28 21:59:09"
+  },
+  "not_performed": [
+    "formal navigation-board runtime replacement",
+    "APK installation",
+    "Gateway installation or activation",
+    "service restart",
+    "service switch",
+    "Runtime or ROS start",
+    "robot motion",
+    "capability marker creation"
+  ],
+  "required_next_change": "Add a regression that binds the no-dock source bundle cli.py to PERSISTENT_SESSION_CLI_SHA, minimally repair the upgrade script, rebuild and re-hash the navigation-board bundle and artifact manifest, restage the new exact files, and obtain authorization for the new hashes before retrying installation."
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "issue": 33,
+  "kind": "hil_attempt_diagnostic",
+  "scenario": "app_background",
+  "attempt_id": "app-background-01",
+  "diagnosed_at": "2026-08-28T09:49:16+08:00",
+  "outcome": "preflight_failed_no_motion",
+  "runner_error": "MAPPING_BOARD_START_FAILED",
+  "motion_phase_entered": false,
+  "control_lease_created": false,
+  "nonzero_intent_sent": false,
+  "unverified_save_executed": false,
+  "pending_outputs_created": false,
+  "post_cleanup_services": {
+    "duole-mapping-manual.service": "inactive",
+    "duole-manual-mapping-runtime.service": "inactive",
+    "duole-navigation-stack.service": "active"
+  },
+  "formal_mapping_safety": {
+    "active_task_owners": [],
+    "available_storage_bytes": 64624140288,
+    "battery_percent": 99,
+    "charging_confirmed": false,
+    "chassis_stationary": true,
+    "collision_protection_ready": false,
+    "docked": false,
+    "required_storage_bytes": 1073741824,
+    "sensors_ready": true,
+    "stop_chain_ready": false,
+    "version_compatible": true
+  },
+  "battery_observation": {
+    "observed_at": "2026-08-28T09:49:59+08:00",
+    "present": true,
+    "percentage": 0.9929999709129333,
+    "power_supply_status": 3,
+    "current": 0.0
+  },
+  "deployed_motion_topology": {
+    "approved_input": "/motion/selected_cmd_vel",
+    "approved_input_publisher": "motion_arbiter",
+    "approved_input_subscriber": "collision_monitor",
+    "safe_output": "/cmd_vel_safe",
+    "safe_output_publisher": "collision_monitor",
+    "safe_output_subscriber": "can_driver",
+    "legacy_input_present": false
+  },
+  "root_causes": [
+    "battery reported NOT_CHARGING instead of a charging status",
+    "RosMappingReadinessProbe checked only legacy /cmd_vel while the active navigation topology uses /motion/selected_cmd_vel"
+  ],
+  "candidate_fix": {
+    "ros_mapping_safety_sha256": "2b72b5cdf11be28f893ed649b1112bd228f3bc91e8316a5271553716b54c2fc7",
+    "upgrader_sha256": "a6a40c7bb5c2f2a2279fd60517266677159c8c76c07e7b777d79c7bffb0aa546",
+    "repair_mode": "--repair-mapping-safety-topology",
+    "tests": "55 navigation-board/systemd tests passed; 8 REAL manual-mapping tests passed",
+    "deployed": true,
+    "deployment_receipt": "issue33 mapping safety topology repaired; no service state was changed",
+    "deployed_sha256": "2b72b5cdf11be28f893ed649b1112bd228f3bc91e8316a5271553716b54c2fc7"
+  }
+}
