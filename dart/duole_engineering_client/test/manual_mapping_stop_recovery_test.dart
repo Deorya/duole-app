@@ -26,6 +26,16 @@ void main() {
       );
     }
   }
+
+  final overdueStop = ManualMappingSession.fromJson({
+    ..._session(controlState: 'stopped', stopConfirmed: true),
+    'stop_requested_at': '2026-09-30T14:07:35.060406Z',
+    'stop_confirmed_at': '2026-09-30T14:07:36.457266Z',
+    'stop_latency_ms': 1397,
+  });
+  if (manualMappingControlCanResume(overdueStop)) {
+    throw StateError('stop over 1 s must keep control disabled');
+  }
 }
 
 Map<String, Object?> _session({

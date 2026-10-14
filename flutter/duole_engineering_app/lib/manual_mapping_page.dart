@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import 'manual_mapping_joystick_state.dart';
 import 'manual_mapping_map_view.dart';
+import 'mapping_error_text.dart';
 
 class ManualMappingPage extends StatefulWidget {
   const ManualMappingPage({
@@ -36,6 +37,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   Timer? _intentTimer;
   Timer? _statusTimer;
   Object? _error;
+  Object? _commandError;
   String? _controlErrorCode;
   String? _leaseId;
   int? _leaseEpoch;
@@ -46,6 +48,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   var _statusRefreshInFlight = false;
   var _visualizationRefreshInFlight = false;
   var _reconnectInProgress = false;
+  var _sessionControlForDevelopment = false;
   String? _displayBlockedReason;
   var _showLaser = true;
   var _showTrajectory = true;
@@ -97,13 +100,12 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   }
 
   Future<void> _refreshStatus() async {
-    if (_controlHasRefreshPriority || _statusRefreshInFlight) return;
+    if (_statusRefreshInFlight || _sessionEnded) return;
     _statusRefreshInFlight = true;
     try {
       final status = await widget.manager.getManualMappingSession(
         widget.sessionId,
       );
-      if (_controlHasRefreshPriority) return;
       _applySession(status.data);
     } on Object {
       // WSS remains the control safety boundary; a transient read miss does
@@ -116,7 +118,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   Future<void> _refreshVisualization() async {
     final manager = widget.manager;
     if (manager is! ManualMappingVisualizationManager ||
-        _controlHasRefreshPriority ||
+        _sessionEnded ||
         _visualizationRefreshInFlight) {
       return;
     }
@@ -127,9 +129,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         widget.sessionId,
       );
       final candidate = response.data;
-      if (!mounted ||
-          _controlHasRefreshPriority ||
-          candidate.sessionId != widget.sessionId) {
+      if (!mounted || candidate.sessionId != widget.sessionId) {
         return;
       }
       final current = _visualization;
@@ -143,14 +143,8 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     }
   }
 
-  bool get _controlHasRefreshPriority =>
-      _joystick.controlGestureEligible &&
-      !_awaitingStop &&
-      _leaseId != null &&
-      _leaseEpoch != null;
-
   void _handleFrame(ManualMappingServerFrame frame) {
-    if (!mounted) return;
+    if (!mounted || _sessionEnded) return;
     ManualMappingSession? suppliedSession;
     if (frame.session != null) {
       try {
@@ -162,6 +156,10 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     }
     switch (frame.type) {
       case 'hello':
+        setState(() {
+          _sessionControlForDevelopment =
+              frame.controlMode == 'session_development';
+        });
         if (suppliedSession != null) _applySession(suppliedSession);
       case 'control_granted':
         if (!_joystick.controlGestureEligible) {
@@ -183,6 +181,12 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       case 'intent_applied':
         setState(() => _displayBlockedReason = frame.blockedReason);
         if (suppliedSession != null) _applySession(suppliedSession);
+      case 'intent_discarded':
+        if (frame.acceptedSeq == _seq) {
+          // Replace stale input with the current stick position immediately;
+          // if newer input was already sent, keep the regular timer cadence.
+          unawaited(_sendCurrentIntent());
+        }
       case 'stop_pending':
         setState(() {
           _joystick.controlUnavailable();
@@ -222,7 +226,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
   }
 
   void _handleControlFailure(Object error, {String? errorCode}) {
-    if (!mounted || _lifecycleTerminated) return;
+    if (!mounted || _lifecycleTerminated || _sessionEnded) return;
     final failedConnection = _connection;
     _connection = null;
     final failedSubscription = _subscription;
@@ -238,7 +242,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
 
   void _handleConnectionClosed() {
     _intentTimer?.cancel();
-    if (!mounted || _lifecycleTerminated) return;
+    if (!mounted || _lifecycleTerminated || _sessionEnded) return;
     setState(() {
       _joystick.controlUnavailable();
       _awaitingStop = true;
@@ -248,18 +252,30 @@ class _ManualMappingPageState extends State<ManualMappingPage>
     if (_reconnectInProgress) return;
     _reconnectInProgress = true;
     unawaited(
-      _reconnectWithinWindow().whenComplete(() => _reconnectInProgress = false),
+      _reconnectWithinWindow().whenComplete(() {
+        if (mounted) {
+          setState(() => _reconnectInProgress = false);
+        } else {
+          _reconnectInProgress = false;
+        }
+      }),
     );
   }
 
   Future<void> _reconnectWithinWindow() async {
     final deadline = DateTime.now().add(const Duration(seconds: 3));
-    while (mounted && DateTime.now().isBefore(deadline)) {
+    for (var attempt = 0;
+        attempt < 12 &&
+            mounted &&
+            !_sessionEnded &&
+            !_lifecycleTerminated &&
+            DateTime.now().isBefore(deadline);
+        attempt += 1) {
       try {
         final replacement = await widget.controlTransport.connect(
           widget.sessionId,
         );
-        if (!mounted) {
+        if (!mounted || _sessionEnded || _lifecycleTerminated) {
           await replacement.close();
           return;
         }
@@ -376,8 +392,11 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         _ => false,
       };
 
+  bool get _stopSafetyExceeded => (_session?.stopLatencyMs ?? 0) > 1000;
+
   Future<void> _command(ManualMappingAction action) async {
     try {
+      if (mounted) setState(() => _commandError = null);
       if (action != ManualMappingAction.finishCollection) {
         await _endPress(ManualMappingReleaseReason.pointerCancel);
       }
@@ -387,6 +406,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       );
       _applySession(response.data);
     } catch (error) {
+      if (mounted) setState(() => _commandError = error);
       _handleControlFailure(error);
     }
   }
@@ -399,8 +419,9 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       );
       return;
     }
-    final controlCanResume =
-        _connection != null && manualMappingControlCanResume(candidate);
+    final controlCanResume = _connection != null &&
+        (!_joystick.controlGestureEligible || _awaitingStop) &&
+        manualMappingControlCanResume(candidate);
     final current = _session;
     if (current != null) {
       if (candidate.revision < current.revision) return;
@@ -414,6 +435,7 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       }
     }
     final terminal = _isTerminalPhase(candidate.phase);
+    final stopSafetyExceeded = (candidate.stopLatencyMs ?? 0) > 1000;
     if (terminal || controlCanResume) {
       _intentTimer?.cancel();
       _intentTimer = null;
@@ -423,8 +445,15 @@ class _ManualMappingPageState extends State<ManualMappingPage>
       _displayBlockedReason = candidate.blockedReason;
       if (terminal) {
         _joystick.terminate();
+        _commandError = null;
+        _error = null;
+        _controlErrorCode = null;
       } else if (controlCanResume) {
         _joystick.controlRecovered();
+      }
+      if (stopSafetyExceeded && !terminal) {
+        _joystick.controlUnavailable();
+        _awaitingStop = true;
       }
       if (terminal || controlCanResume) {
         _leaseId = null;
@@ -436,6 +465,16 @@ class _ManualMappingPageState extends State<ManualMappingPage>
         }
       }
     });
+    if (terminal) {
+      _statusTimer?.cancel();
+      _statusTimer = null;
+      final connection = _connection;
+      final subscription = _subscription;
+      _connection = null;
+      _subscription = null;
+      unawaited(subscription?.cancel());
+      unawaited(connection?.close());
+    }
   }
 
   @override
@@ -492,6 +531,13 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Text('手动建图状态暂时不可用'),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                            mappingErrorText(_error!),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         OutlinedButton(
                           key: const Key('manual-mapping-retry'),
@@ -675,12 +721,32 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                     textAlign: TextAlign.center,
                   ),
                   if (_awaitingStop)
-                    const Text(
-                      '等待停止确认',
+                    Text(
+                      _stopSafetyExceeded
+                          ? '停车确认耗时 ${session.stopLatencyMs} ms，超过 1000 ms 安全上限。请立即停止并保存，检查底盘停车性能。'
+                          : '等待停止确认',
                       textAlign: TextAlign.center,
+                    ),
+                  if (_sessionControlForDevelopment &&
+                      !_sessionEnded &&
+                      !_lifecycleTerminated &&
+                      _connection == null)
+                    TextButton(
+                      key: const Key('manual-mapping-reconnect-control'),
+                      onPressed:
+                          _reconnectInProgress ? null : _handleConnectionClosed,
+                      child: Text(_reconnectInProgress ? '连接恢复中…' : '重新连接控制'),
                     ),
                   const SizedBox(height: 16),
                   if (!_sessionEnded) _terminalActions(session),
+                  if (_commandError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        '建图操作未得到成功确认：${mappingErrorText(_commandError!)}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   if (_error != null || _controlErrorCode != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
@@ -895,7 +961,7 @@ String _mappingQualityLabel(MapQuality quality) =>
       : delta;
   return (
     linear: (-normalized.dy / radius).clamp(-1.0, 1.0),
-    angular: (normalized.dx / radius).clamp(-1.0, 1.0),
+    angular: (-normalized.dx / radius).clamp(-1.0, 1.0),
     knobOffset: normalized,
   );
 }

@@ -12,6 +12,7 @@ enum ManualMappingReleaseReason { pointerUp, pointerOutside, pointerCancel }
 
 bool manualMappingControlCanResume(ManualMappingSession session) =>
     session.stopConfirmed &&
+    (session.stopLatencyMs == null || session.stopLatencyMs! <= 1000) &&
     switch (session.controlState) {
       ManualMappingControlState.idle ||
       ManualMappingControlState.stopped =>
@@ -169,6 +170,7 @@ class _ManualMappingSocketConnection implements ManualMappingControlConnection {
   final DateTime Function() _clock;
   final Duration _closeTimeout;
   Duration? _serverClockOffset;
+  var _sessionControlForDevelopment = false;
   @override
   late final Stream<ManualMappingServerFrame> frames;
 
@@ -219,11 +221,23 @@ class _ManualMappingSocketConnection implements ManualMappingControlConnection {
 
   ManualMappingServerFrame _decodeAndCalibrateServerClock(dynamic raw) {
     final frame = _decodeServerFrame(raw);
-    _serverClockOffset = frame.serverTime.toUtc().difference(_clock().toUtc());
+    if (frame.type == 'hello') {
+      _sessionControlForDevelopment =
+          frame.controlMode == 'session_development';
+    }
+    if (!_sessionControlForDevelopment) {
+      _serverClockOffset =
+          frame.serverTime.toUtc().difference(_clock().toUtc());
+    }
     return frame;
   }
 
   DateTime _serverAlignedNow() {
+    if (_sessionControlForDevelopment) {
+      // Timestamp fields remain wire-compatible diagnostic metadata. Motion
+      // activity in this opt-in mode is measured at the receiver, not by ACKs.
+      return _clock().toUtc();
+    }
     final offset = _serverClockOffset;
     if (offset == null) {
       throw StateError('manual_mapping_server_time_unavailable');

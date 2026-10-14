@@ -1,0 +1,24 @@
+{
+  "kind": "guard_baseline_diagnostic",
+  "operation_id": "mapping_a7fef4f4e33c4303b3f4d83ca4eae7fa",
+  "started_at": "2026-09-28T09:15:38.069334+00:00",
+  "app_mapping_started": false,
+  "safety_before": {
+    "docked": false,
+    "battery_percent": 93,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "available_storage_bytes": 63210684416,
+    "required_storage_bytes": 1073741824,
+    "version_compatible": true,
+    "charging_confirmed": false,
+    "chassis_stationary": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true
+  },
+  "probe_returncode": 0,
+  "probe_stdout": "{\"kind\": \"guard_baseline_diagnostic\", \"evidence_class\": \"HIL_COMPONENT\", \"cases\": [{\"input\": [1.0, 0.0], \"max_effective_linear_mps\": 0.2, \"max_effective_angular_radps\": 0.0, \"wheel_peak_linear_mps\": 0.2091252601636628, \"wheel_peak_angular_radps\": 0.10275352812819223, \"stop\": {\"state\": \"stopped\", \"stop_confirmed\": true, \"reason\": \"pointer_up\", \"session_id\": \"manual_mapping_fb9f5a15ff4742d9baed1128232ca21c\", \"lease_id\": \"mapping_lease_0ae2e70f82b84ec2805a45b8d0b9bab7\", \"epoch\": 1, \"stop_requested_at\": \"2026-09-28T09:16:15.515039+00:00\", \"stop_confirmed_at\": \"2026-09-28T09:16:16.345723+00:00\", \"stop_latency_ms\": 831}}, {\"input\": [-1.0, 0.0], \"max_effective_linear_mps\": 0.2, \"max_effective_angular_radps\": 0.0, \"wheel_peak_linear_mps\": 0.20307688083927775, \"wheel_peak_angular_radps\": 0.09692579574147696, \"stop\": {\"state\": \"stopped\", \"stop_confirmed\": true, \"reason\": \"pointer_up\", \"session_id\": \"manual_mapping_0bd5bc7cc986464aaa6b43833bf6b1af\", \"lease_id\": \"mapping_lease_220733cfe0ed4cbf8a94ea5c6f25ceb4\", \"epoch\": 1, \"stop_requested_at\": \"2026-09-28T09:16:17.572158+00:00\", \"stop_confirmed_at\": \"2026-09-28T09:16:18.469026+00:00\", \"stop_latency_ms\": 897}}, {\"input\": [0.0, 1.0], \"max_effective_linear_mps\": 0.0, \"max_effective_angular_radps\": 0.9, \"wheel_peak_linear_mps\": 0.01626539561917047, \"wheel_peak_angular_radps\": 0.9002257465028024, \"stop\": {\"state\": \"stopped\", \"stop_confirmed\": true, \"reason\": \"pointer_up\", \"session_id\": \"manual_mapping_67ad7b9821cf4e67a1ff946438897d06\", \"lease_id\": \"mapping_lease_2b7ab49d5d2548fb99d285a285931527\", \"epoch\": 1, \"stop_requested_at\": \"2026-09-28T09:16:19.705547+00:00\", \"stop_confirmed_at\": \"2026-09-28T09:16:20.550516+00:00\", \"stop_latency_ms\": 845}}, {\"input\": [0.0, -1.0], \"max_effective_linear_mps\": 0.0, \"max_effective_angular_radps\": 0.9, \"wheel_peak_linear_mps\": 0.012975763660253478, \"wheel_peak_angular_radps\": 0.9136416435471613, \"stop\": {\"state\": \"stopped\", \"stop_confirmed\": true, \"reason\": \"pointer_up\", \"session_id\": \"manual_mapping_90c67d7744e145c9b0a1521edf384537\", \"lease_id\": \"mapping_lease_d4574212689a4d68ba7f948ecb3b4e58\", \"epoch\": 1, \"stop_requested_at\": \"2026-09-28T09:16:21.792373+00:00\", \"stop_confirmed_at\": \"2026-09-28T09:16:22.525665+00:00\", \"stop_latency_ms\": 733}}], \"passed\": true, \"unarmed_zero\": {\"passed\": true, \"sample_count\": 1}}\n",
+  "probe_stderr": "",
+  "passed": true,
+  "restored_board_mode": true
+}

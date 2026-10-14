@@ -6,6 +6,13 @@ import 'package:duole_engineering_client/connection_identity.dart';
 import 'package:duole_engineering_client/manual_mapping_control.dart';
 
 Future<void> main() async {
+  await _exerciseTransport(sessionControlForDevelopment: false);
+  await _exerciseTransport(sessionControlForDevelopment: true);
+}
+
+Future<void> _exerciseTransport({
+  required bool sessionControlForDevelopment,
+}) async {
   final directory = Directory.systemTemp.createTempSync('duole-manual-wss-');
   final certificate = File('${directory.path}/server-cert.pem');
   final privateKey = File('${directory.path}/server-key.pem');
@@ -35,7 +42,10 @@ Future<void> main() async {
         throw StateError('manual mapping WSS handshake binding lost');
       }
       final socket = await WebSocketTransformer.upgrade(request);
-      socket.add(jsonEncode(_serverFrame('hello')));
+      socket.add(jsonEncode({
+        ..._serverFrame('hello'),
+        if (sessionControlForDevelopment) 'control_mode': 'session_development',
+      }));
       await for (final raw in socket) {
         final frame =
             (jsonDecode(raw as String) as Map).cast<String, Object?>();
@@ -49,7 +59,7 @@ Future<void> main() async {
         } else if (frame['type'] == 'intent') {
           socket.add(jsonEncode(_serverFrame(
             'intent_applied',
-            acceptedSeq: 1,
+            acceptedSeq: frame['seq']! as int,
             status: 'applied',
             effectiveLinear: 0.5,
             effectiveAngular: -0.25,
@@ -84,7 +94,22 @@ Future<void> main() async {
       linear: 0.5,
       angular: -0.25,
     );
+    // Decode the reply after a long local scheduling/return-path pause.
+    // Development control must not use that receipt to rewrite send timestamps.
+    if (sessionControlForDevelopment) {
+      clientNow = clientNow.add(const Duration(milliseconds: 500));
+    }
     await iterator.moveNext();
+    if (sessionControlForDevelopment) {
+      await connection.sendIntent(
+        leaseId: granted.leaseId!,
+        leaseEpoch: granted.leaseEpoch!,
+        seq: 2,
+        linear: 0.5,
+        angular: -0.25,
+      );
+      await iterator.moveNext();
+    }
     await connection.release(
       leaseId: granted.leaseId!,
       leaseEpoch: granted.leaseEpoch!,
@@ -93,14 +118,21 @@ Future<void> main() async {
     await iterator.moveNext();
     await connection.close();
 
-    if (received.map((frame) => frame['type']).join(',') !=
-            'acquire,intent,release' ||
+    final expectedTypes = sessionControlForDevelopment
+        ? 'acquire,intent,intent,release'
+        : 'acquire,intent,release';
+    final expectedFirstSentAt = sessionControlForDevelopment
+        ? '2026-08-27T05:59:59.315Z'
+        : '2026-08-27T06:00:00.025Z';
+    if (received.map((frame) => frame['type']).join(',') != expectedTypes ||
         received[1]['ttl_ms'] != 200 ||
         received[1]['linear'] != 0.5 ||
         received[1]['angular'] != -0.25 ||
         DateTime.parse(received[1]['sent_at']! as String) !=
-            DateTime.parse('2026-08-27T06:00:00.025Z') ||
-        received[2]['reason'] != 'pointer_up' ||
+            DateTime.parse(expectedFirstSentAt) ||
+        (sessionControlForDevelopment &&
+            DateTime.parse(received[2]['sent_at']! as String) != clientNow) ||
+        received.last['reason'] != 'pointer_up' ||
         iterator.current.type != 'control_stopped') {
       throw StateError(
         'manual mapping WSS frames or trusted server clock semantics lost',

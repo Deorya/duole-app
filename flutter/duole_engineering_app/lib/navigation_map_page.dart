@@ -7,6 +7,7 @@ import 'package:duole_engineering_client/manual_mapping_control.dart';
 import 'package:flutter/material.dart';
 
 import 'emergency_stop_control.dart';
+import 'mapping_error_text.dart';
 import 'manual_mapping_page.dart';
 
 typedef MapChallengeScanner = Future<String?> Function(
@@ -329,6 +330,11 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('建图准备状态暂时不可用'),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(mappingErrorText(_error!),
+                        textAlign: TextAlign.center),
+                  ),
                   const SizedBox(height: 12),
                   OutlinedButton(onPressed: _load, child: const Text('重试')),
                 ],

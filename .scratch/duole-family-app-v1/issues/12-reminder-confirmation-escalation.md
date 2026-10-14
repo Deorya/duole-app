@@ -2,9 +2,9 @@
 
 Status: ready-for-human
 
-Implementation: paused-after-snooze-fix-2026-09-20
+Implementation: complete-2026-09-20
 
-Acceptance: PARTIAL_HIL — 完成确认链路已通过真实机器人和 Android 验收；自然语言稍后提醒缺陷已完成软件修复，尚待重新 HIL。
+Acceptance: accepted-2026-09-20
 
 Type: AFK
 
@@ -109,3 +109,27 @@ TDD 已先复现 `owns_pending=False` 的失败，再扩展结果解析：忽略
 保留测试日程 `schedule-b9de712010b54ac4b277988e2eed1b66`（完成路径）与
 `schedule-2855df97d48a47fcb00049148a96b2dc`（稍后路径），恢复时需先核对实际 occurrence 状态再处理，
 不得假定停机期间发生过重试或升级。
+
+### 2026-09-20 最终 HIL 与验收关闭
+
+已从上述暂停点继续并完成真实机器人与 Android 验收。真实语音先后发现中文数字和礼貌前缀两个
+解析缺口，均以 TDD 修复后重新构建隔离候选并复测。最终真人说“5 分钟后再提醒我”，parent
+occurrence 正确进入 `snoozed`，生成保留 parent/child 关系的 5 分钟 child，主 Schedule 的
+revision 与原时间保持不变；child 到点只播报一次，真人说“跳过这次”后进入 `skipped`。
+
+同一提醒首次送达、5 分钟确认重试和 15 分钟未确认升级均在真实时间推进中通过。产品会话多次
+重启没有重复记录已成功播报动作。升级事件进入统一 event projection，Android 断线重连后补拉
+到最新序列；同一 source/revision 重复投影仍只有一个事件。App 详情页显示结构化 outcome、时区、
+策略、时间线和稍后关系，没有显示原始 ASR。
+
+本轮同时完成音频调整：reSpeaker 输入在进入唤醒词和云 ASR 前应用 3 倍饱和增益；扬声器 PCM
+设为 `97%`（`-2 dB`），用户现场确认音量合适，并已固化为产品语音入口默认值。相关软件回归为
+Issue 12 `50 passed`、reSpeaker/语音 `87 passed`、板端入口 `54 passed`；收尾合并重跑为
+`191 passed, 2 warnings`，warning 均为既有 `pkg_resources` 弃用提示。
+
+三个测试 Schedule 已经正式 workflow 删除；delivery ledger 无待处理 occurrence。Schedule、
+delivery ledger、projection 与 pairing 数据库完整性检查均为 `ok`。Runtime 和 Gateway 已停止，
+`8444` 无监听且 Runtime socket 无持有进程。完整脱敏证据见
+[2026-09-20 HIL 记录](../../../docs/evidence/issue12/20260920/README.md)。
+
+Issue 12 的功能、软件验证和真实设备验收条件均已关闭；代码和证据保持未提交，供维护者审阅。

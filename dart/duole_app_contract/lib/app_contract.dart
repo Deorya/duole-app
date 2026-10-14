@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND.
 
-// contract-sha256: 78358ea2d219902b2e33ebbbe70c39cf39d05145b2484c58108ddfaa451e692e
+// contract-sha256: 396c7aa727f137a95dc5cb1a1931697e3bc398de76b889f1c46db3635ea6a3df
 
 Object? _required(Map<String, Object?> json, String key, String path) {
   if (!json.containsKey(key)) {
@@ -3138,9 +3138,6 @@ class ManualMappingSession {
     if (result.stopLatencyMs != null && (result.stopLatencyMs! < 0)) {
       throw FormatException('$path.stop_latency_ms must be at least 0');
     }
-    if (result.stopLatencyMs != null && (result.stopLatencyMs! > 1000)) {
-      throw FormatException('$path.stop_latency_ms must be at most 1000');
-    }
     if (result.revision < 1) {
       throw FormatException('$path.revision must be at least 1');
     }
@@ -3682,6 +3679,7 @@ class ManualMappingReconnectFrame {
 class ManualMappingServerFrame {
   final String type;
   final DateTime serverTime;
+  final String? controlMode;
   final Map<String, Object?>? session;
   final String? leaseId;
   final int? leaseEpoch;
@@ -3695,6 +3693,7 @@ class ManualMappingServerFrame {
   const ManualMappingServerFrame({
     required this.type,
     required this.serverTime,
+    required this.controlMode,
     required this.session,
     required this.leaseId,
     required this.leaseEpoch,
@@ -3707,10 +3706,11 @@ class ManualMappingServerFrame {
   });
 
   factory ManualMappingServerFrame.fromJson(Map<String, Object?> json, {String path = r'$'}) {
-    _rejectUnknownKeys(json, const {'type', 'server_time', 'session', 'lease_id', 'lease_epoch', 'accepted_seq', 'status', 'effective_linear', 'effective_angular', 'blocked_reason', 'error_code'}, path);
+    _rejectUnknownKeys(json, const {'type', 'server_time', 'control_mode', 'session', 'lease_id', 'lease_epoch', 'accepted_seq', 'status', 'effective_linear', 'effective_angular', 'blocked_reason', 'error_code'}, path);
     final result = ManualMappingServerFrame(
       type: _asString(_required(json, 'type', path), '$path.type'),
       serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      controlMode: json.containsKey('control_mode') ? _asString(_required(json, 'control_mode', path), '$path.control_mode') : null,
       session: _required(json, 'session', path) == null ? null : _asMap(_required(json, 'session', path), '$path.session'),
       leaseId: _required(json, 'lease_id', path) == null ? null : _asString(_required(json, 'lease_id', path), '$path.lease_id'),
       leaseEpoch: _required(json, 'lease_epoch', path) == null ? null : _asInt(_required(json, 'lease_epoch', path), '$path.lease_epoch'),
@@ -3721,8 +3721,11 @@ class ManualMappingServerFrame {
       blockedReason: _required(json, 'blocked_reason', path) == null ? null : _asString(_required(json, 'blocked_reason', path), '$path.blocked_reason'),
       errorCode: _required(json, 'error_code', path) == null ? null : _asString(_required(json, 'error_code', path), '$path.error_code'),
     );
-    if (!const <Object?>["hello", "control_granted", "intent_applied", "stop_pending", "control_stopped", "control_reconnected", "error"].contains(result.type)) {
+    if (!const <Object?>["hello", "control_granted", "intent_applied", "intent_discarded", "stop_pending", "control_stopped", "control_reconnected", "error"].contains(result.type)) {
       throw FormatException('$path.type contains an unknown enum value');
+    }
+    if (result.controlMode != null && (!const <Object?>["lease", "session_development"].contains(result.controlMode!))) {
+      throw FormatException('$path.control_mode contains an unknown enum value');
     }
     if (result.leaseId != null && (!RegExp(r'^mapping_lease_[0-9a-f]{32}$').hasMatch(result.leaseId!))) {
       throw FormatException('$path.lease_id has an invalid format');
@@ -3733,7 +3736,7 @@ class ManualMappingServerFrame {
     if (result.acceptedSeq != null && (result.acceptedSeq! < 1)) {
       throw FormatException('$path.accepted_seq must be at least 1');
     }
-    if (result.status != null && (!const <Object?>["applied", "scaled", "blocked"].contains(result.status!))) {
+    if (result.status != null && (!const <Object?>["applied", "scaled", "blocked", "discarded"].contains(result.status!))) {
       throw FormatException('$path.status contains an unknown enum value');
     }
     if (result.effectiveLinear != null && (result.effectiveLinear! < -1)) {

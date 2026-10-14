@@ -113,6 +113,50 @@ void main() {
     expect(manager.safetyNoticeAcknowledged, isTrue);
   });
 
+  testWidgets('mapping start shows the robot failure and remediation',
+      (tester) async {
+    final manager = _ReadyMapManagementManager(
+      startError: EngineeringApiException(
+        statusCode: 503,
+        envelope: ErrorEnvelope(
+          schemaVersion: '1.0',
+          requestId: 'req_mapping_start_failure_01',
+          serverTime: DateTime.utc(2026, 8, 26, 8),
+          error: const AppError(
+            code: ErrorCode.capabilityUnavailable,
+            message: '建图控制服务暂不可用',
+            retriable: true,
+            remediation: '请检查导航板服务后重试',
+            details: {'reason_code': 'MAPPING_GUARD_UNAVAILABLE'},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MappingPreparationPage(
+          mode: MappingChallengePurpose.manualMapping,
+          manager: manager,
+          scanner: (context, purpose) async => '{"screen":"manual-mapping"}',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mapping-safety-ack')));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('mapping-scan-start')),
+      300,
+    );
+    await tester.ensureVisible(find.byKey(const Key('mapping-scan-start')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('mapping-scan-start')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('建图控制服务暂不可用'), findsOneWidget);
+    expect(find.textContaining('请检查导航板服务后重试'), findsOneWidget);
+  });
+
   testWidgets('task map keeps the emergency stop control visible',
       (tester) async {
     await tester.pumpWidget(
@@ -550,6 +594,9 @@ class _BlockedMapManagementManager implements MapManagementManager {
 }
 
 class _ReadyMapManagementManager implements MapManagementManager {
+  _ReadyMapManagementManager({this.startError});
+
+  final Object? startError;
   final events = <String>[];
   bool? safetyNoticeAcknowledged;
 
@@ -640,6 +687,7 @@ class _ReadyMapManagementManager implements MapManagementManager {
     required String authorizationToken,
     required bool safetyNoticeAcknowledged,
   }) async {
+    if (startError != null) throw startError!;
     this.safetyNoticeAcknowledged = safetyNoticeAcknowledged;
     events.add('start');
     return MappingOperationSuccessEnvelope.fromJson({

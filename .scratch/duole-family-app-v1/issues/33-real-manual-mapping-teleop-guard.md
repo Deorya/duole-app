@@ -1,10 +1,12 @@
-# 贯通 REAL 手动建图、TeleopGuard 与无桩安全闭环
+# 贯通 REAL 手动建图：先完成功能与操作稳定性，再补齐安全边界
 
-Status: ready-for-human
+Status: ready-for-agent
 
-Implementation: paused-2026-09-20
+Implementation: in-progress-2026-10-14 — v2012/phaseA9及板端5s静止握手修复已部署，运动watchdog仍1000ms；恢复按压期间500ms地图/状态刷新及停车后重试，终态退出控制。近路由器REAL复测5轮986条全applied，操控中地图/位姿投影持续更新，终态为用户放弃地图；首段监控缺口、屏幕体验反馈缺失且终态后一次重连被拒，保存闭环及碰撞恢复尚未验收。用户已结束测试，全部进程和建图服务已收尾
 
-Acceptance: PARTIAL_HIL — 已保存现有 REAL 手工建图实现、候选链和现场证据；完整停止矩阵与发布门仍未完成。
+Development priority: functionality-first-2026-09-27
+
+Acceptance: PARTIAL_HIL — v2012近路由器复测操控中地图/位姿投影更新、986条全applied，用户放弃地图并结束测试；首段监控缺口，实际屏幕体验、保存闭环与碰撞恢复尚未验收。完整功能闭环、重复稳定性、完整停止矩阵与发布门仍未通过。
 
 Category: enhancement
 
@@ -18,13 +20,56 @@ User stories covered: 187–195
 
 ## What to build
 
-把已验收的手动建图 MOCK 合同接入导航板真实 SLAM 和专用 `manual_mapping` TeleopGuard。
-用户在现场从安全空旷位置开始，以固定安全配置手动覆盖家庭区域，停车后保存未回桩验证地图。
-导航板记录本次会话起点，但不把它写成或批准为共享充电桩锚点。导航板是
-SLAM、速度限制、碰撞保护、地图保存、评分和车轮停车的唯一执行者；该切片不开放普通远程
-遥控，也不依赖实时视频。
+基于已有手动建图实现，优先完成 App 开始建图、摇杆控制、实时地图与位姿显示、松手停车、
+结束保存及地图资料库读取的正常功能闭环，并解决直接影响连续操作的卡顿、中断和保存问题。
+待功能能够稳定重复使用后，再补齐安全边界代码、异常场景验证和完整发布验收。
+
+导航板继续负责真实 SLAM、速度输出、地图保存、评分和停车；App 发送归一化控制意图并展示
+结果。无桩会话只记录 session-local start pose，不写入或批准共享 dock anchor；结果保存为
+未回桩验证地图且不自动启用。本工单不扩展普通远程遥控，也不依赖实时视频。
+
+## Current execution plan — 2026-09-27
+
+本节是用户确认的当前开发顺序，优先于下方历史 Agent Brief 中“先完成全部安全矩阵再推进
+功能”的排期。`Implementation` 和 `Acceptance` 仍记录已有实现与验证状态；本次仅修改工单，
+不表示代码已恢复开发、保护已禁用或新功能已验收。
+
+### 阶段 A：功能与操作体验优先
+
+- 当前唯一主线是“开始 → 操控 → 地图/位姿更新 → 松手停车 → 结束保存 → 读取保存结果”。
+  优先定位并修复这条链路上的第一个实际阻断点，再验证完整流程。
+- 速度暂用满杆线速度 `0.20 m/s`、角速度 `0.90 rad/s`，前后/左右对称；App 继续使用
+  `[-1, 1]` 归一化输入。用户后续再指定调整值，本轮不提高速度，也不增加更低的速度限制。
+- 按用户要求，功能开发阶段以松手停车作为保留的控制保护，碰撞保护与运动互斥列为暂时禁用的
+  代码目标；其余安全边界代码补充和完整异常矩阵放在阶段 B。这里记录的是待实施要求，
+  不是当前保护已经关闭或“没有风险”的结论。
+- 操作体验聚焦摇杆响应、地图刷新与控制互不阻塞、松手后再次按压可继续操作、可靠保存，
+  以及正常退出后能再次开始建图。
+- 运行直接覆盖本次功能变更的本地测试与必要集成验证；完整 `11 stop + 12 check`、证据归账、
+  发布 marker 和长稳不作为本地功能开发的前置任务。
+- 禁用运动互斥可能使其他运动源覆盖松手零速度，禁用碰撞保护会移除自动避障停车能力；
+  这些变更的真车运行条件需在对应现场操作前明确。本次文档更新不授权部署、激活或真实运动。
+
+### 阶段 B：安全边界补齐与正式验收
+
+阶段 A 功能稳定后，再补齐或恢复碰撞保护、运动互斥、断联/生命周期保护及其他必要安全边界，
+完成对应代码和验证。保留下方完整验收条件及最差真实停车延迟 `<=1 s` 的正式基线；
+阶段 A 功能通过不等同于完整 Issue 33 验收，也不自动生成 REAL capability marker。
 
 ## Acceptance criteria
+
+### 阶段 A：功能完成判据
+
+- [x] App 能开始一个手动建图会话，进入可操作的地图与摇杆页面，失败时显示实际原因。
+- [ ] 摇杆支持前进、后退、左右转向及连续调整，满杆速度采用 `0.20 m/s`、`0.90 rad/s`。
+- [ ] 松手后发出停车请求并展示确认结果；再次按压可正常继续，不残留上一次输入。
+- [ ] 建图期间持续显示本次会话的地图与机器人位姿；地图刷新不阻塞控制指令发送。
+- [ ] 用户结束建图后先停车、再保存，App 得到明确结果；保存失败不得显示成功。
+- [ ] 保存的地图可在地图资料库中读取，标为未回桩验证且不自动启用。
+- [ ] 同一功能流程可重复完成，正常结束后没有残留会话阻塞下一次建图；记录实际复现的
+  卡顿、中断或失败及其修复验证，不用单次成功宣称稳定。
+
+### 阶段 B：完整安全与发布判据（保留原验收基线）
 
 - [ ] 正式运行时以共享 TaskCoordinator 的独占 `manual_mapping` motion owner 启停 SLAM；网关和 App 不直接启动脚本、写地图文件或发布任何 `/cmd_vel`。
 - [ ] 导航板 TeleopGuard 接受 mapping-scoped lease/epoch/seq/TTL 归一化意图，应用固定对称线/角速度、加速度限制、唯一 velocity mux 和最终 collision monitor 路径。
@@ -70,6 +115,10 @@ SLAM、速度限制、碰撞保护、地图保存、评分和车轮停车的唯�
 ### 2026-08-27 Agent Brief
 
 ## Agent Brief
+
+> 历史 Agent Brief：保留当时设计和验收要求用于追溯。当前功能优先的实施顺序及阶段 A
+> 保护策略以本工单顶部 `Current execution plan — 2026-09-27` 为准；以下完整安全要求
+> 归入阶段 B，不作为阶段 A 本地功能开发的先决条件。
 
 **Category:** enhancement
 
@@ -774,3 +823,367 @@ Issue 33 按用户要求暂停。本轮只归档共享工作树中已经存在�
 恢复开发时应先核对已安装对象与仓库提交、阅读最新 evidence README 和 Provider 的
 `docs/interface_freeze/app_v1/issue_33_real_manual_mapping.md`，再按未勾选的 acceptance criteria
 确认新的现场范围与运动授权。既有证据不得替代尚未执行的停止场景、最差停车时延和完整发布门。
+
+### 2026-09-27 用户确认功能优先的开发顺序
+
+- 用户要求先完成手动建图功能和操作稳定性，再补充安全边界代码；功能阶段保留松手停车，
+  碰撞保护与运动互斥暂时禁用。用户随后明确速度先按 `0.20 m/s`、`0.90 rad/s`，后续再调整。
+- 已在工单顶部增加当前阶段计划及功能完成判据，将原完整安全验收要求保留为阶段 B，
+  不再把完整停止矩阵和发布证据整理作为本地功能开发的首项工作。
+- 本次仅更新工单，未修改实现、保护参数、候选、已安装对象或运行状态，未运行软件测试或
+  HIL/REAL；历史 `PARTIAL_HIL` 结论和未关闭的正式验收项保持不变。
+
+
+### 2026-09-28 App-only 接入与本版本基础抬轮架诊断
+
+- 用户确认继续安装、Provider/板端修复激活和低速 HIL/REAL 范围，随后明确同意 App-only 正式入口；
+  本轮以“已准备好”确认机器人抬轮架和急停现场条件，并明确要求使用备用码启动。
+- `start_product_voice_board_session.sh --app-only` 已接入共享 ProductRuntimeFactory/TaskCoordinator、
+  App IPC、BMS 和停止观测，跳过语音输入；本轮启动及退出回归 80 项通过。
+- 平板安装本次 APK，导航板 IPC 修复已安装。发现旧验收 TLS 证书 9 月 20 日过期，
+  本轮使用原设备密钥续签独立验收证书，设备指纹保持一致；平板配对、实时快照/事件和 BMS
+  已验证，电量 93%–94%。原 TLS 证书、原平板 APK 与板端 IPC 回滚对象保留。
+- 维护备用码通过既有 `map_management_cli create-short-code` 生成并记录审计，提交后立即关闭
+  临时维护模式。现场授权交换成功，但 REAL 许可门拒绝启动，本轮 App 建图会话数为零。
+  Gateway 已修复该分支的泛化提示，16 项相关 HTTP 回归通过；平板实测显示
+  “本版本缺少 REAL 手动建图验收许可 / 请先完成抬轮架基础检查并配置本版本的验收许可”。
+- 通过正式 App-only 会话进行板端 guard 的基础诊断（`HIL_COMPONENT`，不作为 App 完整验收）：
+  未取得租约时零输出，前/后/左/右有效输出上限为 0.20 m/s、0.90 rad/s；
+  四次独立轮速停车确认分别为 831、897、845、733 ms，最差 897 ms。
+  编码器轮速峰值约 0.209 m/s、0.914 rad/s，区别于 guard 的有效指令上限。
+- 第一轮探针因覆盖 ROS 的 PYTHONPATH 而在轮动前失败；取消尚未就绪的 guard 曾触发
+  5 秒 systemd 停止超时。修正探针并等待 IPC 就绪后，本轮基础诊断通过，服务正常退出。
+  启动期间取消的响应问题保留为后续停止矩阵检查项，未用后一次通过覆盖这次失败。
+- 已核验恢复 `duole-navigation-stack.service=active`，建图与 guard 服务均 inactive；
+  等待下一项现场挡板前已停止本轮 App-only/Gateway。REAL 门、碰撞保护和运动互斥仍有效；
+  未生成正式 REAL capability marker，未宣称阶段 A 或完整 Issue 33 完成。
+- 下一门槛是本版本碰撞减速/阻断的现场基础检查及其余验收许可要求，随后继续 App 操控、
+  地图更新、松手停车、保存与资料库读取；完整阶段 B 停止矩阵和发布基线保持不变。
+- 本次原始结果：
+  [基础 guard 诊断](../../../docs/evidence/issue33/20260928/phaseA-guard-baseline/guard-baseline-result.json)、
+  [轮动前环境失败](../../../docs/evidence/issue33/20260928/phaseA-guard-baseline/guard-baseline-import-failed.json)、
+  [平板真实拒绝提示](../../../docs/evidence/issue33/20260928/phaseA-guard-baseline/tablet-final-gate-result.xml)。
+
+### 2026-09-29 恢复阶段 A：开发启动入口与现场状态
+
+- 用户纠正推进顺序并要求先解决摇杆控制。上一条评论中的“下一门槛是碰撞减速/阻断检查”
+  排期已撤回；当前主线恢复为 App 开始、摇杆控制、地图/位姿更新、松手停车及结束保存。
+- Provider 正式 App-only 入口增加默认关闭的 `--app-manual-mapping-development` 选项。
+  显式开启后，Runtime 启动门返回 `real_mapping_development_enabled`，Gateway 复用现有
+  建图启动及共享控制权链路。选项要求 App-only、REAL、操作员确认和原有真实电池/ROS 条件，
+  与验收 receipt 配置互斥；不生成验收许可或 capability marker。现有速度及停车保护未修改。
+- 2026-09-28 本次实现的定向软件回归为 `101 passed`，覆盖 App-only、正式板端入口、
+  原验收 receipt、HTTP 建图操作及 Runtime motion owner。初次沙箱内运行的四项 socket
+  测试受环境限制，沙箱外复跑全部通过。2026-09-29 对照工作副本确认本次五个修改文件
+  未发生变化；这条记录复用上述历史结果，不表示今天重新执行了回归。
+- 开发选项已通过正式入口启动过 REAL App-only 会话，900 秒期限后正常退出。
+  平板未取得进入摇杆页的成功证据，仍显示此前的许可拒绝；未通过 App 创建建图操作或
+  执行摇杆运动，阶段 A 判据继续保持未勾选。
+- 2026-09-29 只读复核：本任务 Runtime socket 不存在、8443 无 Gateway 监听，
+  `duole-navigation-stack.service=active`，建图和 guard 服务均 inactive，
+  本任务数据库 `mapping_operations=0`，临时维护模式关闭。
+  平板 `172.22.205.14:43149` 保持连接且亮屏；横屏显示与触摸坐标一致，返回按钮实测有效，
+  当前已返回家庭地图页。检查本地 APK 的调试 kernel，确认其嵌入的准备页源码与当前源码一致。
+- 下一步在操作员现场准备确认后，从新的 App 准备页使用既有备用码流程启动，
+  首先验证 App 摇杆控制与松手停车。真实移动、地图刷新、保存和重复操作仍待现场验证；
+  当前 `ready-for-human` 表示等待现场准备，不表示代码或完整 Issue 33 已验收。
+
+### 2026-09-29 App 实际操控与三项现场缺陷修复
+
+- App 已使用正式备用码开始 REAL 手动建图，用户实际操作确认初段流畅、速度合适，
+  页面出现行驶轨迹。随后报告左右反向、靠近桌子被减速及通道错误后不能再次控制。
+  本次不把初段成功扩大为连续操控验收，只有“App 开始并进入页面”判据勾选。
+- 左右反向由 App dx 与 ROS angular 正负号相反导致，已修正。控制通道失败条件可用
+  本次实际 1131 ms 停车 DTO 复现；根因包含 Gateway 和板端两层轮询时间计入停车耗时。
+  本次板端保存首次轮速稳定样本的时间，Gateway 正常松手和连接中断传递该时间；
+  不截断真实超时、不放宽 1 秒合同与停车条件。旧失败记录无法证明实际车轮停止耗时。
+- 按用户要求，显式开发配置关闭本阶段碰撞减速/阻断；配置只在下次手动会话启动生效。
+  速度仍为 0.20 m/s / 0.90 rad/s，松手停车与看门狗保留，未关闭共享运动控制权。
+- Provider 111 项相关回归、实际板端文件 53 项回归、App 页面 32 项回归通过。
+  APK v2005 已构建并安装，板端最小补丁及开发标记已安装，既有板端修复与回滚对象保留。
+- 故障会话已通过 App 立即停止并保存，导航服务已恢复；本任务 Runtime/Gateway 已退出。
+  用户当前为地面桌边操控，下一次取消碰撞减速后的真车复测需确认现场空地与急停条件。
+  修复后的持续操作、重复按压、保存/资料库闭环及完整 Issue 33 验收仍待完成。
+- 详细依据与验证局限：
+  [本次控制恢复记录](../../../docs/evidence/issue33/20260929/control-recovery/README.md)。
+
+### 2026-09-30 修复版复测受电量预检阻断
+
+- 用户确认现场可急停后，正式 REAL App-only 开发会话与 Gateway 启动成功；v2005 App 通过
+  新平板 ADB 地址 `172.22.205.14:42603` 恢复既有配对并进入手动建图准备。
+- 电量项拒绝开始，导航板同一轮 BMS 样本约 13%、正在以 4.0 A 充电，低于 50% 门。
+  其余七项准备条件在 App 页面满足，开始按钮禁用；未建图、未发运动指令。
+- 已结束空载会话，导航服务 active，建图和 guard 均 inactive。待电量达到 50% 后再进行
+  左右转向、碰撞过滤、松手重按、持续操控和保存闭环；本次不把软件修复视为真车验收通过。
+- 详细记录：[电量预检证据](../../../docs/evidence/issue33/20260930/phaseA-preflight/README.md)。
+
+### 2026-10-01 现场暂停：停止后无法再次控制
+
+- 用户报告操控中频繁出现“等待停止确认”，且本轮停止后松手重按也无法恢复，体验差于前一轮；按用户要求，今日停止开发与试车。连续控制和重复按压验收仍未通过。
+- 前一会话 `manual_mapping_c3052cc021414c6f97aea89be75834b4` 有 21 次租约，最近一次板端停车确认耗时 685 ms，低于 1 秒红线；将 1 秒改为 2 秒不能减少按住摇杆时的中断，因此未放宽停车上限或 400 ms 看门狗。
+- 本轮会话 `manual_mapping_40470e34518440b4aec23f407e0230f9` 的板端 `manual_mapping_stop_status` 返回 `reason=manual_mapping_guard_intent_expired`、`stop_confirmed=true`、`stop_latency_ms=698`。网关同时记录到 `MANUAL_MAPPING_GUARD_UNAVAILABLE` 和后续 `MANUAL_MAPPING_SEQ_INVALID`；需下一轮定位意图过期的端到端耗时及错误后的序号/重连处理，不能把 698 ms 停车确认误判为中断触发阈值。
+- 本轮临时诊断输出存在我引入的缺陷：`_advance_time` 的 SELECT 未取 `last_seq`，日志却读取 `row['last_seq']`，租约过期后抛 `IndexError`，使状态读取及 WebSocket 关闭反复失败，加重了“不能再次控制”。已停止故障网关并撤回该诊断输出；相关停车/重连定向回归 3 项通过。撤回后未再进行真车控制复测，不宣称体验问题已修复。
+- 恢复网关时，该会话按 `service_restart` 进入 `interrupted_saved`，App 显示“异常中断，已保存中断地图”，约 7.44 m²，仅为中断证据，不算建图成功。随后本任务 Gateway 与 Runtime 已退出；板端导航 active，建图和 guard inactive。
+- 另发现 App 配对凭据自动刷新后，已打开的建图准备页继续使用被关闭的旧客户端，显示 `Bad state: Client is closed`；原页“重试”无效。曾通过重启 App 并重新进入准备页临时恢复，永久修复待做。
+- 后续先在软件侧修复诊断回退、意图过期与序号恢复及刷新后旧页面引用问题；仅在用户再次确认现场准备后进行新的 REAL 操控验收。
+
+### 2026-10-08 时钟域修复与连续控制复测：FAIL
+
+- 本日首轮诊断部署保留板端既有热修，仅补固定 Guard 原因码透传。长按约 2 秒后 `seq=23`
+  被板端以 `manual_mapping_guard_intent_expired` 拒绝，SSH 调用仅 3 ms；立即停止并保存的
+  最终停车记录约 807 ms，首次故障停车耗时未完整捕获，不能用最终记录代替。
+- 只读时钟测量发现板端相对 Gateway 慢约 13 ms；真实 Guard 回归复现了跨时钟域原样转发
+  `sent_at` 导致新指令误拒绝、旧指令误接受。Gateway 已按每次 arm 的板端时间与本地收包时间
+  做保守换算，不重打指令时间、不续 TTL。软件定向回归 155 项通过，覆盖 SSH/CLI 错误链、
+  时钟偏差与确认停车后新租约恢复；本轮启动前复用该结果，未重新执行这 155 项。
+- 用户再次确认“已准备好”后，经正式 App-only 入口加载时钟修复；板端与 APK 未再次替换。
+  实测预检电量 59%、底盘静止。会话 `manual_mapping_e915f71455994e918febe9927f5c090f`
+  于 UTC `07:15:39.657015` 开始，`seq=1..129` 连续接受约 13 秒；`seq=130` 在
+  `07:16:35.891935` 返回 `MANUAL_MAPPING_INTENT_EXPIRED`，SSH 调用 203 ms。
+- 本轮 FAIL 后停止保存，终态 `immediate_stop_saved` / `user_immediate_stop`，地图修订 32。
+  板端拒绝对应归零时间 `07:16:35.891257`、轮速确认时间 `07:16:36.591622`，差 700.365 ms；
+  `07:16:42.791482` 最终结束。导航已恢复 active，建图与 Guard inactive，任务 Gateway/Runtime
+  均正常退出，8443 无监听。持续控制和重复完整流程仍未验收。
+- 不启动 ROS、不发送运动请求的 SSH echo 测量也复现一次 210.55 ms 尖峰（200 个样本），
+  证明这类延迟可在 SLAM 之外出现；后续 200/600 样本的最大值分别为 22.82/102.052 ms。
+  双端路由均使用 Wi-Fi；尚不能确定是丢包重传、无线调度还是板端处理延迟，不能宣称唯一根因。
+- 已准备并离线检查本地 `trace-control-latency.py` / `run-gateway-latency.sh`，下一轮记录
+  SSH 发送前耗时、回包等待及同板端时钟域的拒绝归零时指令年龄。只打印固定事件和数值，
+  保留原返回值、异常和每请求单次调用；尚未现场加载，不需要新增板端部署。
+- `200 ms` TTL、`400 ms` watchdog、`<=1000 ms` 停车与 `0.20 m/s` / `0.90 rad/s` 均未调整。
+  受控开发碰撞配置仍存在，未生成正式 capability marker。下一轮需新的现场准备确认，
+  摇杆仍由用户操作；不是本轮失败后的自动重跑。
+- 原始日志、监控及本轮终态在 ignored task-local
+  `flutter/duole_engineering_app/build/issue33-phaseA-local-20260927/session-20260929/clock-calibration-hil-20261008/`。
+  更新的接手入口：[issue33-handoff-20261008.md](../issue33-handoff-20261008.md)。
+
+### 2026-10-08 16:26 过期帧丢弃实测与长等待失败
+
+- 按用户明确要求实现、授权部署及新的现场准备确认，已替换板端 Guard 单文件并安装
+  APK v2009。过期指令消费序号但不发布速度、不续租约或 watchdog；App 收到
+  `intent_discarded` 后立即发送最新摇杆位置，Guard 允许序号间隔且拒绝重放/乱序。
+- 部署前对应软件验证通过：Provider 定向 175 项、实际板端衍生 Guard/IPC/REAL 87 项、
+  Flutter 页面 35 项、analyze、Dart 合同和超标停车恢复回归、生成合同一致性。
+- 正式会话 `manual_mapping_b1796a8ec0b841e9b097eb8d5e0d2d53`，实测电量 57%。第二个
+  租约 `seq=6` 于 UTC `08:26:24.497241` 丢弃，`seq=7` 于 `08:26:24.566531` 应用，
+  同租约继续到 `seq=30`，目标行为已实测。此前首个租约 `seq=9` SSH 回包等待
+  2084.756 ms，总 2084.906 ms；回包为 applied，随后 seq10 租约失配。单指令等待回包
+  期间没有后续控制发送，符合 watchdog 停车解释；板端该次原因日志未捕获，尚不能确定
+  长等待的唯一底层原因。连续控制 20 秒未通过，监控已中止本轮。
+- 首次停车确认 673.472 ms，最终保存停车 700.265 ms，均低于 1000 ms；地图 r130，
+  UTC `08:26:27.663397` 终态 `immediate_stop_saved`，用户随后确认已停止。导航恢复 active，
+  建图/Guard inactive；本轮 Gateway 与正式 Runtime 已退出、8443 无监听、IPC socket 已删除。
+- 原始证据与精确回滚对象见 [当日接手记录](../issue33-handoff-20261008.md) 最上方最新状态。
+  本工单仍未验收，不生成 REAL capability marker；下一步定位长等待，不调整安全阈值。
+  再次真人 HIL 须新的现场准备确认。
+
+### 2026-10-09 分段诊断部署与准备监控到期
+
+- 用户授权的独立板端/Gateway 时间分段探针已部署，定向 12 项测试与启用探针的 CLI
+  12 项通过；SSH 回归有 3 项既有日志捕获失败，不启用探针也复现，其余 26 项通过。
+  纯软件延迟 ack 复现支持“等待回包阻断后续发送、watchdog 停车”链路，但尚未证实
+  历史 2.1 秒延迟的底层原因。未修改原正式入口、保护阈值或 selector。
+- 用户恢复上一轮 `/run` 下的手动建图开发覆盖并确认现场可以测试后，经正式产品入口
+  启动新会话 `manual_mapping_b7b6b47188494c7cb967fc514561d5db`。电量实测 66%。
+  控制页就绪，但本轮数据库最终 `lease_epoch=0` / `last_seq=0`，无 intent 分段日志，
+  控制诊断结果为 NOT_EXERCISED，不能宣称连续控制或停车延迟通过。
+- 摇杆随后变灰的直接原因是助手监控从准备过程提前计时：UTC `08:36:54.899852`
+  启动的 600 秒窗口在 `08:46:55.058362` 到期，监控于 `08:46:58.680747`
+  点击立即停止并保存；`08:46:58.754248` 终态 immediate_stop_saved，地图 r130。
+  下一轮先修正窗口起点为控制页就绪，再取得新的现场准备确认；本轮未修正或自动重跑。
+- 已收尾：导航 active、建图/Guard inactive，Gateway/Runtime 正常退出，8443 无监听、
+  IPC socket 已消失。原始证据与续接入口见 [接手记录](../issue33-handoff-20261008.md)
+  最上方 10 月 9 日状态。
+
+### 2026-10-10 监控计时修正与失焦中断
+
+- 复测前修正本地监控：控制页就绪后启动 300 秒窗口，以显式 session ID 选择本轮，
+  不把准备过程算入窗口。4 项纯软件回归通过，未改变产品保护阈值或板端探针。
+- 首次电量 38% 未启动；用户再次确认准备后实测 64%、静止且已离桩。正式会话
+  `manual_mapping_65ad129355864def826e14540da20426` 于 UTC `07:42:36.766452`
+  开始，`07:42:54.037702` 以 unverified_saved / screen_locked 结束，地图 r6。
+  无控制租约或 intent，监控尚未启动，结果 NOT_EXERCISED，不能判断历史长等待。
+- Android 焦点日志与随后测得约 +2.29 秒的平板时钟偏差支持“系统控制中心抢焦点、
+  App inactive 映射 screenLocked 而保存”的解释，未确定是谁打开控制中心。
+- 已收尾，导航 active、建图/Guard inactive，任务 Runtime/Gateway 正常退出，8443
+  无监听、IPC socket 不存在。下一轮保持 App 前台并重新取得现场准备确认，不自动重跑。
+  证据见 [接手记录](../issue33-handoff-20261008.md) 最上方 10 月 10 日状态。
+
+### 2026-10-10 15:55 第二轮真实控制中断：FAIL
+
+- 用户重新确认现场准备后实测 63%、静止、离桩。正式会话
+  `manual_mapping_fe037b268c774da0a8ffe374543e8e5e` 已实际移动，用户确认变灰前一直按住。
+  seq1–172 同租约全部 applied，约 17.588 秒，未通过 20 秒连续控制验收。
+- seq172 板端处理 3.331 ms（IPC 2.693 ms），Gateway handle_frame 共 18 ms；其
+  `07:55:33.678248` 完成后，到 seq173 开始处理约有 624 ms 空档。先出现租约到期/
+  watchdog 停车，再返回 MANUAL_MAPPING_LEASE_MISMATCH，监控因控制错误停止保存。
+  本次不是监控窗口到期：窗口于控制页就绪后 `07:55:32.416574` 启动 300 秒。
+- 板端 172 条分段记录最大处理 49.184 ms；仅 seq44/88 SSH 超过 100 ms，分别
+  112.362/122.523 ms。本轮没有复现历史 2.1 秒长 SSH 等待；handle_frame 完成日志位于
+  WebSocket 写回前，不能当作 App 收到 ack。下一步定位 App/连接收发和 Gateway 循环
+  的空档，现有日志不足以断言网络丢包或 App 定时器是唯一根因。
+- 停车确认 `07:55:34.089695` → `07:55:34.885741`，796.046 ms；监控点击保存后
+  `07:55:37.881314` 终态 immediate_stop_saved，地图 r27。导航 active、建图/Guard
+  inactive，任务 Gateway/Runtime 已退出、8443 无监听、IPC socket 不存在。
+- 本轮没有新产品代码、板端或 APK 部署；保护阈值不变。证据在 ignored task-local
+  `session-20260929/control-phase-hil-20261010-retry2/`，详见 [接手记录](../issue33-handoff-20261008.md)
+  最新状态。控制中断未修复；失败后不自动重跑。
+
+### 2026-10-10 16:43 移除 App ack 门控并安装测试：FAIL
+
+- 已移除 `_intentInFlight` 门控，持续按住时按 100 ms 节奏发送当前输入，保留松手、
+  断线停止发送和最新 discarded 的即时补发。新回归先在原实现失败，修改后页面
+  35 项及定向 analyze 通过。用户授权安装后 v2010 / `0.1.0-phaseA7` 已实装并启动核验。
+- 用户重新确认准备，实测电量 62%、静止、离桩，经正式 App-only 入口启动会话
+  `manual_mapping_6d080760009f4b16ad7f09ed06c4a30e`。用户报告两三秒后变灰。
+  首租约 seq1–26 applied，约 2.487 秒；seq27 SSH 252.190 ms，其中 select 等待
+  249.931 ms，板端处理仅 6.968 ms，返回 discarded，随后租约到期，seq28–30 失配。
+  Gateway 在同一 WSS 收包线程同步等待 SSH，移除 App 门控仍不足以消除转发阻塞；
+  未唯一确定 SSH 尾延迟是传输还是接收前调度，未放宽保护阈值。
+- 监控因首次控制错误中止，窗口未超时；保存前日志另有 epoch2 的 43 条 applied，
+  其再次按压来源待用户核对，不计连续控制通过。最终 immediate_stop_saved、地图 r51，
+  最终保存停车 745.519 ms；首租约精确停车耗时未保留，不以最终保存值替代。
+- 已收尾：导航 active，建图与实际 Guard 单元 `duole-manual-mapping-runtime.service`
+  inactive，任务 Runtime/Gateway 已退出，8443 无监听、两侧 IPC 已移除。没有板端替换，
+  不自动重跑，下一轮需新现场准备确认。证据在 `no-ack-gate-hil-20261010/`，详见
+  [接手记录](../issue33-handoff-20261008.md) 最新状态。
+
+
+### 2026-10-11 Gateway 转发流水线本地修复
+
+- 用户同意后按失败证据修复同步阻塞：持续接收/转发意图，SSH FIFO 匹配响应，
+  等回包时释放 SQLite 写事务，完成时重新核验当前 lease/epoch/seq。
+  停止/重获租约后旧 ack 不得恢复运动状态；保留原 TTL、watchdog、速度及停车阈值。
+- 正确链路回归在原实现失败；修复后本地 TLS → REAL service → stdio → 板端 TTL guard
+  验证第二条新鲜输入与 pointer_up stop 都可在延迟首条回包前转发。最终实际 Provider
+  工作树 139 项相关软件测试通过，语法及 diff 检查通过。传输延迟由本地进程模拟，
+  不能替代真实 Wi-Fi/SSH 和车轮停车验收。
+- 本轮未部署、安装或启动 HIL。下一轮先适配旧同步诊断探针，再在对应授权和新的
+  现场准备确认后加载修复复测。SSH 尖峰的具体原因未定，阶段 A 保持未通过。
+  详见 [最新交接记录](../issue33-handoff-20261008.md)。
+
+
+### 2026-10-13 Gateway 流水线部署与 REAL 复测
+
+- 用户授权部署/HIL并确认到场，65% 电量、未充电、静止、无任务占用，通过正式 App-only
+  入口加载修复。平板 14:44529、v2010；未替换 APK、板端文件或 selector。
+- 首次控制 365 条 applied / 36.40 秒，松手停车 680.246 ms；再次按压成功，第二次板端
+  76 条 applied / 7.61 秒后中断。用户确认首次正常、松手可再用、第二次中断并等待确认。
+- seq73–76 在等待回包期间继续 submit 且全部板端 applied，但 SSH 回包等待 403–578 ms，
+  Gateway 在 seq77 校验时按最后确认时间判定本地期限到期，pending 结果随后失配。
+  证明转发等待已解除，剩余阻断在输入活性与板端确认的本地租约语义；SSH 尖峰底层原因未定。
+- monitor 因控制错误中止并停止保存，终态 immediate_stop_saved，地图 r161；中断停车
+  789.053 ms。Gateway/Product/monitor 均 exit0，导航 active，建图/Guard inactive，
+  任务进程、8443、Runtime IPC、Guard socket 均已清理。阶段 A 仍未通过，不自动重测。
+- 下一步建议以返回侧停顿 >400 ms 的实际故障模式复现并修正租约判定，不放宽原 TTL、
+  watchdog 或停车阈值。详情及原始证据目录见 [最新交接记录](../issue33-handoff-20261008.md)。
+
+### 2026-10-14 1000ms watchdog 与输入续期部署，远处 REAL 仍中断
+
+- 用户明确授权放宽 watchdog 到 1000ms，并让 Gateway 控制活性不再依赖每条 ACK 续期；
+  TTL 保持 200ms，未改速度、旧帧保护或停止确认。相关软件回归 223 项通过，基于当前板端
+  三个文件及现有 ROS/QoS 热修依赖的离线验证 173 项通过；未提交或覆盖无关共享 WIP。
+- 精确板端回滚目录：`/home/ztl/duole-issue31-nav-ws/runtime/issue33/watchdog-input-lease-before-20261014/`。
+  APK 仍为 v2010 / `0.1.0-phaseA7`，未更新 selector 或正式能力标记。
+- 首轮窗口 epoch0/seq0，无操作输入，监控到时停止保存；不是移动验收通过。用户重新准备后
+  由正式 Product App-only 入口复测，会话 `manual_mapping_1cbbb19309fe453a8163867bbd9c57ca`。
+  用户确认距离较远时控制不稳定并变灰。epoch1 226 条全 applied，22.530593s，松手停车
+  631.670ms；epoch2 接收跨度 50.112597s，458 applied / 27 板端 discarded。
+- 最后 applied 为 seq498；seq499 板端 TTL 过期，seq500–506 在 Gateway 本地过期，
+  均不维持有效输入。失活约 1s 后 control_lease_expired，seq507–511 LEASE_MISMATCH，
+  监控因控制错误中止并停止保存，非五分钟窗口到期。
+- 中断停车请求至确认 243.696ms；最后有效指令板端接收至确认 1264.396ms。
+  保留原正式一秒停稳验收条件，本轮不宣称通过该条件或阶段 A。
+- App 每条服务端回包都会重算时钟 offset；代码计算可证明迟到回包能拉旧后续 sent_at。
+  现场没有记录 offset/帧龄，尚不能唯一认定是时间校准偏差还是实际网络/调度延迟；
+  后续优先验证这两者，未在本轮修改 App 时钟代码或继续放宽 TTL。
+- Gateway、Product、monitor 均 exit0；导航 active，建图/Guard inactive，8443 与 IPC 已关闭。
+  结果与原始日志在 ignored task-local `session-20260929/watchdog-input-lease-retry-20261014/`，
+  最新详情见 [handoff](../issue33-handoff-20261008.md)。不自动重新 HIL。
+
+
+### 2026-10-14 体验开发版部署，IPC profile 漏接已修复待复测
+
+- 用户明确要求体验优先并同意部署测试。新增显式 session_development：不再依赖跨设备校时或
+  200ms运动TTL帧龄判定，控制身份保持到会话结束、每次按下使用新epoch；1000ms无输入停车、
+  松手停车与速度参数保留。开发模式取消的保障不能视为正式安全验收；正式模式默认行为保留。
+- 平板14:35581已安装v2011/phaseA8，原配对保留。WSS、37项页面回归及相关软件检查通过。
+  板端只做 guard/runtime CLI 的最小派生部署，保留 ROS/QoS；后补 cli.py 的 profile 配置。
+- 真人确认准备后启动 manual_mapping_d2608707855a43ffb4fd4dbccf0d3842，用户反馈无法操控、
+  持续连接恢复。acquire反复Guard不可用，reconnect成功，始终epoch0/seq0；未开始运动监测窗口。
+  本次真实控制启动FAIL_SETUP_PROFILE_MISMATCH，没有移动验收或停车延迟测量。
+- 原转发器IPC client仍预期旧profile，拒绝Runtime的新profile。真实CLI factory→IPC→Guard
+  回归先复现开发模式失败，再证明修复通过；35项Provider和35项板端派生版本软件回归通过。
+  最小转发器补丁已部署，v2011 App保持不变；补丁后的真实控制尚未验证。
+- 会话已立即停止并保存，导航active、建图/Guard inactive，底盘静止且无占用；Gateway和
+  Product均exit0，8443/IPC/Guard socket关闭。精确回滚目录为板端runtime/issue33/
+  session-control-before-20261014；原v2010 APK保存于本轮task-local目录。
+- 详情及结果见[最新handoff](../issue33-handoff-20261008.md)。阶段A未通过，等待新的现场准备
+  与重测确认，不自动启动下一轮。
+
+### 2026-10-14 profile补丁后REAL体验改善，停车及结束闭环仍未通过
+
+- 用户重新准备后，经正式Product App-only入口启动
+  `manual_mapping_03089325195f4a6a963fc3d8dc55b692`，预检电量84%、静止、无占用；
+  v2011 / phaseA8与session_development配置保持不变。用户亲自操控，反馈
+  “已经停止保存，此次建图过程流畅，没有崩溃”。距离路由器的位置未确认。
+- 共9轮控制，Gateway收到1460条，SSH提交/完成及板端接收均1459条；1445 applied，
+  epoch1 seq140–153共14条板端lease失配。最长连续输入57.938307s、580条全applied。
+  该段用户在监控开始前已自行操作；不能用本次反馈宣称无错误、完整监控或重复稳定性通过。
+- 监控10:56:52.448633 UTC开始。前7组留存的板端停车确认664.292–836.726ms，
+  末次请求10:58:26.471584至确认10:58:27.495135为1023.551ms，超过原1000ms红线。
+  monitor触发STOP_LIMIT_EXCEEDED并点击停止保存，round_aborted=true；原基线未放宽。
+  用户也反馈已停止保存，最终保存不能唯一归因于用户操作，也不构成额外停车测量。
+- 10:58:34.257548 UTC会话terminated / stopped / immediate_stop_saved，地图投影r105。
+  板端map.pgm/map.yaml/metadata.json已核实，未通过回桩验证且未自动启用。
+  本机map_catalog仍为空、mapping_operations仍为started；资料库登记/读取及状态一致性
+  尚未验收，不能把会话终态当作阶段A全部保存闭环通过。
+- 保存后10:58:40.555356至11:02:26.470775 UTC有1153次
+  MANUAL_MAPPING_RECONNECT_NOT_ALLOWED；结束后重连退出仍待修复。
+  本轮仅归档，未自动开始下一轮HIL或新增修复。
+- 本轮体验PARTIAL_PASS_OPERATOR_FEEDBACK，停车FAIL_STOP_LIMIT_EXCEEDED，整体仍PARTIAL_HIL。
+  monitor/Gateway/Product均exit0，8443/Runtime IPC/Guard socket已关闭；导航active、
+  建图/Guard inactive，收尾底盘静止、无占用、电量83%。保留v2011及开发配置，未自动回滚。
+- 原始日志及hil-result/timing-summary/板端保存metadata/收尾读取留在
+  `session-20260929/session-control-retry-20261014/`。下一步体验主线为结束后重连退出、
+  资料库闭环和重复控制验收；停车超时按用户的体验优先顺序保留为后续保障事项。
+  详情见[最新handoff](../issue33-handoff-20261008.md)。
+
+
+### 2026-10-14 近路由器复测：地图按压停刷与获取控制 ACK 过期已定位
+
+- 用户明确重新安排测试并确认靠近路由器、已准备好。沿用v2011/phaseA8及开发配置，正式入口
+  启动manual_mapping_0f6abb80ba744a6ab078c913fc6e0ef7；monitor在首次输入前已启动。
+  epoch1–6共644条运动全部applied，最长一轮36.657170s，SSH最大681.741ms。
+- 用户反馈移动中地图不更新、松手后补刷，以及碰撞后不能控制。本轮体验FAIL。
+  App两条刷新函数在摇杆有效按压时主动跳过读取及应用返回；已有页面测试明确要求暂停刷新。
+  epoch2地图投影r94停留至松手后r114，确认直接缺陷在App刷新门，不能称为SLAM停止采集。
+- 末次acquire在11:31:05.492230 UTC返回GUARD_ACK_EXPIRED，总耗时1487.787ms。
+  获取控制仍用1000ms arm窗口减去握手耗时；这条门在开发模式保留。App将其当通道故障重连。
+  日志没有建立碰撞与该握手延迟的因果，不能宣称碰撞保护锁死。
+- monitor此前11:30:57.021416已因停车等待1057ms触发STOP_LIMIT_EXCEEDED；随后epoch6仍有
+  20条applied，直到11:31:08.553528监控点击立即停止保存、11:31:08.669644会话结束。
+  之后按压返回PHASE_NOT_CONTROLLABLE，重连被拒绝。最终0ms为重连后覆盖值，不是物理停车样本；
+  未捕获被中止轮次完整板端停车时间对，不能提供精确车轮停止时间或放宽原验收基线。
+- 板端地图文件已核实，未回桩验证且未启用，地图投影r136。monitor/Gateway/Product均exit0；
+  导航active、建图/Guard inactive，监听及IPC/socket关闭，收尾电量82%、静止、无占用。
+- 本轮只读诊断未改代码。建议先恢复操控中地图刷新、处理可恢复的arm ACK过期及结束后重连，
+  沿用现有独立数据通道，不调整1000ms输入watchdog或停车红线。现场碰撞原因仍需对应证据。
+  原始日志及结果位于session-20260929/session-control-retest-20261014/，详见
+  [最新handoff](../issue33-handoff-20261008.md)。未自动启动新HIL。
+
+
+### 2026-10-14 v2012部署及近路由器复测，用户结束测试
+
+- 已修复按压停刷，开发握手5s与运动watchdog1000ms分离；ACK过期转停车并允许新手势重试，
+  终态关闭通道/退出重连。软件相关232项与新增贯穿SSH/CLI/IPC用例通过，页面38项通过；
+  当前板端派生128项通过后部署Guard/agent最小补丁并安装v2012，保留其他热修与配对。
+- 用户近路由器准备后正式入口复测，manual_mapping_5dc5587537f74588bfefbd296fb51828。
+  5轮共986条全applied，操控中地图r80→r91且位姿变化；18个操控中刷新样本。
+  首输入早于monitor约79秒，缺少首段实时监控。屏幕体验、长握手现场恢复及碰撞恢复未确认。
+- 记录5组板端停车609.184–839.212ms，未触发监控中止；但监控缺口使完整安全验收仍未通过。
+  会话21:31:24以放弃地图结束，没有保存验收；终态后一次RECONNECT_NOT_ALLOWED，不能声称零重连。
+  用户随后明确结束测试。monitor/Gateway/Product均exit0，导航active、建图/Guard inactive，
+  8443/Runtime IPC/Guard socket关闭；收尾76%、静止、无占用。保留部署，不自动再测或回滚。
+- 当前App轮询500ms，launch引用SLAM配置地图发布周期5秒；未修改这个发布参数。
+  本轮仍PARTIAL_HIL。证据与精确回滚目录见[最新handoff](../issue33-handoff-20261008.md)。

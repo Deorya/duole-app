@@ -1,0 +1,23 @@
+{
+  "kind": "guard_baseline_diagnostic",
+  "operation_id": "mapping_1f8ae870b8864c64ab80e95a9d2c61d1",
+  "started_at": "2026-09-28T09:11:40.347590+00:00",
+  "app_mapping_started": false,
+  "safety_before": {
+    "docked": false,
+    "battery_percent": 93,
+    "active_task_owners": [],
+    "sensors_ready": true,
+    "available_storage_bytes": 63217033216,
+    "required_storage_bytes": 1073741824,
+    "version_compatible": true,
+    "charging_confirmed": false,
+    "chassis_stationary": true,
+    "collision_protection_ready": true,
+    "stop_chain_ready": true
+  },
+  "probe_returncode": 1,
+  "probe_stdout": "",
+  "probe_stderr": "Traceback (most recent call last):\n  File \"<stdin>\", line 3, in <module>\nModuleNotFoundError: No module named 'rclpy'\n",
+  "restored_board_mode": true
+}

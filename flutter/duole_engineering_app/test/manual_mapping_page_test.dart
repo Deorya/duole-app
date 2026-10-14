@@ -35,8 +35,8 @@ void main() {
 
     expect(forward.linear, 1);
     expect(reverse.linear, -1);
-    expect(left.angular, -1);
-    expect(right.angular, 1);
+    expect(left.angular, 1);
+    expect(right.angular, -1);
     expect(
       math.sqrt(
         diagonal.linear * diagonal.linear + diagonal.angular * diagonal.angular,
@@ -100,6 +100,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('手动建图状态暂时不可用'), findsOneWidget);
+    expect(
+        find.textContaining('transient_session_read_failure'), findsOneWidget);
     expect(find.byKey(const Key('manual-mapping-retry')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('manual-mapping-retry')));
@@ -263,9 +265,9 @@ void main() {
 
       expect(connection.intents, isNotEmpty);
       expect(connection.intents.last.linear, closeTo(0.8, 0.05));
-      expect(connection.intents.last.angular, closeTo(0.6, 0.05));
+      expect(connection.intents.last.angular, closeTo(-0.6, 0.05));
       expect(find.textContaining('线性 0.80'), findsOneWidget);
-      expect(find.textContaining('转向 0.60'), findsOneWidget);
+      expect(find.textContaining('转向 -0.60'), findsOneWidget);
 
       await gesture.up();
       await tester.pump();
@@ -285,6 +287,32 @@ void main() {
       await nextGesture.cancel();
     },
   );
+
+  testWidgets('overdue real stop remains visible and disables another press',
+      (tester) async {
+    final envelope = _sessionEnvelope(mode: 'REAL');
+    final data = envelope['data']! as Map<String, Object?>;
+    data['stop_requested_at'] = '2026-09-30T14:07:35.060406Z';
+    data['stop_confirmed_at'] = '2026-09-30T14:07:36.457266Z';
+    data['stop_latency_ms'] = 1397;
+    final connection = _ManualConnection();
+    await tester.pumpWidget(MaterialApp(
+      home: ManualMappingPage(
+        sessionId: _sessionId,
+        manager: _StaticManualManager(envelope),
+        controlTransport: _ManualTransport(connection),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('1397 ms'), findsOneWidget);
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    await tester.pump();
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    expect(connection.acquireCount, 0);
+    await gesture.up();
+  });
 
   testWidgets('session-free intent feedback updates collision status',
       (tester) async {
@@ -403,14 +431,128 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
     expect(connection.intents, hasLength(2));
     expect(connection.intents.last.linear, closeTo(0.6, 0.01));
-    expect(connection.intents.last.angular, closeTo(0.4, 0.01));
+    expect(connection.intents.last.angular, closeTo(-0.4, 0.01));
 
     await gesture.up();
     await tester.pump();
   });
 
   testWidgets(
-    'active control pauses board-backed map refresh without pausing intents',
+      'discarded intent immediately sends current input without reacquiring',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(MaterialApp(
+      home: ManualMappingPage(
+        sessionId: _sessionId,
+        manager: _ManualManager(mode: 'REAL'),
+        controlTransport: _ManualTransport(connection),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'7' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+    expect(connection.intents.map((intent) => intent.seq), [1]);
+    await gesture.moveBy(const Offset(20, -30));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(connection.intents.map((intent) => intent.seq), [1, 2, 3]);
+    connection
+        .emit(_frame('intent_discarded', acceptedSeq: 1, status: 'discarded'));
+    await tester.pump();
+    expect(connection.intents.map((intent) => intent.seq), [1, 2, 3]);
+    connection.emit(_frame(
+      'intent_discarded',
+      acceptedSeq: 3,
+      status: 'discarded',
+      blockedReason: 'intent_expired',
+    ));
+    await tester.pump();
+    expect(connection.intents.map((intent) => intent.seq), [1, 2, 3, 4]);
+    expect(connection.intents.last.linear, closeTo(0.3, 0.01));
+    expect(connection.intents.last.angular, closeTo(-0.2, 0.01));
+    expect(connection.acquireCount, 1);
+    expect(connection.reconnectCount, 0);
+    expect(connection.releases, isEmpty);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(connection.intents.map((intent) => intent.seq), [1, 2, 3, 4, 5]);
+    await gesture.up();
+    await tester.pump();
+    expect(connection.releases, hasLength(1));
+    connection
+        .emit(_frame('intent_discarded', acceptedSeq: 5, status: 'discarded'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(connection.intents, hasLength(5));
+  });
+
+  testWidgets(
+      'missing or delayed acknowledgements do not pause current intents',
+      (tester) async {
+    final connection = _ManualConnection();
+    await tester.pumpWidget(MaterialApp(
+      home: ManualMappingPage(
+        sessionId: _sessionId,
+        manager: _ManualManager(mode: 'REAL'),
+        controlTransport: _ManualTransport(connection),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    connection.emit(_frame(
+      'control_granted',
+      leaseId: 'mapping_lease_${'7' * 32}',
+      leaseEpoch: 1,
+    ));
+    await tester.pump();
+    expect(connection.intents.map((intent) => intent.seq), [1]);
+
+    await gesture.moveBy(const Offset(20, -30));
+    for (var expectedSeq = 2; expectedSeq <= 6; expectedSeq++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(connection.intents, hasLength(expectedSeq));
+      expect(connection.intents.last.seq, expectedSeq);
+      expect(connection.intents.last.linear, closeTo(0.3, 0.01));
+      expect(connection.intents.last.angular, closeTo(-0.2, 0.01));
+    }
+
+    connection.emit(_frame(
+      'intent_applied',
+      acceptedSeq: 1,
+      status: 'applied',
+      effectiveLinear: 0,
+      effectiveAngular: 0,
+    ));
+    await tester.pump();
+    expect(connection.intents, hasLength(6));
+    await gesture.moveBy(const Offset(-10, 20));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+        connection.intents.map((intent) => intent.seq), [1, 2, 3, 4, 5, 6, 7]);
+    expect(connection.intents.last.linear, closeTo(0.1, 0.01));
+    expect(connection.intents.last.angular, closeTo(-0.1, 0.01));
+
+    await gesture.up();
+    await tester.pump();
+    expect(connection.releases, hasLength(1));
+    connection
+        .emit(_frame('intent_applied', acceptedSeq: 7, status: 'applied'));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(connection.intents, hasLength(7));
+  });
+
+  testWidgets(
+    'active gesture refreshes map while control keeps its 100ms cadence',
     (tester) async {
       final manager = _CountingRefreshManualManager();
       final connection = _ManualConnection();
@@ -429,6 +571,13 @@ void main() {
       await tester.scrollUntilVisible(joystick, 300);
       final gesture = await tester.startGesture(tester.getCenter(joystick));
       await tester.pump();
+      final statusReadsAtPress = manager.statusReads;
+      final visualizationReadsAtPress = manager.visualizationReads;
+      await tester.pump(const Duration(milliseconds: 501));
+      expect(manager.statusReads, greaterThan(statusReadsAtPress));
+      expect(
+          manager.visualizationReads, greaterThan(visualizationReadsAtPress));
+
       connection.emit(_frame(
         'control_granted',
         leaseId: 'mapping_lease_${'4' * 32}',
@@ -437,14 +586,24 @@ void main() {
       await tester.pump();
       final statusReadsAtGrant = manager.statusReads;
       final visualizationReadsAtGrant = manager.visualizationReads;
-      final intentsAtGrant = connection.intents.length;
+      final mapBeforeHold = tester.widget<ManualMappingMapView>(
+        find.byKey(const Key('manual-mapping-map')),
+      );
+      expect(connection.intents, hasLength(1));
 
       await tester.pump(const Duration(milliseconds: 1100));
 
+      expect(connection.intents, hasLength(12));
+      expect(manager.statusReads, greaterThan(statusReadsAtGrant));
       expect(
-          connection.intents.length, greaterThanOrEqualTo(intentsAtGrant + 11));
-      expect(manager.statusReads, statusReadsAtGrant);
-      expect(manager.visualizationReads, visualizationReadsAtGrant);
+          manager.visualizationReads, greaterThan(visualizationReadsAtGrant));
+      await tester.pump();
+      final mapDuringHold = tester.widget<ManualMappingMapView>(
+        find.byKey(const Key('manual-mapping-map')),
+      );
+      expect(
+          mapDuringHold.map.revision, greaterThan(mapBeforeHold.map.revision));
+      expect(mapDuringHold.robotPose.x, greaterThan(mapBeforeHold.robotPose.x));
 
       await gesture.up();
       await tester.pump(const Duration(milliseconds: 501));
@@ -455,6 +614,124 @@ void main() {
       );
     },
   );
+
+  testWidgets('terminal save closes control and late errors cannot reconnect',
+      (tester) async {
+    final connection = _ManualConnection();
+    final transport = _ManualTransport(connection);
+    final manager = _RacingManualManager();
+    await tester.pumpWidget(MaterialApp(
+      home: ManualMappingPage(
+        sessionId: _sessionId,
+        manager: manager,
+        controlTransport: transport,
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('立即停止并保存'), 300);
+    await tester.tap(find.text('立即停止并保存'));
+    await tester.pumpAndSettle();
+    expect(connection.closeCount, 1);
+    expect(transport.connectCount, 1);
+    connection.emit(
+        _frame('error', errorCode: 'MANUAL_MAPPING_RECONNECT_NOT_ALLOWED'));
+    connection.emitError(StateError('connection closed after terminal save'));
+    await tester.pump(const Duration(seconds: 4));
+    expect(transport.connectCount, 1);
+    expect(connection.reconnectCount, 0);
+    expect(find.text('连接恢复中'), findsNothing);
+    expect(find.text('已回桩验证并保存'), findsOneWidget);
+  });
+
+  testWidgets(
+      'development watchdog stop keeps the channel and permits a fresh gesture',
+      (tester) async {
+    final connection = _ManualConnection();
+    final manager = _RecoveringManualManager();
+    await tester.pumpWidget(MaterialApp(
+        home: ManualMappingPage(
+      sessionId: _sessionId,
+      manager: manager,
+      controlTransport: _ManualTransport(connection),
+    )));
+    await tester.pumpAndSettle();
+    connection.emit(_frame('hello', controlMode: 'session_development'));
+    await tester.pump();
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.scrollUntilVisible(joystick, 300);
+    final pressAt = tester.getTopLeft(joystick) + const Offset(100, 10);
+    final gesture = await tester.startGesture(pressAt);
+    await tester.pump();
+    final leaseId = 'mapping_lease_${'9' * 32}';
+    connection.emit(_frame('control_granted', leaseId: leaseId, leaseEpoch: 1));
+    await tester.pump(const Duration(milliseconds: 2100));
+    expect(connection.intents.length, greaterThanOrEqualTo(20));
+    connection.emit(_frame('stop_pending'));
+    await tester.pump();
+    await tester.pump();
+    final countAtStop = connection.intents.length;
+    expect(find.text('等待停止确认'), findsOneWidget);
+    manager.confirmStop();
+    connection.emit(_frame('control_stopped'));
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(find.text('等待停止确认'), findsNothing);
+    expect(connection.closeCount, 0);
+    expect(connection.reconnectCount, 0);
+    expect(connection.intents.length, countAtStop);
+    await gesture.up();
+    await tester.pump();
+    final nextGesture = await tester.startGesture(pressAt);
+    await tester.pump();
+    expect(connection.acquireCount, 2);
+    connection.emit(_frame('control_granted', leaseId: leaseId, leaseEpoch: 2));
+    await tester.pump();
+    expect(connection.intents.last.leaseId, leaseId);
+    expect(connection.intents.last.leaseEpoch, 2);
+    expect(connection.intents.last.seq, 1);
+    expect(connection.intents.last.linear, greaterThan(0));
+    await nextGesture.up();
+  });
+
+  testWidgets(
+      'development outage can reconnect in place after automatic attempts end',
+      (tester) async {
+    final connection = _ManualConnection();
+    final replacement = _ManualConnection();
+    final transport = _OutageTransport(connection, replacement);
+    await tester.pumpWidget(MaterialApp(
+        home: ManualMappingPage(
+      sessionId: _sessionId,
+      manager: _StaticManualManager(_sessionEnvelope(mode: 'REAL')),
+      controlTransport: transport,
+    )));
+    await tester.pumpAndSettle();
+    connection.emit(_frame('hello', controlMode: 'session_development'));
+    await tester.pump();
+    connection.emitError(StateError('connection_lost'));
+    await tester.pump();
+    for (var i = 0; i < 13; i += 1) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
+    final retry = find.byKey(const Key('manual-mapping-reconnect-control'));
+    await tester.ensureVisible(retry);
+    await tester.pump();
+    expect(tester.widget<TextButton>(retry).onPressed, isNotNull);
+    transport.available = true;
+    await tester.tap(retry);
+    await tester.pump();
+    expect(replacement.reconnectCount, 1);
+    replacement.emit(_frame('control_reconnected'));
+    await tester.pump();
+    expect(find.text('等待停止确认'), findsNothing);
+    expect(retry, findsNothing);
+    final joystick = find.byKey(const Key('manual-mapping-joystick'));
+    await tester.ensureVisible(joystick);
+    await tester.pump();
+    final gesture = await tester.startGesture(tester.getCenter(joystick));
+    await tester.pump();
+    expect(replacement.acquireCount, 1);
+    await gesture.up();
+  });
 
   testWidgets('REAL session warns that the joystick moves the physical robot',
       (tester) async {
@@ -498,6 +775,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(manager.commands, [ManualMappingAction.saveUnverified]);
+  });
+
+  testWidgets('failed REAL save shows the server reason without success',
+      (tester) async {
+    final manager = _ManualManager(
+      mode: 'REAL',
+      commandError: EngineeringApiException(
+        statusCode: 507,
+        envelope: ErrorEnvelope(
+          schemaVersion: '1.0',
+          requestId: 'req_mapping_save_failure_01',
+          serverTime: DateTime.utc(2026, 8, 27, 6),
+          error: const AppError(
+            code: ErrorCode.capabilityUnavailable,
+            message: '地图保存失败：存储空间不足',
+            retriable: true,
+            remediation: '请清理地图空间后重试',
+            details: {'reason_code': 'MAPPING_STORAGE_INSUFFICIENT'},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ManualMappingPage(
+          sessionId: _sessionId,
+          manager: manager,
+          controlTransport: _ManualTransport(_ManualConnection()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('结束并保存未验证地图'), 300);
+    await tester.ensureVisible(find.text('结束并保存未验证地图'));
+    await tester.tap(find.text('结束并保存未验证地图'));
+    await tester.pump();
+
+    expect(manager.commands, [ManualMappingAction.saveUnverified]);
+    expect(find.textContaining('地图保存失败：存储空间不足'), findsOneWidget);
+    expect(find.text('已保存未验证地图'), findsNothing);
   });
 
   testWidgets('REAL touch drives acquire intent and pointer-up release',
@@ -646,7 +963,7 @@ void main() {
 
     expect(connection.intents.length, intentCountAfterError);
     expect(find.textContaining('线性 0.40'), findsOneWidget);
-    expect(find.textContaining('转向 0.50'), findsOneWidget);
+    expect(find.textContaining('转向 -0.50'), findsOneWidget);
     expect(find.text('等待停止确认'), findsOneWidget);
     expect(find.textContaining('MANUAL_MAPPING_LEASE_EXPIRED'), findsOneWidget);
     expect(scrollable.position.pixels, scrollOffsetBeforeDrag);
@@ -701,7 +1018,7 @@ void main() {
     await gesture.moveBy(const Offset(50, 50));
     await tester.pump(const Duration(milliseconds: 150));
     expect(find.textContaining('线性 0.40'), findsOneWidget);
-    expect(find.textContaining('转向 0.50'), findsOneWidget);
+    expect(find.textContaining('转向 -0.50'), findsOneWidget);
     expect(connection.acquireCount, 1);
     expect(connection.intents.length, intentCountAfterError);
 
@@ -901,9 +1218,10 @@ void main() {
 const _sessionId = 'manual_mapping_0123456789abcdef0123456789abcdef';
 
 class _ManualManager implements ManualMappingManager {
-  _ManualManager({this.mode = 'MOCK_NO_MOTION'});
+  _ManualManager({this.mode = 'MOCK_NO_MOTION', this.commandError});
 
   final String mode;
+  final Object? commandError;
   final commands = <ManualMappingAction>[];
 
   @override
@@ -920,6 +1238,7 @@ class _ManualManager implements ManualMappingManager {
     ManualMappingAction action,
   ) async {
     commands.add(action);
+    if (commandError != null) throw commandError!;
     return ManualMappingSessionSuccessEnvelope.fromJson(
       _sessionEnvelope(mode: mode),
     );
@@ -1015,9 +1334,12 @@ class _CountingRefreshManualManager
     String sessionId,
   ) async {
     statusReads += 1;
-    return ManualMappingSessionSuccessEnvelope.fromJson(
-      _sessionEnvelope(mode: 'REAL'),
-    );
+    final envelope = _sessionEnvelope(mode: 'REAL', revision: statusReads);
+    final data = envelope['data']! as Map<String, Object?>;
+    final map = data['incremental_map']! as Map<String, Object?>;
+    map['revision'] = statusReads;
+    data['robot_pose'] = {'x': statusReads.toDouble(), 'y': 0.0, 'yaw': 0.0};
+    return ManualMappingSessionSuccessEnvelope.fromJson(envelope);
   }
 
   @override
@@ -1153,10 +1475,32 @@ class _ManualTransport implements ManualMappingWebSocketTransport {
   void close() {}
 }
 
+class _OutageTransport implements ManualMappingWebSocketTransport {
+  _OutageTransport(this.initial, this.replacement);
+  final _ManualConnection initial;
+  final _ManualConnection replacement;
+  var available = false;
+  var _connectCount = 0;
+
+  @override
+  Future<ManualMappingControlConnection> connect(String sessionId) async {
+    if (_connectCount++ == 0) return initial;
+    if (available) return replacement;
+    throw StateError('offline');
+  }
+
+  @override
+  void close() {}
+}
+
 class _Intent {
-  const _Intent(this.linear, this.angular);
+  const _Intent(this.seq, this.linear, this.angular,
+      {this.leaseId, this.leaseEpoch});
+  final int seq;
   final double linear;
   final double angular;
+  final String? leaseId;
+  final int? leaseEpoch;
 
   @override
   String toString() => 'Intent($linear, $angular)';
@@ -1191,7 +1535,8 @@ class _ManualConnection implements ManualMappingControlConnection {
     required double linear,
     required double angular,
   }) async =>
-      intents.add(_Intent(linear, angular));
+      intents.add(_Intent(seq, linear, angular,
+          leaseId: leaseId, leaseEpoch: leaseEpoch));
 
   @override
   Future<void> release({
@@ -1207,6 +1552,7 @@ class _ManualConnection implements ManualMappingControlConnection {
 
 ManualMappingServerFrame _frame(
   String type, {
+  String? controlMode,
   String? leaseId,
   int? leaseEpoch,
   int? acceptedSeq,
@@ -1219,6 +1565,7 @@ ManualMappingServerFrame _frame(
     ManualMappingServerFrame.fromJson({
       'type': type,
       'server_time': '2026-08-27T06:00:00Z',
+      if (controlMode != null) 'control_mode': controlMode,
       'session': null,
       'lease_id': leaseId,
       'lease_epoch': leaseEpoch,

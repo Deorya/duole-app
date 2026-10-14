@@ -115,6 +115,17 @@ void main() {
   if (intent.ttlMs != 200 || intent.linear != 0.5) {
     throw StateError('normalized intent contract did not decode');
   }
+  final discarded = ManualMappingServerFrame.fromJson({
+    ..._serverFrame(type: 'intent_discarded', status: 'discarded'),
+    'accepted_seq': 3,
+    'effective_linear': 0.5,
+    'effective_angular': -0.25,
+    'blocked_reason': 'intent_expired',
+  });
+  if (discarded.acceptedSeq != 3 || discarded.status != 'discarded' ||
+      discarded.errorCode != null || discarded.effectiveLinear != 0.5) {
+    throw StateError('discarded intent acknowledgement did not decode');
+  }
 
   _expectFormatException(
     () => ManualMappingServerFrame.fromJson(_serverFrame(type: 'future_frame')),

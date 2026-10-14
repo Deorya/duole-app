@@ -1,0 +1,16 @@
+{
+  "session_id": "manual_mapping_be33753a5fff4a079b6dd66a9e89d520",
+  "phase": "terminated",
+  "control_state": "stopped",
+  "lease_epoch": 11,
+  "last_seq": 12,
+  "stop_requested_at": "2026-09-29T07:29:40.859027+00:00",
+  "stop_confirmed_at": "2026-09-29T07:29:41.990948+00:00",
+  "stop_confirmed": 1,
+  "outcome": "immediate_stop_saved",
+  "map_revision": 344,
+  "reported_stop_latency_ms": 1131,
+  "actual_wheel_stop_latency_ms": null,
+  "timing_source": "board status read timestamp before wheel-event timestamp fix",
+  "contract_parser_error": "FormatException: $.stop_latency_ms must be at most 1000"
+}
