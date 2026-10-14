@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND.
 
-// contract-sha256: c838db0a7cef76c292a3363afe6e802d725e1350440493dbcf75e1a7a59ac9cc
+// contract-sha256: 2f7b1493bc2b462a1b371d4a4be150c251f5c16dc2239c259eee43387b4dad72
 
 Object? _required(Map<String, Object?> json, String key, String path) {
   if (!json.containsKey(key)) {
@@ -65,7 +65,7 @@ DateTime _asDateTime(Object? value, String path) {
   return parsed;
 }
 
-const String appContractVersion = "3.1.0";
+const String appContractVersion = "3.4.0";
 
 class ApiCompatibilityDecision {
   final bool writeAllowed;
@@ -5862,6 +5862,585 @@ class RobotIdentity {
     }
     if (result.deviceKeyFingerprint != null && (!RegExp(r'^sha256:[0-9a-f]{64}$').hasMatch(result.deviceKeyFingerprint!))) {
       throw FormatException('$path.device_key_fingerprint has an invalid format');
+    }
+    return result;
+  }
+}
+
+class SemanticRoom {
+  final String id;
+  final String displayName;
+  final String mapId;
+  final int mapRevision;
+  final String verification;
+  final MapPosition approximatePosition;
+  final MapPosition target;
+
+  const SemanticRoom({
+    required this.id,
+    required this.displayName,
+    required this.mapId,
+    required this.mapRevision,
+    required this.verification,
+    required this.approximatePosition,
+    required this.target,
+  });
+
+  factory SemanticRoom.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'id', 'display_name', 'map_id', 'map_revision', 'verification', 'approximate_position', 'target'}, path);
+    final result = SemanticRoom(
+      id: _asString(_required(json, 'id', path), '$path.id'),
+      displayName: _asString(_required(json, 'display_name', path), '$path.display_name'),
+      mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      verification: _asString(_required(json, 'verification', path), '$path.verification'),
+      approximatePosition: MapPosition.fromJson(_asMap(_required(json, 'approximate_position', path), '$path.approximate_position'), path: '$path.approximate_position'),
+      target: MapPosition.fromJson(_asMap(_required(json, 'target', path), '$path.target'), path: '$path.target'),
+    );
+    if (result.id.length < 1) {
+      throw FormatException('$path.id must contain at least 1 characters');
+    }
+    if (result.id.length > 128) {
+      throw FormatException('$path.id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.id)) {
+      throw FormatException('$path.id has an invalid format');
+    }
+    if (result.displayName.length < 1) {
+      throw FormatException('$path.display_name must contain at least 1 characters');
+    }
+    if (result.displayName.length > 80) {
+      throw FormatException('$path.display_name must contain at most 80 characters');
+    }
+    if (result.mapId.length < 1) {
+      throw FormatException('$path.map_id must contain at least 1 characters');
+    }
+    if (result.mapId.length > 128) {
+      throw FormatException('$path.map_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.mapId)) {
+      throw FormatException('$path.map_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (!const <Object?>["verified"].contains(result.verification)) {
+      throw FormatException('$path.verification contains an unknown enum value');
+    }
+    return result;
+  }
+}
+
+class SemanticKeepoutZone {
+  final String id;
+  final String displayName;
+  final String mapId;
+  final int mapRevision;
+  final String verification;
+  final List<MapPosition> polygon;
+
+  const SemanticKeepoutZone({
+    required this.id,
+    required this.displayName,
+    required this.mapId,
+    required this.mapRevision,
+    required this.verification,
+    required this.polygon,
+  });
+
+  factory SemanticKeepoutZone.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'id', 'display_name', 'map_id', 'map_revision', 'verification', 'polygon'}, path);
+    final result = SemanticKeepoutZone(
+      id: _asString(_required(json, 'id', path), '$path.id'),
+      displayName: _asString(_required(json, 'display_name', path), '$path.display_name'),
+      mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      verification: _asString(_required(json, 'verification', path), '$path.verification'),
+      polygon: _asList(_required(json, 'polygon', path), '$path.polygon').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.polygon' + '[${entry.key}]';
+        return MapPosition.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+    );
+    if (result.id.length < 1) {
+      throw FormatException('$path.id must contain at least 1 characters');
+    }
+    if (result.id.length > 128) {
+      throw FormatException('$path.id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.id)) {
+      throw FormatException('$path.id has an invalid format');
+    }
+    if (result.displayName.length < 1) {
+      throw FormatException('$path.display_name must contain at least 1 characters');
+    }
+    if (result.displayName.length > 80) {
+      throw FormatException('$path.display_name must contain at most 80 characters');
+    }
+    if (result.mapId.length < 1) {
+      throw FormatException('$path.map_id must contain at least 1 characters');
+    }
+    if (result.mapId.length > 128) {
+      throw FormatException('$path.map_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.mapId)) {
+      throw FormatException('$path.map_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (!const <Object?>["verified"].contains(result.verification)) {
+      throw FormatException('$path.verification contains an unknown enum value');
+    }
+    return result;
+  }
+}
+
+class SemanticPatrolRoute {
+  final String id;
+  final String displayName;
+  final String mapId;
+  final int mapRevision;
+  final String verification;
+  final List<String> roomIds;
+
+  const SemanticPatrolRoute({
+    required this.id,
+    required this.displayName,
+    required this.mapId,
+    required this.mapRevision,
+    required this.verification,
+    required this.roomIds,
+  });
+
+  factory SemanticPatrolRoute.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'id', 'display_name', 'map_id', 'map_revision', 'verification', 'room_ids'}, path);
+    final result = SemanticPatrolRoute(
+      id: _asString(_required(json, 'id', path), '$path.id'),
+      displayName: _asString(_required(json, 'display_name', path), '$path.display_name'),
+      mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      verification: _asString(_required(json, 'verification', path), '$path.verification'),
+      roomIds: _asList(_required(json, 'room_ids', path), '$path.room_ids').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.room_ids' + '[${entry.key}]';
+        return _asString(item, itemPath);
+      }).toList(growable: false),
+    );
+    if (result.id.length < 1) {
+      throw FormatException('$path.id must contain at least 1 characters');
+    }
+    if (result.id.length > 128) {
+      throw FormatException('$path.id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.id)) {
+      throw FormatException('$path.id has an invalid format');
+    }
+    if (result.displayName.length < 1) {
+      throw FormatException('$path.display_name must contain at least 1 characters');
+    }
+    if (result.displayName.length > 80) {
+      throw FormatException('$path.display_name must contain at most 80 characters');
+    }
+    if (result.mapId.length < 1) {
+      throw FormatException('$path.map_id must contain at least 1 characters');
+    }
+    if (result.mapId.length > 128) {
+      throw FormatException('$path.map_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.mapId)) {
+      throw FormatException('$path.map_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (!const <Object?>["verified"].contains(result.verification)) {
+      throw FormatException('$path.verification contains an unknown enum value');
+    }
+    return result;
+  }
+}
+
+class MapSemanticsData {
+  final String mapId;
+  final int mapRevision;
+  final int revision;
+  final bool active;
+  final bool qualityWarning;
+  final NavigationMap? map;
+  final List<SemanticRoom> rooms;
+  final List<SemanticKeepoutZone> keepoutZones;
+  final List<SemanticPatrolRoute> patrolRoutes;
+  final ReadOnlyMapPose? dockPose;
+
+  const MapSemanticsData({
+    required this.mapId,
+    required this.mapRevision,
+    required this.revision,
+    required this.active,
+    required this.qualityWarning,
+    required this.map,
+    required this.rooms,
+    required this.keepoutZones,
+    required this.patrolRoutes,
+    required this.dockPose,
+  });
+
+  factory MapSemanticsData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'map_id', 'map_revision', 'revision', 'active', 'quality_warning', 'map', 'rooms', 'keepout_zones', 'patrol_routes', 'dock_pose'}, path);
+    final result = MapSemanticsData(
+      mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      revision: _asInt(_required(json, 'revision', path), '$path.revision'),
+      active: _asBool(_required(json, 'active', path), '$path.active'),
+      qualityWarning: _asBool(_required(json, 'quality_warning', path), '$path.quality_warning'),
+      map: _required(json, 'map', path) == null ? null : NavigationMap.fromJson(_asMap(_required(json, 'map', path), '$path.map'), path: '$path.map'),
+      rooms: _asList(_required(json, 'rooms', path), '$path.rooms').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.rooms' + '[${entry.key}]';
+        return SemanticRoom.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+      keepoutZones: _asList(_required(json, 'keepout_zones', path), '$path.keepout_zones').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.keepout_zones' + '[${entry.key}]';
+        return SemanticKeepoutZone.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+      patrolRoutes: _asList(_required(json, 'patrol_routes', path), '$path.patrol_routes').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.patrol_routes' + '[${entry.key}]';
+        return SemanticPatrolRoute.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false),
+      dockPose: _required(json, 'dock_pose', path) == null ? null : ReadOnlyMapPose.fromJson(_asMap(_required(json, 'dock_pose', path), '$path.dock_pose'), path: '$path.dock_pose'),
+    );
+    if (result.mapId.length < 1) {
+      throw FormatException('$path.map_id must contain at least 1 characters');
+    }
+    if (result.mapId.length > 128) {
+      throw FormatException('$path.map_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.mapId)) {
+      throw FormatException('$path.map_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (result.revision < 1) {
+      throw FormatException('$path.revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class SemanticRoomCandidateData {
+  final MapPosition candidate;
+  final String mapId;
+  final int mapRevision;
+  final int revision;
+
+  const SemanticRoomCandidateData({
+    required this.candidate,
+    required this.mapId,
+    required this.mapRevision,
+    required this.revision,
+  });
+
+  factory SemanticRoomCandidateData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'candidate', 'map_id', 'map_revision', 'revision'}, path);
+    final result = SemanticRoomCandidateData(
+      candidate: MapPosition.fromJson(_asMap(_required(json, 'candidate', path), '$path.candidate'), path: '$path.candidate'),
+      mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      revision: _asInt(_required(json, 'revision', path), '$path.revision'),
+    );
+    if (result.mapId.length < 1) {
+      throw FormatException('$path.map_id must contain at least 1 characters');
+    }
+    if (result.mapId.length > 128) {
+      throw FormatException('$path.map_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.mapId)) {
+      throw FormatException('$path.map_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (result.revision < 1) {
+      throw FormatException('$path.revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class MapSemanticsCommandRequest {
+  final String action;
+  final int mapRevision;
+  final int expectedRevision;
+  final String? presenceToken;
+  final String? entityId;
+  final String? displayName;
+  final MapPosition? approximatePosition;
+  final List<MapPosition>? polygon;
+  final List<String>? roomIds;
+
+  const MapSemanticsCommandRequest({
+    required this.action,
+    required this.mapRevision,
+    required this.expectedRevision,
+    required this.presenceToken,
+    required this.entityId,
+    required this.displayName,
+    required this.approximatePosition,
+    required this.polygon,
+    required this.roomIds,
+  });
+
+  factory MapSemanticsCommandRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'action', 'map_revision', 'expected_revision', 'presence_token', 'entity_id', 'display_name', 'approximate_position', 'polygon', 'room_ids'}, path);
+    final result = MapSemanticsCommandRequest(
+      action: _asString(_required(json, 'action', path), '$path.action'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      expectedRevision: _asInt(_required(json, 'expected_revision', path), '$path.expected_revision'),
+      presenceToken: json.containsKey('presence_token') ? _asString(_required(json, 'presence_token', path), '$path.presence_token') : null,
+      entityId: json.containsKey('entity_id') ? _asString(_required(json, 'entity_id', path), '$path.entity_id') : null,
+      displayName: json.containsKey('display_name') ? _asString(_required(json, 'display_name', path), '$path.display_name') : null,
+      approximatePosition: json.containsKey('approximate_position') ? MapPosition.fromJson(_asMap(_required(json, 'approximate_position', path), '$path.approximate_position'), path: '$path.approximate_position') : null,
+      polygon: json.containsKey('polygon') ? _asList(_required(json, 'polygon', path), '$path.polygon').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.polygon' + '[${entry.key}]';
+        return MapPosition.fromJson(_asMap(item, itemPath), path: itemPath);
+      }).toList(growable: false) : null,
+      roomIds: json.containsKey('room_ids') ? _asList(_required(json, 'room_ids', path), '$path.room_ids').asMap().entries.map((entry) {
+        final item = entry.value;
+        final itemPath = '$path.room_ids' + '[${entry.key}]';
+        return _asString(item, itemPath);
+      }).toList(growable: false) : null,
+    );
+    if (!const <Object?>["room_upsert", "room_delete", "keepout_upsert", "keepout_delete", "route_upsert", "route_delete", "validate_room"].contains(result.action)) {
+      throw FormatException('$path.action contains an unknown enum value');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (result.expectedRevision < 1) {
+      throw FormatException('$path.expected_revision must be at least 1');
+    }
+    if (result.presenceToken != null && (result.presenceToken!.length < 1)) {
+      throw FormatException('$path.presence_token must contain at least 1 characters');
+    }
+    if (result.presenceToken != null && (result.presenceToken!.length > 512)) {
+      throw FormatException('$path.presence_token must contain at most 512 characters');
+    }
+    if (result.entityId != null && (result.entityId!.length < 1)) {
+      throw FormatException('$path.entity_id must contain at least 1 characters');
+    }
+    if (result.entityId != null && (result.entityId!.length > 128)) {
+      throw FormatException('$path.entity_id must contain at most 128 characters');
+    }
+    if (result.entityId != null && (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.entityId!))) {
+      throw FormatException('$path.entity_id has an invalid format');
+    }
+    if (result.displayName != null && (result.displayName!.length < 1)) {
+      throw FormatException('$path.display_name must contain at least 1 characters');
+    }
+    if (result.displayName != null && (result.displayName!.length > 80)) {
+      throw FormatException('$path.display_name must contain at most 80 characters');
+    }
+    return result;
+  }
+}
+
+class SemanticNavigationRequest {
+  final String entityId;
+  final int mapRevision;
+  final int expectedRevision;
+
+  const SemanticNavigationRequest({
+    required this.entityId,
+    required this.mapRevision,
+    required this.expectedRevision,
+  });
+
+  factory SemanticNavigationRequest.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'entity_id', 'map_revision', 'expected_revision'}, path);
+    final result = SemanticNavigationRequest(
+      entityId: _asString(_required(json, 'entity_id', path), '$path.entity_id'),
+      mapRevision: _asInt(_required(json, 'map_revision', path), '$path.map_revision'),
+      expectedRevision: _asInt(_required(json, 'expected_revision', path), '$path.expected_revision'),
+    );
+    if (result.entityId.length < 1) {
+      throw FormatException('$path.entity_id must contain at least 1 characters');
+    }
+    if (result.entityId.length > 128) {
+      throw FormatException('$path.entity_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.entityId)) {
+      throw FormatException('$path.entity_id has an invalid format');
+    }
+    if (result.mapRevision < 1) {
+      throw FormatException('$path.map_revision must be at least 1');
+    }
+    if (result.expectedRevision < 1) {
+      throw FormatException('$path.expected_revision must be at least 1');
+    }
+    return result;
+  }
+}
+
+class SemanticNavigationData {
+  final String operationId;
+  final String status;
+  final String entityId;
+  final String displayName;
+  final String? reasonCode;
+
+  const SemanticNavigationData({
+    required this.operationId,
+    required this.status,
+    required this.entityId,
+    required this.displayName,
+    required this.reasonCode,
+  });
+
+  factory SemanticNavigationData.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'operation_id', 'status', 'entity_id', 'display_name', 'reason_code'}, path);
+    final result = SemanticNavigationData(
+      operationId: _asString(_required(json, 'operation_id', path), '$path.operation_id'),
+      status: _asString(_required(json, 'status', path), '$path.status'),
+      entityId: _asString(_required(json, 'entity_id', path), '$path.entity_id'),
+      displayName: _asString(_required(json, 'display_name', path), '$path.display_name'),
+      reasonCode: _required(json, 'reason_code', path) == null ? null : _asString(_required(json, 'reason_code', path), '$path.reason_code'),
+    );
+    if (result.operationId.length < 1) {
+      throw FormatException('$path.operation_id must contain at least 1 characters');
+    }
+    if (result.operationId.length > 128) {
+      throw FormatException('$path.operation_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.operationId)) {
+      throw FormatException('$path.operation_id has an invalid format');
+    }
+    if (!const <Object?>["accepted", "failed", "unconfirmed"].contains(result.status)) {
+      throw FormatException('$path.status contains an unknown enum value');
+    }
+    if (result.entityId.length < 1) {
+      throw FormatException('$path.entity_id must contain at least 1 characters');
+    }
+    if (result.entityId.length > 128) {
+      throw FormatException('$path.entity_id must contain at most 128 characters');
+    }
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(result.entityId)) {
+      throw FormatException('$path.entity_id has an invalid format');
+    }
+    if (result.displayName.length < 1) {
+      throw FormatException('$path.display_name must contain at least 1 characters');
+    }
+    if (result.displayName.length > 80) {
+      throw FormatException('$path.display_name must contain at most 80 characters');
+    }
+    if (result.reasonCode != null && (result.reasonCode!.length > 160)) {
+      throw FormatException('$path.reason_code must contain at most 160 characters');
+    }
+    return result;
+  }
+}
+
+class MapSemanticsSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final MapSemanticsData data;
+
+  const MapSemanticsSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory MapSemanticsSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = MapSemanticsSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: MapSemanticsData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    return result;
+  }
+}
+
+class SemanticRoomCandidateSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final SemanticRoomCandidateData data;
+
+  const SemanticRoomCandidateSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory SemanticRoomCandidateSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = SemanticRoomCandidateSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: SemanticRoomCandidateData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
+    }
+    return result;
+  }
+}
+
+class SemanticNavigationSuccessEnvelope {
+  final String schemaVersion;
+  final String requestId;
+  final DateTime serverTime;
+  final SemanticNavigationData data;
+
+  const SemanticNavigationSuccessEnvelope({
+    required this.schemaVersion,
+    required this.requestId,
+    required this.serverTime,
+    required this.data,
+  });
+
+  factory SemanticNavigationSuccessEnvelope.fromJson(Map<String, Object?> json, {String path = r'$'}) {
+    _rejectUnknownKeys(json, const {'schema_version', 'request_id', 'server_time', 'data'}, path);
+    final result = SemanticNavigationSuccessEnvelope(
+      schemaVersion: _asString(_required(json, 'schema_version', path), '$path.schema_version'),
+      requestId: _asString(_required(json, 'request_id', path), '$path.request_id'),
+      serverTime: _asDateTime(_required(json, 'server_time', path), '$path.server_time'),
+      data: SemanticNavigationData.fromJson(_asMap(_required(json, 'data', path), '$path.data'), path: '$path.data'),
+    );
+    if (result.schemaVersion != "1.0") {
+      throw FormatException('$path.schema_version must equal "1.0"');
+    }
+    if (result.requestId.length < 1) {
+      throw FormatException('$path.request_id must contain at least 1 characters');
+    }
+    if (result.requestId.length > 128) {
+      throw FormatException('$path.request_id must contain at most 128 characters');
     }
     return result;
   }

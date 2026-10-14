@@ -1,0 +1,34 @@
+{
+  "stage": "software-verified-provider-integrated",
+  "provider_workspace": "/tmp/duole-issue34-provider",
+  "provider_patch": ".scratch/duole-family-app-v1/issue34-development/provider.patch",
+  "provider_patch_apply_check": "pass",
+  "provider_related_tests": 108,
+  "provider_runtime_targeted_tests": 17,
+  "flutter_semantics_tests": 10,
+  "flutter_existing_map_tests": 20,
+  "flutter_existing_robot_tests": 8,
+  "dart_semantics_api": "pass",
+  "analyze": "pass",
+  "contract_regeneration": "pass",
+  "apk": {
+    "path": "flutter/duole_engineering_app/build/issue34-local/duole-app-issue34-dev-v2017-arm64.apk",
+    "version_code": 2017,
+    "version_name": "0.1.0-issue34-dev",
+    "bytes": 96609501,
+    "sha256": "1b3082eda3e99ebcd2829f255d1aa27b37e76b554d40d6145507cc0d9ad7be8a",
+    "signature_verified": true
+  },
+  "hardware_acceptance": "pending",
+  "provider_shared_worktree": "integrated-existing-wip-preserved",
+  "provider_shared_workspace": "/home/ztl/duole-workspace",
+  "provider_integration_verification": {
+    "date": "2026-10-15",
+    "task_files": 21,
+    "isolated_content_match": true,
+    "unrelated_wip_status_unchanged": true,
+    "related_tests_passed": 108,
+    "test_duration_seconds": 16.06,
+    "hardware_exercised": false
+  }
+}

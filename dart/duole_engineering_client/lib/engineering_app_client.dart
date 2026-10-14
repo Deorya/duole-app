@@ -207,6 +207,39 @@ abstract interface class NavigationMapReader {
   });
 }
 
+abstract interface class MapSemanticsReader {
+  Future<MapSemanticsData> getMapSemantics(String mapId);
+}
+
+abstract interface class MapSemanticsManager implements MapSemanticsReader {
+  Future<SemanticRoomCandidateData> validateSemanticRoom(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    String? presenceToken,
+    required String displayName,
+    required MapPosition approximatePosition,
+    String? entityId,
+  });
+
+  Future<MapSemanticsData> writeMapSemantics(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    String? presenceToken,
+    required Map<String, Object?> changes,
+  });
+}
+
+abstract interface class SemanticNavigationCommander {
+  Future<SemanticNavigationData> navigateToSemanticTarget(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    required String entityId,
+  });
+}
+
 abstract interface class MapCatalogReader {
   Future<MapCatalogSuccessEnvelope> getMapCatalog();
 }

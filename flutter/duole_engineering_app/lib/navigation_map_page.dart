@@ -7,10 +7,12 @@ import 'package:duole_engineering_client/manual_mapping_control.dart';
 import 'package:flutter/material.dart';
 
 import 'emergency_stop_control.dart';
+import 'map_semantics_page.dart';
 import 'mapping_error_text.dart';
 import 'manual_mapping_page.dart';
 import 'saved_map_preview_page.dart';
 import 'map_switch_progress_page.dart';
+import 'semantic_map_canvas.dart';
 
 typedef MapChallengeScanner = Future<String?> Function(
   BuildContext context,
@@ -24,6 +26,9 @@ class NavigationMapPage extends StatefulWidget {
     this.catalogReader,
     this.catalogManager,
     this.mapManagementManager,
+    this.mapSemanticsReader,
+    this.mapSemanticsManager,
+    this.semanticNavigationCommander,
     this.manualMappingManager,
     this.manualMappingControlTransport,
     this.mapChallengeScanner,
@@ -37,6 +42,9 @@ class NavigationMapPage extends StatefulWidget {
   final MapCatalogReader? catalogReader;
   final MapCatalogManager? catalogManager;
   final MapManagementManager? mapManagementManager;
+  final MapSemanticsReader? mapSemanticsReader;
+  final MapSemanticsManager? mapSemanticsManager;
+  final SemanticNavigationCommander? semanticNavigationCommander;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final MapChallengeScanner? mapChallengeScanner;
@@ -56,6 +64,8 @@ class _NavigationMapPageState extends State<NavigationMapPage>
   Object? _error;
   MapCatalogRecord? _activeSavedMap;
   NavigationMapImageResponse? _activeSavedImage;
+  MapSemanticsData? _semantics;
+  bool _semanticsUnavailable = false;
 
   @override
   void initState() {
@@ -86,6 +96,21 @@ class _NavigationMapPageState extends State<NavigationMapPage>
     }
   }
 
+  Future<void> _openSemantics(String mapId) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => MapSemanticsPage(
+              mapId: mapId,
+              reader: widget.mapSemanticsReader!,
+              imageReader: widget.reader,
+              manager: widget.mapSemanticsManager,
+              presenceManager: widget.mapManagementManager,
+              scanner: widget.mapChallengeScanner,
+              navigationCommander: widget.semanticNavigationCommander,
+              emergencyStopCommander: widget.emergencyStopCommander,
+            )));
+    if (mounted) await _load();
+  }
+
   Future<void> _load() async {
     try {
       final envelope = await widget.reader.getNavigationMapView();
@@ -111,6 +136,32 @@ class _NavigationMapPageState extends State<NavigationMapPage>
           /* Keep the active selection visible when its image is unavailable. */
         }
       }
+      MapSemanticsData? semantics;
+      var semanticsUnavailable = false;
+      final mapId = activeSaved?.mapId ?? map?.mapId;
+      final mapRevision = activeSaved == null
+          ? map?.revision
+          : activeSaved.sourceRevision ?? activeSaved.revision;
+      if (widget.mapSemanticsReader != null && mapId != null) {
+        try {
+          final data = await widget.mapSemanticsReader!.getMapSemantics(mapId);
+          if (data.mapId != mapId ||
+              data.mapRevision != mapRevision ||
+              data.map?.mapId != mapId ||
+              data.map?.revision != mapRevision ||
+              (activeSaved == null &&
+                  data.map?.contentSha256 != map?.contentSha256) ||
+              data.rooms.any((room) =>
+                  room.mapId != mapId || room.mapRevision != mapRevision) ||
+              data.keepoutZones.any((zone) =>
+                  zone.mapId != mapId || zone.mapRevision != mapRevision)) {
+            throw const FormatException('home semantic map binding mismatch');
+          }
+          semantics = data;
+        } catch (_) {
+          semanticsUnavailable = true;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _view = envelope.data;
@@ -118,6 +169,8 @@ class _NavigationMapPageState extends State<NavigationMapPage>
         _catalog = catalog;
         _activeSavedMap = activeSaved;
         _activeSavedImage = activeImage;
+        _semantics = semantics;
+        _semanticsUnavailable = semanticsUnavailable;
         _error = null;
       });
     } catch (error) {
@@ -158,13 +211,35 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                         _ActiveSavedMapCard(
                             map: _activeSavedMap!,
                             image: _activeSavedImage,
+                            semantics: _semantics,
                             reader:
                                 widget.catalogReader is MapCatalogPreviewReader
                                     ? widget.catalogReader
                                         as MapCatalogPreviewReader
                                     : null)
                       else
-                        _MapCard(view: view, image: _image),
+                        _MapCard(
+                            view: view, image: _image, semantics: _semantics),
+                      if (_semanticsUnavailable) const Text('点位暂未同步，请下拉刷新'),
+                      if (widget.mapSemanticsReader != null &&
+                          (_catalog?.maps.any((m) => m.status == 'active') ==
+                                  true ||
+                              view.map != null)) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          key: const Key('open-map-semantics'),
+                          onPressed: () async {
+                            final mapId = _catalog?.maps
+                                    .where((m) => m.status == 'active')
+                                    .firstOrNull
+                                    ?.mapId ??
+                                view.map!.mapId;
+                            await _openSemantics(mapId);
+                          },
+                          icon: const Icon(Icons.add_location_alt_outlined),
+                          label: const Text('点位标注与导航'),
+                        ),
+                      ],
                       if (_catalog != null) ...[
                         const SizedBox(height: 16),
                         _MapCatalogSection(
@@ -178,6 +253,9 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                           mapManagementManager: widget.mapManagementManager,
                           scanner: widget.mapChallengeScanner,
                           onChanged: _load,
+                          onAnnotate: widget.mapSemanticsReader == null
+                              ? null
+                              : _openSemantics,
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -506,6 +584,7 @@ class _MapCatalogSection extends StatelessWidget {
     required this.mapManagementManager,
     required this.scanner,
     required this.onChanged,
+    required this.onAnnotate,
   });
 
   final MapCatalogData catalog;
@@ -515,6 +594,7 @@ class _MapCatalogSection extends StatelessWidget {
   final MapManagementManager? mapManagementManager;
   final MapChallengeScanner? scanner;
   final Future<void> Function() onChanged;
+  final Future<void> Function(String)? onAnnotate;
 
   @override
   Widget build(BuildContext context) {
@@ -543,6 +623,7 @@ class _MapCatalogSection extends StatelessWidget {
                     mapManagementManager: mapManagementManager,
                     scanner: scanner,
                     onChanged: onChanged,
+                    onAnnotate: onAnnotate,
                   ),
                 if (catalog.maps.isEmpty) const Text('当前没有可用地图'),
               ],
@@ -602,6 +683,7 @@ class _CatalogMapTile extends StatelessWidget {
     required this.mapManagementManager,
     required this.scanner,
     required this.onChanged,
+    required this.onAnnotate,
   });
 
   final MapCatalogRecord map;
@@ -612,6 +694,7 @@ class _CatalogMapTile extends StatelessWidget {
   final MapManagementManager? mapManagementManager;
   final MapChallengeScanner? scanner;
   final Future<void> Function() onChanged;
+  final Future<void> Function(String)? onAnnotate;
 
   @override
   Widget build(BuildContext context) {
@@ -650,42 +733,50 @@ class _CatalogMapTile extends StatelessWidget {
         ],
       ),
       isThreeLine: true,
-      trailing: manager == null && mapManagementManager == null
-          ? null
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (mapManagementManager != null &&
-                    map.status != 'active' &&
-                    map.technicalState == 'loadable')
-                  IconButton(
-                    key: Key('switch-map-${map.mapId}'),
-                    tooltip: '切换到此地图',
-                    onPressed: scanner == null && !developmentMapSwitch
-                        ? null
-                        : () => _switchMap(context),
-                    icon: const Icon(Icons.swap_horiz),
-                  ),
-                if (manager != null) ...[
-                  IconButton(
-                    key: Key('rename-map-${map.mapId}'),
-                    tooltip: '重命名',
-                    onPressed: () => _rename(context),
-                    icon: const Icon(Icons.edit_outlined),
-                  ),
-                  IconButton(
-                    key: Key('trash-map-${map.mapId}'),
-                    tooltip: map.status == 'active' && liveMapCount > 1
-                        ? '请先切换活动地图'
-                        : '删除到回收站',
-                    onPressed: map.status == 'active' && liveMapCount > 1
-                        ? null
-                        : () => _trash(context),
-                    icon: const Icon(Icons.delete_outline),
-                  ),
-                ],
-              ],
-            ),
+      trailing:
+          manager == null && mapManagementManager == null && onAnnotate == null
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onAnnotate != null && map.technicalState == 'loadable')
+                      IconButton(
+                        key: Key('annotate-map-${map.mapId}'),
+                        tooltip: '标注此地图',
+                        onPressed: () => onAnnotate!(map.mapId),
+                        icon: const Icon(Icons.add_location_alt_outlined),
+                      ),
+                    if (mapManagementManager != null &&
+                        map.status != 'active' &&
+                        map.technicalState == 'loadable')
+                      IconButton(
+                        key: Key('switch-map-${map.mapId}'),
+                        tooltip: '切换到此地图',
+                        onPressed: scanner == null && !developmentMapSwitch
+                            ? null
+                            : () => _switchMap(context),
+                        icon: const Icon(Icons.swap_horiz),
+                      ),
+                    if (manager != null) ...[
+                      IconButton(
+                        key: Key('rename-map-${map.mapId}'),
+                        tooltip: '重命名',
+                        onPressed: () => _rename(context),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        key: Key('trash-map-${map.mapId}'),
+                        tooltip: map.status == 'active' && liveMapCount > 1
+                            ? '请先切换活动地图'
+                            : '删除到回收站',
+                        onPressed: map.status == 'active' && liveMapCount > 1
+                            ? null
+                            : () => _trash(context),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ],
+                ),
     );
   }
 
@@ -1088,13 +1179,18 @@ String _formatBytes(int value) {
 
 class _ActiveSavedMapCard extends StatelessWidget {
   const _ActiveSavedMapCard(
-      {required this.map, required this.image, required this.reader});
+      {required this.map,
+      required this.image,
+      required this.reader,
+      required this.semantics});
   final MapCatalogRecord map;
   final NavigationMapImageResponse? image;
   final MapCatalogPreviewReader? reader;
+  final MapSemanticsData? semantics;
 
   @override
   Widget build(BuildContext context) => Card(
+        key: const Key('home-map-card'),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
@@ -1108,12 +1204,28 @@ class _ActiveSavedMapCard extends StatelessWidget {
             if (image != null)
               SizedBox(
                 height: 320,
-                child: Image.memory(Uint8List.fromList(image!.bytes),
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.none,
-                    semanticLabel: '当前地图${map.displayName}',
-                    errorBuilder: (_, __, ___) =>
-                        const Center(child: Text('点击重新查看地图'))),
+                child: semantics == null
+                    ? Image.memory(Uint8List.fromList(image!.bytes),
+                        fit: BoxFit.contain,
+                        filterQuality: FilterQuality.none,
+                        semanticLabel: '当前地图${map.displayName}',
+                        errorBuilder: (_, __, ___) =>
+                            const Center(child: Text('点击重新查看地图')))
+                    : Center(
+                        child: AspectRatio(
+                            aspectRatio: semantics!.map!.widthPx /
+                                semantics!.map!.heightPx,
+                            child: Stack(fit: StackFit.expand, children: [
+                              Image.memory(Uint8List.fromList(image!.bytes),
+                                  fit: BoxFit.fill,
+                                  filterQuality: FilterQuality.none,
+                                  semanticLabel: '当前地图${map.displayName}'),
+                              SemanticMapOverlay(
+                                  key: const Key('home-semantic-overlay'),
+                                  map: semantics!.map!,
+                                  rooms: semantics!.rooms,
+                                  keepouts: semantics!.keepoutZones),
+                            ]))),
               )
             else
               const Padding(
@@ -1126,10 +1238,12 @@ class _ActiveSavedMapCard extends StatelessWidget {
 }
 
 class _MapCard extends StatelessWidget {
-  const _MapCard({required this.view, required this.image});
+  const _MapCard(
+      {required this.view, required this.image, required this.semantics});
 
   final NavigationMapViewData view;
   final NavigationMapImageResponse? image;
+  final MapSemanticsData? semantics;
 
   @override
   Widget build(BuildContext context) {
@@ -1143,6 +1257,7 @@ class _MapCard extends StatelessWidget {
       );
     }
     return Card(
+      key: const Key('home-map-card'),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1169,6 +1284,12 @@ class _MapCard extends StatelessWidget {
                       activePath: _activePath(view.activePath),
                     ),
                   ),
+                  if (semantics != null)
+                    SemanticMapOverlay(
+                        key: const Key('home-semantic-overlay'),
+                        map: map,
+                        rooms: semantics!.rooms,
+                        keepouts: semantics!.keepoutZones),
                 ],
               ),
             ),

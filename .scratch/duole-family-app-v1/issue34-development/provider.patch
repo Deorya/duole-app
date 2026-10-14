@@ -1,0 +1,3852 @@
+diff --git a/docs/interface_freeze/app_v1/issue_34_map_semantics.md b/docs/interface_freeze/app_v1/issue_34_map_semantics.md
+new file mode 100644
+--- /dev/null
++++ b/docs/interface_freeze/app_v1/issue_34_map_semantics.md
+@@ -0,0 +1,53 @@
++# Issue 34：地图点位、禁行区与巡逻路线
++
++本次实现的 API 为 `3.2.0`，新增接口沿用 `/api/v1`、安装实例绑定签名和 schema `1.0`。
++实现已获授权合入共享工作树并通过相关软件回归，真实设备验收待进行。
++
++| 接口 | 用途 | 权限与现场条件 |
++| --- | --- | --- |
++| `GET /navigation/maps/{map_id}/semantics` | 读取地图几何及语义配置 | `robot.status.read` |
++| `POST /navigation/maps/{map_id}/semantics/validate-room` | 点选大致中心，返回安全修正候选 | `maps.manage`、有效现场会话、受控 LAN |
++| `POST /navigation/maps/{map_id}/semantics/commands` | 点位、禁行区、路线的新增/修改/删除 | 同上，且占用共享运动资源直到结果明确 |
++| `POST /navigation/maps/{map_id}/semantic-navigation` | 按稳定点位 ID 导航，或按桩锚点回充 | `navigation.execute`、受控 LAN、可信地图和定位、现有产品命令通道启用 |
++
++新 App 导航复用正式产品命令通道及共享 TaskCoordinator，启用配置为
++`navigation_command_topic_actions_enabled`，并沿用导航就绪状态与 App 运动抑制。该通道提交目标
++后立即交还执行器，避免等待底层 Action 接收回包时把紧急停止排在同一执行锁之后。
++
++公开导航请求仅包含 `entity_id`、`map_revision` 和 `expected_revision`。房间使用稳定
++`room_*` ID；`charging_dock` 只解析到板端已验证、且锚点 ID 与当前地图一致的充电桩锚点。
++充电桩锚点由既有板端回桩验证流程生成，语义编辑接口不接收桩坐标。
++
++`map_revision` 对应资料库 `source_revision`，用于绑定不可变地图栅格和图像。
++`revision` 对应地图的语义配置版本，初始为 1，语义修改时递增。
++资料库重命名、回收及恢复的 CAS revision 独立保留。编辑提交 `expected_revision` 和
++`If-Match: "rev-N"`，版本冲突返回当前 revision。每次写入携带 request ID、TTL、
++idempotency key 和安装实例签名；同一 actor 的原请求重放保留稳定实体 ID。
++
++点位验证比对当前选择、保存栅格与 ROS `/map`，读取新鲜 `/amcl_pose` 和
++`/global_costmap/costmap`，拒绝未知或非空闲代价、定位不可信和开发切图的
++`localization_pending` 状态。修正候选在大致输入附近一米内搜索，要求处于机器人当前
++可达的空闲连通区域，并避开禁行区。保存时再次验证。低评分地图仍可配置，App 展示提示。
++
++禁行区必须是地图内不自交的多边形，不能包含机器人或隔断既有已验证目标。
++板端加载蒙版后核对返回栅格与新鲜代价地图，再提交 SQLite 配置。修改期间复用共享
++TaskCoordinator 的运动资源占用；不取消既有运动任务。运行时回包或恢复不明确时保持
++占用，重试先恢复持久化配置对应的蒙版，再处理原请求。SQLite 中的 pending 记录避免
++进程退出后把未经确认的蒙版状态用于导航。既有 App 紧急停止可以取消该占用。
++
++巡逻路线由当前地图已验证房间的稳定 ID 构成，保存排序，拒绝任意坐标、未知房间和
++重复房间引用。删除被路线引用的房间需要先修改路线。语义配置与地图一起回收和恢复；
++永久清理级联删除配置请求结果、版本和 pending 记录，并删除该地图的运行时蒙版副本。
++
++App 从“家庭地图 → 点位标注与导航”进入编辑页，绘制大致输入、修正候选和已验证点位。
++地图原点旋转、分辨率、图像纵轴、缩放和平移参与坐标转换。未获导航权限时显示说明；
++版本冲突保留草稿并要求刷新，结果不确定时保留原请求重试。App 后台撤销现场会话并清除候选。
++导航返回 `accepted` 表示请求已提交，真实到达以现有产品任务状态与现场观察验收。
++
++签名编码遵循现有 Provider 的排序 JSON 实现。新增浮点坐标在 Dart 侧使用与 Python
++一致的小数及指数表示，已用 Python 校验 Dart 实际发出的请求体。此变更限定在语义接口，
++既有 Schedule、配对和地图切换编码保持原实现。
++
++本次软件验证使用合成地图、隔离 SQLite、替身 ROS 和模拟传输。真实地图到达、蒙版生效、
++桩锚点回充、切图隔离、回收恢复及启动/运动中的停止时间矩阵仍需通过正式产品入口验收。
++移动停车 `<= 1 s` 基线沿用。
+diff --git a/docs/interface_freeze/app_v1/openapi.json b/docs/interface_freeze/app_v1/openapi.json
+--- a/docs/interface_freeze/app_v1/openapi.json
++++ b/docs/interface_freeze/app_v1/openapi.json
+@@ -2,7 +2,7 @@
+   "openapi": "3.1.0",
+   "info": {
+     "title": "DUOLE App API V1 contract",
+-    "version": "3.1.0"
++    "version": "3.2.0"
+   },
+   "x-duole-contract": {
+     "freeze": {
+@@ -23,26 +23,30 @@
+         "/clients",
+         "/clients/{device_session_id}",
+         "/events/ws",
++        "/navigation/manual-mapping-sessions/{session_id}",
++        "/navigation/manual-mapping-sessions/{session_id}/commands",
++        "/navigation/manual-mapping-sessions/{session_id}/control/ws",
++        "/navigation/manual-mapping-sessions/{session_id}/visualization",
+         "/navigation/map-catalog",
+         "/navigation/map-challenges",
+         "/navigation/map-management-presence/exchange",
+         "/navigation/map-management-presence/invalidate",
+-        "/navigation/mapping-authorizations/exchange",
+-        "/navigation/mapping-operations",
+-        "/navigation/mapping-operations/{operation_id}",
+-        "/navigation/manual-mapping-sessions/{session_id}",
+-        "/navigation/manual-mapping-sessions/{session_id}/visualization",
+-        "/navigation/manual-mapping-sessions/{session_id}/commands",
+-        "/navigation/manual-mapping-sessions/{session_id}/control/ws",
+-        "/navigation/mapping-preflight/{mode}",
+         "/navigation/map-switch-operations",
+         "/navigation/map-switch-operations/{operation_id}",
+         "/navigation/map-trash/{map_id}",
+         "/navigation/map-trash/{map_id}/restore",
+         "/navigation/map-trash/{map_id}/retention",
+         "/navigation/map-view",
++        "/navigation/mapping-authorizations/exchange",
++        "/navigation/mapping-operations",
++        "/navigation/mapping-operations/{operation_id}",
++        "/navigation/mapping-preflight/{mode}",
+         "/navigation/maps/{map_id}/rename",
+         "/navigation/maps/{map_id}/revisions/{map_revision}/image",
++        "/navigation/maps/{map_id}/semantic-navigation",
++        "/navigation/maps/{map_id}/semantics",
++        "/navigation/maps/{map_id}/semantics/commands",
++        "/navigation/maps/{map_id}/semantics/validate-room",
+         "/navigation/maps/{map_id}/trash",
+         "/pairing/exchange",
+         "/schedules",
+@@ -52,10 +56,10 @@
+         "/session/refresh",
+         "/session/refresh-challenge",
+         "/snapshot",
++        "/states/battery",
++        "/states/{component}/refresh",
+         "/stop-operations",
+         "/stop-operations/{operation_id}",
+-        "/states/battery",
+-        "/states/{component}/refresh",
+         "/versions"
+       ]
+     },
+@@ -1986,6 +1990,368 @@
+           }
+         }
+       }
++    },
++    "/navigation/maps/{map_id}/semantics": {
++      "get": {
++        "operationId": "getMapSemantics",
++        "summary": "getMapSemantics",
++        "parameters": [
++          {
++            "$ref": "#/components/parameters/MapId"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Result",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MapSemanticsSuccessEnvelope"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "403": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "404": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "409": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "503": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          }
++        }
++      }
++    },
++    "/navigation/maps/{map_id}/semantics/commands": {
++      "post": {
++        "operationId": "writeMapSemantics",
++        "summary": "writeMapSemantics",
++        "parameters": [
++          {
++            "$ref": "#/components/parameters/MapId"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Result",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/MapSemanticsSuccessEnvelope"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "403": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "404": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "409": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "503": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          }
++        },
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/MapSemanticsCommandRequest"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/navigation/maps/{map_id}/semantics/validate-room": {
++      "post": {
++        "operationId": "validateSemanticRoom",
++        "summary": "validateSemanticRoom",
++        "parameters": [
++          {
++            "$ref": "#/components/parameters/MapId"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Result",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/SemanticRoomCandidateSuccessEnvelope"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "403": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "404": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "409": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "503": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          }
++        },
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/MapSemanticsCommandRequest"
++              }
++            }
++          }
++        }
++      }
++    },
++    "/navigation/maps/{map_id}/semantic-navigation": {
++      "post": {
++        "operationId": "navigateToSemanticTarget",
++        "summary": "navigateToSemanticTarget",
++        "parameters": [
++          {
++            "$ref": "#/components/parameters/MapId"
++          }
++        ],
++        "responses": {
++          "200": {
++            "description": "Result",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/SemanticNavigationSuccessEnvelope"
++                }
++              }
++            }
++          },
++          "400": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "401": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "403": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "404": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "409": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          },
++          "503": {
++            "description": "Rejected",
++            "content": {
++              "application/json": {
++                "schema": {
++                  "$ref": "#/components/schemas/ErrorEnvelope"
++                }
++              }
++            }
++          }
++        },
++        "requestBody": {
++          "required": true,
++          "content": {
++            "application/json": {
++              "schema": {
++                "$ref": "#/components/schemas/SemanticNavigationRequest"
++              }
++            }
++          }
++        }
++      }
+     }
+   },
+   "components": {
+@@ -4653,6 +5019,470 @@
+           },
+           "pairing_available": {"type": "boolean"}
+         }
++      },
++      "SemanticRoom": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "display_name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 80
++          },
++          "map_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "verification": {
++            "type": "string",
++            "enum": [
++              "verified"
++            ]
++          },
++          "approximate_position": {
++            "$ref": "#/components/schemas/MapPosition"
++          },
++          "target": {
++            "$ref": "#/components/schemas/MapPosition"
++          }
++        },
++        "required": [
++          "id",
++          "display_name",
++          "map_id",
++          "map_revision",
++          "verification",
++          "approximate_position",
++          "target"
++        ]
++      },
++      "SemanticKeepoutZone": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "display_name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 80
++          },
++          "map_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "verification": {
++            "type": "string",
++            "enum": [
++              "verified"
++            ]
++          },
++          "polygon": {
++            "type": "array",
++            "minItems": 3,
++            "maxItems": 64,
++            "items": {
++              "$ref": "#/components/schemas/MapPosition"
++            }
++          }
++        },
++        "required": [
++          "id",
++          "display_name",
++          "map_id",
++          "map_revision",
++          "verification",
++          "polygon"
++        ]
++      },
++      "SemanticPatrolRoute": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "display_name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 80
++          },
++          "map_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "verification": {
++            "type": "string",
++            "enum": [
++              "verified"
++            ]
++          },
++          "room_ids": {
++            "type": "array",
++            "minItems": 2,
++            "maxItems": 64,
++            "items": {
++              "type": "string",
++              "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++              "minLength": 1,
++              "maxLength": 128
++            }
++          }
++        },
++        "required": [
++          "id",
++          "display_name",
++          "map_id",
++          "map_revision",
++          "verification",
++          "room_ids"
++        ]
++      },
++      "MapSemanticsData": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "map_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "active": {
++            "type": "boolean"
++          },
++          "quality_warning": {
++            "type": "boolean"
++          },
++          "map": {
++            "$ref": "#/components/schemas/NavigationMap"
++          },
++          "rooms": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/SemanticRoom"
++            }
++          },
++          "keepout_zones": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/SemanticKeepoutZone"
++            }
++          },
++          "patrol_routes": {
++            "type": "array",
++            "items": {
++              "$ref": "#/components/schemas/SemanticPatrolRoute"
++            }
++          },
++          "dock_pose": {
++            "$ref": "#/components/schemas/ReadOnlyMapPose"
++          }
++        },
++        "required": [
++          "map_id",
++          "map_revision",
++          "revision",
++          "active",
++          "quality_warning",
++          "map",
++          "rooms",
++          "keepout_zones",
++          "patrol_routes",
++          "dock_pose"
++        ]
++      },
++      "SemanticRoomCandidateData": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "candidate": {
++            "$ref": "#/components/schemas/MapPosition"
++          },
++          "map_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "revision": {
++            "type": "integer",
++            "minimum": 1
++          }
++        },
++        "required": [
++          "candidate",
++          "map_id",
++          "map_revision",
++          "revision"
++        ]
++      },
++      "MapSemanticsCommandRequest": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "action": {
++            "type": "string",
++            "enum": [
++              "room_upsert",
++              "room_delete",
++              "keepout_upsert",
++              "keepout_delete",
++              "route_upsert",
++              "route_delete",
++              "validate_room"
++            ]
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "expected_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "presence_token": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 512
++          },
++          "entity_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "display_name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 80
++          },
++          "approximate_position": {
++            "$ref": "#/components/schemas/MapPosition"
++          },
++          "polygon": {
++            "type": "array",
++            "minItems": 3,
++            "maxItems": 64,
++            "items": {
++              "$ref": "#/components/schemas/MapPosition"
++            }
++          },
++          "room_ids": {
++            "type": "array",
++            "minItems": 2,
++            "maxItems": 64,
++            "items": {
++              "type": "string",
++              "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++              "minLength": 1,
++              "maxLength": 128
++            }
++          }
++        },
++        "required": [
++          "action",
++          "map_revision",
++          "expected_revision",
++          "presence_token"
++        ]
++      },
++      "SemanticNavigationRequest": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "entity_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "map_revision": {
++            "type": "integer",
++            "minimum": 1
++          },
++          "expected_revision": {
++            "type": "integer",
++            "minimum": 1
++          }
++        },
++        "required": [
++          "entity_id",
++          "map_revision",
++          "expected_revision"
++        ]
++      },
++      "SemanticNavigationData": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "operation_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "status": {
++            "type": "string",
++            "enum": [
++              "accepted",
++              "failed",
++              "unconfirmed"
++            ]
++          },
++          "entity_id": {
++            "type": "string",
++            "pattern": "^[A-Za-z0-9._:-]{1,128}$",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "display_name": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 80
++          },
++          "reason_code": {
++            "type": [
++              "string",
++              "null"
++            ],
++            "maxLength": 160
++          }
++        },
++        "required": [
++          "operation_id",
++          "status",
++          "entity_id",
++          "display_name",
++          "reason_code"
++        ]
++      },
++      "MapSemanticsSuccessEnvelope": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "schema_version": {
++            "type": "string",
++            "const": "1.0"
++          },
++          "request_id": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "server_time": {
++            "type": "string",
++            "format": "date-time"
++          },
++          "data": {
++            "$ref": "#/components/schemas/MapSemanticsData"
++          }
++        },
++        "required": [
++          "schema_version",
++          "request_id",
++          "server_time",
++          "data"
++        ]
++      },
++      "SemanticRoomCandidateSuccessEnvelope": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "schema_version": {
++            "type": "string",
++            "const": "1.0"
++          },
++          "request_id": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "server_time": {
++            "type": "string",
++            "format": "date-time"
++          },
++          "data": {
++            "$ref": "#/components/schemas/SemanticRoomCandidateData"
++          }
++        },
++        "required": [
++          "schema_version",
++          "request_id",
++          "server_time",
++          "data"
++        ]
++      },
++      "SemanticNavigationSuccessEnvelope": {
++        "type": "object",
++        "additionalProperties": false,
++        "properties": {
++          "schema_version": {
++            "type": "string",
++            "const": "1.0"
++          },
++          "request_id": {
++            "type": "string",
++            "minLength": 1,
++            "maxLength": 128
++          },
++          "server_time": {
++            "type": "string",
++            "format": "date-time"
++          },
++          "data": {
++            "$ref": "#/components/schemas/SemanticNavigationData"
++          }
++        },
++        "required": [
++          "schema_version",
++          "request_id",
++          "server_time",
++          "data"
++        ]
+       }
+     }
+   }
+diff --git a/duole_central/app_gateway/facade.py b/duole_central/app_gateway/facade.py
+--- a/duole_central/app_gateway/facade.py
++++ b/duole_central/app_gateway/facade.py
+@@ -41,6 +41,7 @@
+         schedule_service: ScheduleServicePort | None = None,
+         schedule_delivery_history: ScheduleDeliveryHistoryPort | None = None,
+     ) -> None:
++        self.semantic_navigation = None
+         self._device_status_service = device_status_service
+         self._runtime_info = runtime_info
+         self._task_coordinator = task_coordinator
+@@ -105,6 +106,32 @@
+             datetime.fromisoformat(response["server_time"]) if response else request.requested_at, data)
+ 
+     def query(self, request: AppReadRequest) -> AppReadResult:
++        if request.operation_id in {"claimMapSemanticsEdit", "releaseMapSemanticsEdit"}:
++            coordinator = self._task_coordinator
++            operation_id = request.parameters.get("operation_id")
++            actor_id = request.parameters.get("actor_id")
++            if coordinator is None or set(request.parameters) != {"operation_id", "actor_id"} or not isinstance(operation_id, str) or re.fullmatch(r"semantic_edit_[0-9a-f]{32}", operation_id) is None or not isinstance(actor_id, str):
++                raise ValueError("map_semantics_motion_claim_invalid")
++            with coordinator._lock:
++                active = next((t for t in coordinator.active_tasks() if t.task_id == operation_id), None)
++                if active is not None and active.metadata.get("actor_id") != actor_id:
++                    raise ValueError("map_semantics_motion_owner_mismatch")
++                if request.operation_id == "releaseMapSemanticsEdit":
++                    decision = coordinator.complete_task(operation_id, phase=ProductTaskPhase.SUCCEEDED, reason="map_semantics_edit_complete")
++                elif active is not None:
++                    return AppReadResult(request.operation_id, request.request_id, request.requested_at, {"accepted": True})
++                elif any(TaskResource.MOTION in t.resources for t in coordinator.active_tasks()):
++                    return AppReadResult(request.operation_id, request.request_id, request.requested_at, {"accepted": False})
++                else:
++                    decision = coordinator.start_task(task_id=operation_id, domain="map_management", task_type="semantic_edit", label="配置地图点位",
++                        priority=TaskPriority.USER_COMMAND, resources=(TaskResource.MOTION,), resource_mode=ResourceClaimMode.SHARED_INHIBIT,
++                        interruptible=False, metadata={"control_owner": "app", "actor_id": actor_id}, effect_planned=True)
++            return AppReadResult(request.operation_id, request.request_id, request.requested_at, {"accepted": decision.accepted})
++        if request.operation_id == "navigateToSemanticTarget":
++            if self.semantic_navigation is None:
++                raise RuntimeError("semantic_navigation_unavailable")
++            return AppReadResult(request.operation_id, request.request_id, request.requested_at,
++                self.semantic_navigation.execute(request))
+         if request.operation_id in {"createSchedule", "updateSchedule", "deleteSchedule", "getScheduleDefinition"}:
+             return self._write_schedule(request)
+         if request.operation_id == "getSchedule":
+diff --git a/duole_central/app_gateway/gateway.py b/duole_central/app_gateway/gateway.py
+--- a/duole_central/app_gateway/gateway.py
++++ b/duole_central/app_gateway/gateway.py
+@@ -801,6 +801,13 @@
+             requested_at = requested_at.replace(tzinfo=timezone.utc)
+         request_id = _safe_request_id(_header(headers, "X-Request-ID"))
+         normalized_method = method.upper()
++        semantic_match = re.fullmatch(r"/api/v1/navigation/maps/([A-Za-z0-9._:-]{1,128})/(semantics(?:/commands|/validate-room)?|semantic-navigation)", path)
++        if semantic_match and ((normalized_method == "GET" and semantic_match[2] == "semantics") or
++            (normalized_method == "POST" and semantic_match[2] in {"semantics/commands", "semantics/validate-room", "semantic-navigation"})):
++            from duole_central.app_gateway.map_semantics import semantic_response
++            return semantic_response(self, normalized_method, path, headers, body or {},
++                map_id=semantic_match[1], suffix=semantic_match[2], request_id=request_id,
++                now=requested_at, peer_ip=peer_ip)
+         if normalized_method == "POST" and path == "/api/v1/schedules":
+             return self._write_schedule(headers, body or {}, request_id=request_id, requested_at=requested_at, method=normalized_method, path=path)
+         schedule_write_match = re.fullmatch(r"/api/v1/schedules/([A-Za-z0-9][A-Za-z0-9._:-]{0,127})(/definition)?", path)
+diff --git a/duole_central/app_gateway/map_catalog.py b/duole_central/app_gateway/map_catalog.py
+--- a/duole_central/app_gateway/map_catalog.py
++++ b/duole_central/app_gateway/map_catalog.py
+@@ -1129,6 +1129,7 @@
+     def _connect(self) -> sqlite3.Connection:
+         connection = sqlite3.connect(self.database_path, timeout=5.0)
+         connection.execute("PRAGMA journal_mode=WAL")
++        connection.execute("PRAGMA foreign_keys=ON")
+         return connection
+ 
+ 
+diff --git a/duole_central/app_gateway/map_semantics.py b/duole_central/app_gateway/map_semantics.py
+new file mode 100644
+--- /dev/null
++++ b/duole_central/app_gateway/map_semantics.py
+@@ -0,0 +1,264 @@
++"""Signed, present-at-robot semantic writes and ID-only navigation requests."""
++
++from datetime import datetime, timedelta
++import re
++import hashlib
++import sqlite3
++
++from duole_central.app_gateway.map_catalog import MapCatalogError
++from duole_central.app_gateway.map_management import MapManagementAuthorizationError
++from duole_central.app_gateway.models import AppReadRequest
++from duole_central.app_gateway.pairing import PairingError
++
++
++def semantic_response(
++    application,
++    method,
++    path,
++    headers,
++    body,
++    *,
++    map_id,
++    suffix,
++    request_id,
++    now,
++    peer_ip,
++):
++    from duole_central.app_gateway.gateway import (
++        _bearer_token,
++        _error_response,
++        _success_response,
++        _installation_command_proof,
++        _header,
++        _pairing_error_response,
++    )
++
++    def error(code, reason, status=409, details=None):
++        return _error_response(
++            status=status,
++            request_id=request_id,
++            server_time=now,
++            code=code,
++            message="点位配置或导航请求未完成",
++            retriable=True,
++            remediation="请刷新地图、定位和现场会话后重试",
++            details={"reason_code": reason, **(details or {})},
++        )
++
++    catalog = application.map_catalog
++    if catalog is None or not hasattr(catalog, "read_semantics"):
++        return error("CAPABILITY_UNAVAILABLE", "semantics_unavailable", 503)
++    if method == "GET":
++        denied = application._validate_read_metadata(
++            headers, request_id=request_id, requested_at=now
++        ) or application._authorize_read(
++            headers, request_id=request_id, requested_at=now
++        )
++        if denied is not None:
++            return denied
++    else:
++        denied = application._validate_command_metadata(
++            headers, request_id=request_id, requested_at=now
++        )
++        if denied is not None:
++            return denied
++        if application.pairing_service is None:
++            return error("AUTHENTICATION_REQUIRED", "pairing_required", 401)
++        try:
++            actor = application.pairing_service.authenticate_bound_command(
++                _bearer_token(headers),
++                _installation_command_proof(
++                    headers, request_id=request_id, method=method, path=path, body=body
++                ),
++            )
++            required = (
++                "navigation.execute"
++                if suffix == "semantic-navigation"
++                else "maps.manage"
++            )
++            if required not in actor.scopes:
++                raise PairingError("AUTHORIZATION_DENIED")
++        except PairingError as exc:
++            return _pairing_error_response(
++                exc.code, request_id=request_id, server_time=now
++            )
++        lan = application._controlled_lan_id_provider(peer_ip)
++        if lan is None:
++            if (
++                suffix != "semantic-navigation"
++                and application.map_management_authorization_service is not None
++            ):
++                try:
++                    application.map_management_authorization_service.invalidate_map_management_presence(
++                        body.get("presence_token", ""),
++                        actor_id=actor.device_session_id,
++                        reason="controlled_lan_left",
++                    )
++                except MapManagementAuthorizationError:
++                    pass
++            return error("AUTHORIZATION_DENIED", "controlled_lan_required", 403)
++        if suffix != "semantic-navigation":
++            service = application.map_management_authorization_service
++            if service is None:
++                return error(
++                    "CAPABILITY_UNAVAILABLE", "map_management_unavailable", 503
++                )
++            action = body.get("action", "")
++            operation = (
++                "room_target"
++                if action in ("room_upsert", "room_delete", "validate_room")
++                else (
++                    "keepout_zone"
++                    if action in ("keepout_upsert", "keepout_delete")
++                    else (
++                        "patrol_route"
++                        if action in ("route_upsert", "route_delete")
++                        else None
++                    )
++                )
++            )
++            if operation is None or (
++                suffix.endswith("validate-room") != (action == "validate_room")
++            ):
++                return error("VALIDATION_FAILED", "semantic_request_invalid", 400)
++            if not isinstance(body.get("presence_token"), str):
++                return error("VALIDATION_FAILED", "presence_token_required", 400)
++            try:
++                service.require_map_management_presence(
++                    body["presence_token"],
++                    actor_id=actor.device_session_id,
++                    installation_id=actor.installation_id,
++                    controlled_lan_id=lan,
++                    operation=operation,
++                )
++            except MapManagementAuthorizationError as exc:
++                return error("AUTHORIZATION_DENIED", exc.code.casefold(), 403)
++    response_request_id, response_time = request_id, now
++    edit_claim = None
++    release_edit = False
++    try:
++        if method == "GET":
++            data = catalog.read_semantics(map_id=map_id)
++        elif suffix == "semantic-navigation":
++            if (
++                set(body) != {"entity_id", "map_revision", "expected_revision"}
++                or not isinstance(body["entity_id"], str)
++                or re.fullmatch(r"(room_[0-9a-f]{32}|charging_dock)", body["entity_id"])
++                is None
++                or any(
++                    isinstance(body[k], bool)
++                    or not isinstance(body[k], int)
++                    or body[k] < 1
++                    for k in ("map_revision", "expected_revision")
++                )
++            ):
++                return error("VALIDATION_FAILED", "semantic_navigation_invalid", 400)
++            target = catalog.resolve_semantic_target(map_id=map_id, **body, now=now)
++            data = application.runtime_client.query(
++                AppReadRequest(
++                    operation_id="navigateToSemanticTarget",
++                    request_id=request_id,
++                    requested_at=now,
++                    deadline_at=now
++                    + timedelta(milliseconds=int(_header(headers, "X-TTL-Ms"))),
++                    parameters={
++                        "actor_id": actor.device_session_id,
++                        "idempotency_key": _header(headers, "Idempotency-Key"),
++                        "map_id": map_id,
++                        "map_revision": body["map_revision"],
++                        "expected_revision": body["expected_revision"],
++                        "target": target,
++                    },
++                )
++            ).data
++        else:
++            match = _header(headers, "If-Match")
++            if match != f'"rev-{body.get("expected_revision")}"':
++                return error("VALIDATION_FAILED", "semantic_if_match_required", 400)
++            edit_id = (
++                "semantic_edit_"
++                + hashlib.sha256(
++                    (
++                        actor.device_session_id
++                        + ":"
++                        + _header(headers, "Idempotency-Key")
++                    ).encode()
++                ).hexdigest()[:32]
++            )
++            edit_claim = {"operation_id": edit_id, "actor_id": actor.device_session_id}
++            claim = application.runtime_client.query(
++                AppReadRequest(
++                    "claimMapSemanticsEdit", request_id, now, parameters=edit_claim
++                )
++            )
++            if claim.data.get("accepted") is not True:
++                edit_claim = None
++                return error("CAPABILITY_UNAVAILABLE", "map_semantics_motion_busy")
++            data = catalog.write_semantics(
++                map_id=map_id,
++                body=dict(body),
++                actor_id=actor.device_session_id,
++                idempotency_key=_header(headers, "Idempotency-Key"),
++                now=now,
++                request_id=request_id,
++            )
++            metadata = data.pop("_response", None)
++            if metadata is not None:
++                response_request_id = metadata["request_id"]
++                response_time = datetime.fromisoformat(metadata["server_time"])
++        release_edit = True
++    except MapCatalogError as exc:
++        release_edit = exc.code != "KEEPOUT_RESTORE_UNCONFIRMED"
++        details = (
++            {"current_revision": exc.current_revision}
++            if exc.current_revision is not None
++            else {}
++        )
++        code = (
++            "REVISION_CONFLICT"
++            if "REVISION_CONFLICT" in exc.code
++            else (
++                "IDEMPOTENCY_CONFLICT"
++                if exc.code == "IDEMPOTENCY_CONFLICT"
++                else (
++                    "VALIDATION_FAILED"
++                    if "NOT_FOUND" in exc.code
++                    else (
++                        "VALIDATION_FAILED"
++                        if "INVALID" in exc.code or "OUT_OF_BOUNDS" in exc.code
++                        else "CAPABILITY_UNAVAILABLE"
++                    )
++                )
++            )
++        )
++        return error(
++            code,
++            exc.code.casefold(),
++            (
++                404
++                if "NOT_FOUND" in exc.code
++                else 400 if code == "VALIDATION_FAILED" else 409
++            ),
++            details,
++        )
++    except (sqlite3.Error, OSError, RuntimeError, ValueError):
++        return error("CAPABILITY_UNAVAILABLE", "semantic_service_unavailable", 503)
++    finally:
++        if edit_claim is not None and release_edit:
++            try:
++                application.runtime_client.query(
++                    AppReadRequest(
++                        "releaseMapSemanticsEdit",
++                        request_id,
++                        now,
++                        parameters=edit_claim,
++                    )
++                )
++            except (OSError, RuntimeError, ValueError):
++                pass  # An unconfirmed release remains a visible motion inhibit until stop/recovery.
++    return _success_response(
++        status=200,
++        request_id=response_request_id,
++        server_time=response_time,
++        data=dict(data),
++    )
+diff --git a/duole_central/app_gateway/models.py b/duole_central/app_gateway/models.py
+--- a/duole_central/app_gateway/models.py
++++ b/duole_central/app_gateway/models.py
+@@ -13,7 +13,7 @@
+     display_name: str
+     product_model: str
+     mode: str = "MOCK_NO_MOTION"
+-    api_schema_version: str = "3.1.0"
++    api_schema_version: str = "3.2.0"
+     gateway_version: str = "0.3.0"
+     robot_runtime_version: str = "0.1.0"
+     device_status_contract_version: str = "1.0.0"
+diff --git a/duole_central/app_gateway/navigation_board_map_catalog.py b/duole_central/app_gateway/navigation_board_map_catalog.py
+--- a/duole_central/app_gateway/navigation_board_map_catalog.py
++++ b/duole_central/app_gateway/navigation_board_map_catalog.py
+@@ -16,6 +16,16 @@
+ class NavigationBoardMapCatalog:
+     def __init__(self, board: CatalogBoard) -> None:
+         self._board = board
++
++    def read_semantics(self, *, map_id):
++        return self._invoke("read_semantics", map_id=map_id)
++
++    def write_semantics(self, **arguments):
++        arguments.setdefault("request_id", "req_internal_semantic")
++        return self._invoke("write_semantics", **arguments)
++
++    def resolve_semantic_target(self, **arguments):
++        return self._invoke("resolve_semantic_target", **arguments)
+ 
+     def read_catalog(self, *, now: datetime) -> dict[str, object]:
+         return self._invoke("read_catalog", now=now)
+diff --git a/duole_central/app_gateway/navigation_board_ssh.py b/duole_central/app_gateway/navigation_board_ssh.py
+--- a/duole_central/app_gateway/navigation_board_ssh.py
++++ b/duole_central/app_gateway/navigation_board_ssh.py
+@@ -411,6 +411,27 @@
+                     "server_time": arguments["now"], "data": data,
+                 }):
+                     raise ValueError("navigation_board_map_catalog_response_invalid")
++            elif operation in {"read_semantics", "write_semantics"}:
++                semantic_data = dict(result) if isinstance(result, Mapping) else None
++                if semantic_data is None:
++                    raise ValueError("navigation_board_semantics_response_invalid")
++                metadata = semantic_data.pop("_response", None)
++                if metadata is not None and (operation != "write_semantics" or not isinstance(metadata, Mapping) or set(metadata) != {"request_id", "server_time"} or not isinstance(metadata["request_id"], str) or re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", metadata["request_id"]) is None or not isinstance(metadata["server_time"], str)):
++                    raise ValueError("navigation_board_semantics_response_invalid")
++                contract = AppContract.from_openapi(Path(__file__).resolve().parents[2] / "docs/interface_freeze/app_v1/openapi.json")
++                is_candidate = operation == "write_semantics" and arguments.get("body", {}).get("action") == "validate_room"
++                operation_id = "validateSemanticRoom" if is_candidate else "getMapSemantics"
++                if contract.validate_response(operation_id, 200, {
++                    "schema_version": "1.0", "request_id": "req_board_semantics_01",
++                    "server_time": metadata["server_time"] if metadata else arguments.get("now", datetime.now(timezone.utc).isoformat()), "data": semantic_data}):
++                    raise ValueError("navigation_board_semantics_response_invalid")
++                if result["map_id"] != arguments["map_id"]:
++                    raise ValueError("navigation_board_semantics_binding_invalid")
++            elif operation == "resolve_semantic_target":
++                from duole_central.navigation_board.map_semantics import position
++                if not isinstance(result, dict) or set(result) != {"kind", "entity_id", "display_name", "target"} or result["kind"] not in {"room", "dock"} or result["entity_id"] != arguments["entity_id"] or not isinstance(result["display_name"], str) or not 1 <= len(result["display_name"]) <= 80:
++                    raise ValueError("navigation_board_semantic_target_invalid")
++                position(result["target"])
+             elif operation == "read_selection":
+                 if result is not None and (not isinstance(result, dict)
+                     or set(result) != {"map_id", "map_revision", "source_revision"}
+diff --git a/duole_central/app_gateway/semantic_navigation.py b/duole_central/app_gateway/semantic_navigation.py
+new file mode 100644
+--- /dev/null
++++ b/duole_central/app_gateway/semantic_navigation.py
+@@ -0,0 +1,182 @@
++"""Dispatch verified semantic IDs through the product's existing executor."""
++
++from datetime import datetime, timezone
++import hashlib
++import json
++from pathlib import Path
++import sqlite3
++import threading
++import uuid
++
++from duole_central.app_gateway.emergency_stop import (
++    AppMotionLeaseDenied,
++    AppMotionLeaseRegistry,
++)
++from duole_central.skills.navigation.domain import (
++    TaskPriority,
++    TaskResource,
++    ResourceClaimMode,
++)
++
++
++class SemanticNavigationRuntime:
++    def __init__(self, database_path, *, executor, coordinator, ready=lambda: False):
++        self.path = Path(database_path)
++        self.executor = executor
++        self.coordinator = coordinator
++        self.ready = ready
++        self.leases = AppMotionLeaseRegistry(self.path)
++        self._lock = threading.Lock()
++        with self._connect() as c:
++            c.execute("""CREATE TABLE IF NOT EXISTS app_semantic_navigation_requests(
++                actor_id TEXT NOT NULL,idempotency_key TEXT NOT NULL,digest TEXT NOT NULL,
++                result_json TEXT NOT NULL, PRIMARY KEY(actor_id,idempotency_key))""")
++
++    def _connect(self):
++        return sqlite3.connect(self.path, timeout=1)
++
++    def _allowed(self):
++        with self._connect() as c:
++            row = c.execute(
++                "SELECT inhibited FROM app_motion_control WHERE singleton=1"
++            ).fetchone()
++        return row is not None and row[0] == 0 and self.ready()
++
++    def execute(self, request):
++        parameters = request.parameters
++        target = parameters["target"]
++        actor, key = parameters["actor_id"], parameters["idempotency_key"]
++        digest = hashlib.sha256(
++            json.dumps(
++                parameters, ensure_ascii=False, sort_keys=True, separators=(",", ":")
++            ).encode()
++        ).hexdigest()
++        with self._lock:
++            with self._connect() as c:
++                c.execute("BEGIN IMMEDIATE")
++                row = c.execute(
++                    "SELECT digest,result_json FROM app_semantic_navigation_requests WHERE actor_id=? AND idempotency_key=?",
++                    (actor, key),
++                ).fetchone()
++                if row:
++                    if row[0] != digest:
++                        raise ValueError("semantic_navigation_idempotency_conflict")
++                    return json.loads(row[1])
++                result = {
++                    "operation_id": "semantic_nav_" + uuid.uuid4().hex,
++                    "status": "unconfirmed",
++                    "entity_id": target["entity_id"],
++                    "display_name": target["display_name"],
++                    "reason_code": "navigation_dispatch_unconfirmed",
++                }
++                c.execute(
++                    "INSERT INTO app_semantic_navigation_requests VALUES (?,?,?,?)",
++                    (actor, key, digest, json.dumps(result, ensure_ascii=False)),
++                )
++            now = datetime.now(timezone.utc)
++            if (
++                request.deadline_at is None
++                or now >= request.deadline_at
++                or not self._allowed()
++            ):
++                result.update(status="failed", reason_code="navigation_unavailable")
++            else:
++                try:
++                    self.leases.acquire(
++                        lease_id=result["operation_id"], actor_id=actor, acquired_at=now
++                    )
++                    # Admit without replacing motion. Keep the existing navigation
++                    # domain and interruptibility so safety preemption still applies.
++                    with self.coordinator._lock:
++                        busy = any(
++                            TaskResource.MOTION in task.resources
++                            for task in self.coordinator.active_tasks()
++                        )
++                        decision = (
++                            None
++                            if busy
++                            else self.coordinator.start_task(
++                                task_id=result["operation_id"],
++                                domain="navigation",
++                                task_type="go_to_waypoint",
++                                label="前往" + target["display_name"],
++                                priority=TaskPriority.USER_COMMAND,
++                                resources=(TaskResource.MOTION,),
++                                resource_mode=ResourceClaimMode.EXCLUSIVE,
++                                interruptible=True,
++                                target=target["entity_id"],
++                                metadata={"control_owner": "app", "actor_id": actor},
++                                effect_planned=True,
++                            )
++                        )
++                    if decision is None or not decision.accepted:
++                        result.update(
++                            status="failed",
++                            reason_code="navigation_motion_resource_blocked",
++                        )
++                    elif not self._allowed():
++                        self.coordinator.complete_task(
++                            result["operation_id"],
++                            phase="failed",
++                            reason="app_motion_inhibited",
++                        )
++                        result.update(
++                            status="failed", reason_code="app_motion_inhibited"
++                        )
++                    else:
++                        point = target["target"]
++                        command = {
++                            "command_id": result["operation_id"],
++                            "action": "go_to_waypoint",
++                            "goal_key": (
++                                "charging_dock"
++                                if target["kind"] == "dock"
++                                else target["entity_id"]
++                            ),
++                            "source": "app",
++                            "request_source": "mobile_app",
++                            "control_owner": "app",
++                            "waypoint": {
++                                "display_name": target["display_name"],
++                                "frame_id": "map",
++                                "x": point["x_m"],
++                                "y": point["y_m"],
++                                "yaw": 0.0,
++                                "enabled": True,
++                            },
++                            "map_id": parameters["map_id"],
++                            "map_revision": parameters["map_revision"],
++                        }
++                        outcome = self.executor.execute_command(command)
++                        result.update(
++                            status="accepted" if outcome.success else "failed",
++                            reason_code=outcome.error,
++                        )
++                        if not self._allowed():
++                            self.executor.execute_command(
++                                {
++                                    "action": "cancel_goal",
++                                    "goal_key": command["goal_key"],
++                                    "reason": "app_motion_inhibited",
++                                    "request_source": "mobile_app",
++                                    "control_owner": "app",
++                                }
++                            )
++                            result.update(
++                                status="unconfirmed",
++                                reason_code="app_motion_stop_pending",
++                            )
++                except AppMotionLeaseDenied:
++                    result.update(status="failed", reason_code="app_motion_inhibited")
++                except Exception:
++                    # The persisted uncertain result prevents a second dispatch after a lost acknowledgement.
++                    result.update(
++                        status="unconfirmed",
++                        reason_code="navigation_dispatch_unconfirmed",
++                    )
++            with self._connect() as c:
++                c.execute(
++                    "UPDATE app_semantic_navigation_requests SET result_json=? WHERE actor_id=? AND idempotency_key=?",
++                    (json.dumps(result, ensure_ascii=False), actor, key),
++                )
++            return result
+diff --git a/duole_central/navigation_board/catalog_switch.py b/duole_central/navigation_board/catalog_switch.py
+--- a/duole_central/navigation_board/catalog_switch.py
++++ b/duole_central/navigation_board/catalog_switch.py
+@@ -130,7 +130,10 @@
+             raise MapCatalogError("MAP_NOT_FOUND")
+         parent = self.map_root / "catalog-runtime"
+         parent.mkdir(exist_ok=True)
+-        final = parent / (bundle["map_id"] + "-" + str(bundle["source_revision"]))
++        import hashlib
++        zones = bundle["configuration"]["keepout_zones"]
++        suffix = "-" + hashlib.sha256(json.dumps(zones, sort_keys=True).encode()).hexdigest()[:16] if zones else ""
++        final = parent / (bundle["map_id"] + "-" + str(bundle["source_revision"]) + suffix)
+         with zipfile.ZipFile(BytesIO(bundle["artifact"])) as archive:
+             if archive.getinfo("map.pgm").file_size > MAX_PGM_PIXELS + 4096 or archive.getinfo("map.yaml").file_size > 65536:
+                 raise ValueError("map_switch_artifact_invalid")
+@@ -140,7 +143,14 @@
+             yaml, count = re.subn(r"(?m)^image:[^\r\n]*$", "image: map.pgm", yaml)
+             if count != 1:
+                 raise ValueError("map_switch_artifact_invalid")
+-            if bundle["configuration"]["keepout_zones"]:
++            if zones and all("polygon" in zone for zone in zones):
++                from duole_central.navigation_board.map_semantics import artifact_grid, inside
++                grid = artifact_grid(bundle["artifact"])
++                pixels = bytes(0 if any(inside(grid.point((x, y)), z["polygon"]) for z in zones) else 254
++                    for y in range(height - 1, -1, -1) for x in range(width))
++                keepout = f"P5\n{width} {height}\n255\n".encode() + pixels
++                keepout_yaml = yaml.replace("image: map.pgm", "image: keepout.pgm", 1)
++            elif zones:
+                 # Preserve authored masks; never silently remove a configured keepout.
+                 keepout = archive.read("keepout.pgm")
+                 keepout_yaml = archive.read("keepout.yaml").decode("utf-8")
+diff --git a/duole_central/navigation_board/cli.py b/duole_central/navigation_board/cli.py
+--- a/duole_central/navigation_board/cli.py
++++ b/duole_central/navigation_board/cli.py
+@@ -200,8 +200,12 @@
+     )
+     switch_safety = RosSwitchSafetyCollector(RosSwitchSafetyConfig())
+     catalog = board_map_catalog(args.map_root)
++    from duole_central.navigation_board.map_semantics import BoardMapSemantics
++    from duole_central.navigation_board.ros_semantics import RosSemanticRuntime
++    semantic_runtime = RosSemanticRuntime(args.state_directory, args.map_root)
+     return NavigationBoardAgent(
+-        map_catalog_service=BoardMapCatalogService(catalog, switch_service=CatalogMapSwitch(
++        map_catalog_service=BoardMapCatalogService(catalog, semantics=BoardMapSemantics(
++            catalog, observation_provider=semantic_runtime.observe, keepout_applier=semantic_runtime.apply_keepouts), switch_service=CatalogMapSwitch(
+             catalog, state_directory=args.state_directory, map_root=args.map_root,
+             manifest_path=args.manifest, runtime=runtime,
+             enabled=lambda: (args.state_directory / "map-switch-development.enabled").is_file(),
+diff --git a/duole_central/navigation_board/map_catalog.py b/duole_central/navigation_board/map_catalog.py
+--- a/duole_central/navigation_board/map_catalog.py
++++ b/duole_central/navigation_board/map_catalog.py
+@@ -19,9 +19,10 @@
+ class BoardMapCatalogService:
+     """Allow only the existing summary and revision-bound catalog operations."""
+ 
+-    def __init__(self, catalog: MapCatalog, *, switch_service=None) -> None:
++    def __init__(self, catalog: MapCatalog, *, switch_service=None, semantics=None) -> None:
+         self.catalog = catalog
+         self.switch_service = switch_service
++        self.semantics = semantics
+ 
+     def handle(self, request: Mapping[str, object]) -> dict[str, object]:
+         if set(request) != {"schema_version", "action", "operation", "arguments"}:
+@@ -31,6 +32,9 @@
+         operation = request["operation"]
+         arguments = request["arguments"]
+         fields = {
++            "read_semantics": {"map_id"},
++            "write_semantics": {"map_id", "body", "actor_id", "idempotency_key", "now", "request_id"},
++            "resolve_semantic_target": {"map_id", "entity_id", "map_revision", "expected_revision", "now"},
+             "read_catalog": {"now"},
+             "read_capacity": {"now"},
+             "read_image": {"map_id", "map_revision"},
+@@ -63,7 +67,15 @@
+                 for map_id in self.catalog.cleanup_expired(now=kwargs["now"]):
+                     self._remove_saved_copy(map_id)
+             # The method name and complete argument set have been allowlisted.
+-            if operation in {"read_selection", "activate_saved_map", "restore_saved_map"}:
++            if operation in {"read_semantics", "write_semantics", "resolve_semantic_target"}:
++                if self.semantics is None:
++                    raise MapCatalogError("SEMANTICS_UNAVAILABLE")
++                from contextlib import nullcontext
++                lock = self.switch_service.journal._locked() if self.switch_service else nullcontext()
++                with lock:
++                    method = {"read_semantics": "read", "write_semantics": "execute", "resolve_semantic_target": "resolve_target"}[operation]
++                    result = getattr(self.semantics, method)(**kwargs)
++            elif operation in {"read_selection", "activate_saved_map", "restore_saved_map"}:
+                 if self.switch_service is None:
+                     raise MapCatalogError("MAP_SWITCH_DEVELOPMENT_DISABLED")
+                 if operation == "read_selection":
+@@ -89,8 +101,15 @@
+         return {"schema_version": "1.0", "action": "map_catalog", "operation": operation, "result": result, "error": error}
+ 
+     def _remove_saved_copy(self, map_id: str) -> None:
+-        if re.fullmatch(r"manual_mapping_[0-9a-f]{32}", map_id) is None:
++        if re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", map_id) is None:
+             return
+-        saved = self.catalog.database_path.parent / "manual-mapping" / map_id
+-        if saved.exists():
+-            shutil.rmtree(saved)
++        runtime_root = self.catalog.database_path.parent / "catalog-runtime"
++        if runtime_root.is_dir():
++            pattern = re.compile(re.escape(map_id) + r"-[1-9][0-9]*(?:-[0-9a-f]{16})?")
++            for directory in runtime_root.iterdir():
++                if pattern.fullmatch(directory.name) and directory.is_dir() and not directory.is_symlink():
++                    shutil.rmtree(directory)
++        if re.fullmatch(r"manual_mapping_[0-9a-f]{32}", map_id):
++            saved = self.catalog.database_path.parent / "manual-mapping" / map_id
++            if saved.exists():
++                shutil.rmtree(saved)
+diff --git a/duole_central/navigation_board/map_semantics.py b/duole_central/navigation_board/map_semantics.py
+new file mode 100644
+--- /dev/null
++++ b/duole_central/navigation_board/map_semantics.py
+@@ -0,0 +1,752 @@
++"""Map-bound semantic configuration. Only board-verified targets can be saved."""
++
++from __future__ import annotations
++
++from collections import deque
++from copy import deepcopy
++from dataclasses import dataclass
++from datetime import datetime, timezone
++from io import BytesIO
++import hashlib
++import json
++import math
++import re
++import sqlite3
++import unicodedata
++import uuid
++import zipfile
++
++from duole_central.app_gateway.map_catalog import MapCatalogError
++from duole_central.app_gateway.map_preview import MAX_PGM_PIXELS, pgm_pixels
++
++
++@dataclass(frozen=True)
++class Grid:
++    width: int
++    height: int
++    resolution: float
++    origin: tuple[float, float, float]
++    cells: tuple[int, ...]
++
++    def cell(self, point):
++        x, y = point["x_m"] - self.origin[0], point["y_m"] - self.origin[1]
++        c, s = math.cos(self.origin[2]), math.sin(self.origin[2])
++        px, py = (c * x + s * y) / self.resolution, (-s * x + c * y) / self.resolution
++        if px < 0 or py < 0 or px >= self.width - 1e-10 or py >= self.height - 1e-10:
++            return None
++        col, row = math.floor(px), math.floor(py)
++        return (col, row) if 0 <= col < self.width and 0 <= row < self.height else None
++
++    def point(self, cell):
++        x, y = (cell[0] + 0.5) * self.resolution, (cell[1] + 0.5) * self.resolution
++        c, s = math.cos(self.origin[2]), math.sin(self.origin[2])
++        return {
++            "x_m": self.origin[0] + c * x - s * y,
++            "y_m": self.origin[1] + s * x + c * y,
++        }
++
++    def free(self, point):
++        cell = self.cell(point)
++        return cell is not None and self.cells[cell[1] * self.width + cell[0]] == 0
++
++
++@dataclass(frozen=True)
++class SemanticObservation:
++    map_id: str
++    map_revision: int
++    grid: Grid
++    costmap: Grid
++    robot_position: dict
++    observed_at: datetime
++    localization_trusted: bool
++
++
++def artifact_grid(artifact):
++    with zipfile.ZipFile(BytesIO(artifact)) as archive:
++        if (
++            archive.getinfo("map.pgm").file_size > MAX_PGM_PIXELS + 4096
++            or archive.getinfo("map.yaml").file_size > 65536
++        ):
++            raise MapCatalogError("MAP_METADATA_INVALID")
++        width, height, pixels = pgm_pixels(archive.read("map.pgm"))
++        text = archive.read("map.yaml").decode("utf-8")
++
++    def scalar(name, default=None):
++        match = re.search(r"(?m)^" + name + r":\s*([^#\r\n]+)", text)
++        if match is None and default is None:
++            raise MapCatalogError("MAP_METADATA_INVALID")
++        return float(match[1]) if match else default
++
++    origin = re.search(r"(?m)^origin:\s*\[([^\]]+)\]", text)
++    if origin is None:
++        raise MapCatalogError("MAP_METADATA_INVALID")
++    origin = tuple(float(x.strip()) for x in origin[1].split(","))
++    resolution = scalar("resolution")
++    if (
++        len(origin) != 3
++        or not all(math.isfinite(x) for x in (*origin, resolution))
++        or resolution <= 0
++    ):
++        raise MapCatalogError("MAP_METADATA_INVALID")
++    free, occupied, negate = (
++        scalar("free_thresh", 0.196),
++        scalar("occupied_thresh", 0.65),
++        scalar("negate", 0),
++    )
++    if not 0 <= free < occupied <= 1 or negate not in (0, 1):
++        raise MapCatalogError("MAP_METADATA_INVALID")
++    values = tuple(
++        pixels[(height - 1 - y) * width + x]
++        for y in range(height)
++        for x in range(width)
++    )
++
++    def occupancy(value):
++        probability = value / 255 if negate else (255 - value) / 255
++        return 0 if probability < free else 100 if probability > occupied else -1
++
++    return Grid(width, height, resolution, origin, tuple(occupancy(x) for x in values))
++
++
++def same_grid(a, b):
++    return (
++        a.width == b.width
++        and a.height == b.height
++        and math.isclose(a.resolution, b.resolution, rel_tol=1e-6, abs_tol=1e-8)
++        and all(
++            math.isclose(x, y, rel_tol=0, abs_tol=1e-6)
++            for x, y in zip(a.origin, b.origin)
++        )
++        and a.cells == b.cells
++    )
++
++
++def position(value):
++    if (
++        not isinstance(value, dict)
++        or set(value) != {"x_m", "y_m"}
++        or any(
++            isinstance(x, bool)
++            or not isinstance(x, (float, int))
++            or not math.isfinite(x)
++            for x in value.values()
++        )
++    ):
++        raise MapCatalogError("SEMANTIC_POSITION_INVALID")
++    return {k: float(v) for k, v in value.items()}
++
++
++def display_name(value):
++    if not isinstance(value, str):
++        raise MapCatalogError("SEMANTIC_NAME_INVALID")
++    value = unicodedata.normalize("NFKC", value).strip()
++    if (
++        not value
++        or len(value) > 80
++        or any(unicodedata.category(c).startswith("C") for c in value)
++    ):
++        raise MapCatalogError("SEMANTIC_NAME_INVALID")
++    return value
++
++
++def inside(point, polygon):
++    x, y = point["x_m"], point["y_m"]
++    result = False
++    for a, b in zip(polygon, polygon[1:] + polygon[:1]):
++        ax, ay, bx, by = a["x_m"], a["y_m"], b["x_m"], b["y_m"]
++        cross = (x - ax) * (by - ay) - (y - ay) * (bx - ax)
++        if (
++            abs(cross) < 1e-9
++            and min(ax, bx) - 1e-9 <= x <= max(ax, bx) + 1e-9
++            and min(ay, by) - 1e-9 <= y <= max(ay, by) + 1e-9
++        ):
++            return True
++        if (ay > y) != (by > y) and x < (bx - ax) * (y - ay) / (by - ay) + ax:
++            result = not result
++    return result
++
++
++def polygon_geometry(raw, grid):
++    if not isinstance(raw, list) or not 3 <= len(raw) <= 64:
++        raise MapCatalogError("KEEPOUT_GEOMETRY_INVALID")
++    points = [position(x) for x in raw]
++    if any(grid.cell(x) is None for x in points):
++        raise MapCatalogError("KEEPOUT_OUT_OF_BOUNDS")
++    if len({(p["x_m"], p["y_m"]) for p in points}) != len(points):
++        raise MapCatalogError("KEEPOUT_GEOMETRY_INVALID")
++    area = sum(
++        a["x_m"] * b["y_m"] - b["x_m"] * a["y_m"]
++        for a, b in zip(points, points[1:] + points[:1])
++    )
++    if abs(area) < grid.resolution**2:
++        raise MapCatalogError("KEEPOUT_GEOMETRY_INVALID")
++
++    def orientation(a, b, c):
++        return (b["x_m"] - a["x_m"]) * (c["y_m"] - a["y_m"]) - (b["y_m"] - a["y_m"]) * (
++            c["x_m"] - a["x_m"]
++        )
++
++    def intersects(a, b, c, d):
++        oa, ob, oc, od = (
++            orientation(a, b, c),
++            orientation(a, b, d),
++            orientation(c, d, a),
++            orientation(c, d, b),
++        )
++        if oa * ob < 0 and oc * od < 0:
++            return True
++
++        def on(a, b, p):
++            return (
++                abs(orientation(a, b, p)) < 1e-9
++                and min(a["x_m"], b["x_m"]) <= p["x_m"] <= max(a["x_m"], b["x_m"])
++                and min(a["y_m"], b["y_m"]) <= p["y_m"] <= max(a["y_m"], b["y_m"])
++            )
++
++        return on(a, b, c) or on(a, b, d) or on(c, d, a) or on(c, d, b)
++
++    edges = list(zip(points, points[1:] + points[:1]))
++    for i, (a, b) in enumerate(edges):
++        for j, (c, d) in enumerate(edges):
++            if (
++                j > i + 1
++                and not (i == 0 and j == len(edges) - 1)
++                and intersects(a, b, c, d)
++            ):
++                raise MapCatalogError("KEEPOUT_GEOMETRY_INVALID")
++    return points
++
++
++class BoardMapSemantics:
++    def __init__(
++        self, catalog, *, observation_provider=None, keepout_applier=None, clock=None
++    ):
++        self.clock = clock or (lambda: datetime.now(timezone.utc))
++        self.catalog = catalog
++        self.observation_provider = observation_provider
++        self.keepout_applier = keepout_applier
++        with catalog._connect() as c:
++            c.executescript("""
++              CREATE TABLE IF NOT EXISTS map_semantics_versions(
++                map_id TEXT PRIMARY KEY REFERENCES map_catalog(map_id) ON DELETE CASCADE,
++                revision INTEGER NOT NULL);
++              CREATE TABLE IF NOT EXISTS map_semantics_keepout_pending(
++                map_id TEXT PRIMARY KEY REFERENCES map_catalog(map_id) ON DELETE CASCADE,
++                map_revision INTEGER NOT NULL);
++              CREATE TABLE IF NOT EXISTS map_semantics_requests(
++                map_id TEXT NOT NULL REFERENCES map_catalog(map_id) ON DELETE CASCADE,
++                actor_id TEXT NOT NULL, idempotency_key TEXT NOT NULL,
++                digest TEXT NOT NULL, result_json TEXT NOT NULL,
++                PRIMARY KEY(map_id,actor_id,idempotency_key));
++            """)
++
++    def _row(self, c, map_id):
++        c.row_factory = sqlite3.Row
++        row = c.execute(
++            "SELECT * FROM map_catalog WHERE map_id=? AND deleted_at IS NULL", (map_id,)
++        ).fetchone()
++        if row is None:
++            raise MapCatalogError("MAP_NOT_FOUND")
++        return row
++
++    def _revision(self, c, map_id):
++        row = c.execute(
++            "SELECT revision FROM map_semantics_versions WHERE map_id=?", (map_id,)
++        ).fetchone()
++        return row[0] if row else 1
++
++    def _data(self, c, row):
++        grid = artifact_grid(bytes(row["artifact"]))
++        image = self.catalog.read_image(
++            map_id=row["map_id"], map_revision=row["source_revision"]
++        )
++        configuration = json.loads(row["configuration_json"])
++        # Legacy configuration has no verification binding; it never becomes a usable target implicitly.
++        rooms = [
++            r
++            for r in configuration["rooms"]
++            if r.get("map_id") == row["map_id"]
++            and r.get("map_revision") == row["source_revision"]
++            and "target" in r
++        ]
++        return {
++            "map_id": row["map_id"],
++            "map_revision": row["source_revision"],
++            "revision": self._revision(c, row["map_id"]),
++            "active": bool(row["active"]),
++            "quality_warning": json.loads(row["quality_json"])["overall_score"] < 60,
++            "map": {
++                "map_id": row["map_id"],
++                "revision": row["source_revision"],
++                "content_sha256": hashlib.sha256(image.body).hexdigest(),
++                "width_px": grid.width,
++                "height_px": grid.height,
++                "resolution_m_per_px": grid.resolution,
++                "origin": {
++                    "x_m": grid.origin[0],
++                    "y_m": grid.origin[1],
++                    "yaw_rad": grid.origin[2],
++                },
++                "updated_at": row["updated_at"],
++                "image_resource": {
++                    "href": f"/api/v1/navigation/maps/{row['map_id']}/revisions/{row['source_revision']}/image",
++                    "etag": image.etag,
++                    "content_type": "image/png",
++                },
++            },
++            "rooms": rooms,
++            "keepout_zones": configuration["keepout_zones"],
++            "patrol_routes": configuration["patrol_routes"],
++            "dock_pose": self._dock(configuration.get("dock_anchor"), row),
++        }
++
++    @staticmethod
++    def _dock(anchor, row):
++        if (
++            not isinstance(anchor, dict)
++            or row["dock_anchor_status"] != "verified"
++            or anchor.get("anchor_id") != row["dock_anchor_id"]
++            or anchor.get("status") != "verified"
++            or anchor.get("map_id") != row["map_id"]
++            or anchor.get("map_revision") != row["source_revision"]
++        ):
++            return None
++        try:
++            point = position(anchor["position"])
++            yaw = float(anchor["yaw_rad"])
++        except (KeyError, ValueError, TypeError, MapCatalogError):
++            return None
++        if not math.isfinite(yaw):
++            return None
++        return {
++            "map_id": row["map_id"],
++            "map_revision": row["source_revision"],
++            "frame_id": "map",
++            "position": point,
++            "yaw_rad": yaw,
++        }
++
++    def read(self, *, map_id):
++        with self.catalog._connect() as c:
++            return self._data(c, self._row(c, map_id))
++
++    def _observation(self, row, now):
++        if row["technical_state"] != "loadable":
++            raise MapCatalogError("SEMANTIC_MAP_UNUSABLE")
++        if row["technical_reason"] == "localization_pending":
++            raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++        if not row["active"]:
++            raise MapCatalogError("SEMANTIC_ACTIVE_MAP_REQUIRED")
++        if self.observation_provider is None:
++            raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++        observation = self.observation_provider(row["map_id"], row["source_revision"])
++        age = (self.clock() - observation.observed_at).total_seconds()
++        if not observation.localization_trusted or not 0 <= age <= 2:
++            raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++        if (
++            observation.map_id != row["map_id"]
++            or observation.map_revision != row["source_revision"]
++            or not same_grid(observation.grid, artifact_grid(bytes(row["artifact"])))
++        ):
++            raise MapCatalogError(
++                "MAP_REVISION_CONFLICT", current_revision=row["source_revision"]
++            )
++        return observation
++
++    @staticmethod
++    def _candidate(point, observation, configuration, *, exact=False):
++        grid = observation.grid
++        if grid.cell(point) is None:
++            raise MapCatalogError("ROOM_OUT_OF_BOUNDS")
++        zones = [z["polygon"] for z in configuration["keepout_zones"]]
++
++        def safe(p):
++            return (
++                grid.free(p)
++                and observation.costmap.free(p)
++                and not any(inside(p, z) for z in zones)
++            )
++
++        start = grid.cell(observation.robot_position)
++        if start is None or not safe(grid.point(start)):
++            raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++        frontier = deque([start])
++        visited = {start}
++        best = None
++        distance = float("inf")
++        while frontier:
++            cell = frontier.popleft()
++            p = grid.point(cell)
++            d = math.hypot(p["x_m"] - point["x_m"], p["y_m"] - point["y_m"])
++            if d <= (grid.resolution * 0.75 if exact else 1.0) and d < distance:
++                best, distance = p, d
++            for next_cell in (
++                (cell[0] - 1, cell[1]),
++                (cell[0] + 1, cell[1]),
++                (cell[0], cell[1] - 1),
++                (cell[0], cell[1] + 1),
++            ):
++                x, y = next_cell
++                if (
++                    0 <= x < grid.width
++                    and 0 <= y < grid.height
++                    and next_cell not in visited
++                ):
++                    visited.add(next_cell)
++                    if safe(grid.point(next_cell)):
++                        frontier.append(next_cell)
++        if best is None:
++            raise MapCatalogError("ROOM_SAFE_TARGET_NOT_FOUND")
++        return best
++
++    def execute(self, *, map_id, body, actor_id, idempotency_key, now, request_id=None):
++        allowed = {
++            "action",
++            "map_revision",
++            "expected_revision",
++            "presence_token",
++            "entity_id",
++            "display_name",
++            "approximate_position",
++            "polygon",
++            "room_ids",
++        }
++        required = {"action", "map_revision", "expected_revision", "presence_token"}
++        if (
++            not isinstance(body, dict)
++            or set(body) - allowed
++            or not required <= set(body)
++        ):
++            raise MapCatalogError("SEMANTIC_REQUEST_INVALID")
++        action = body["action"]
++        field_sets = {
++            "room_upsert": {"display_name", "approximate_position"},
++            "validate_room": {"display_name", "approximate_position"},
++            "keepout_upsert": {"display_name", "polygon"},
++            "route_upsert": {"display_name", "room_ids"},
++            "room_delete": {"entity_id"},
++            "keepout_delete": {"entity_id"},
++            "route_delete": {"entity_id"},
++        }
++        if (
++            action not in field_sets
++            or not field_sets[action] <= set(body)
++            or set(body)
++            - required
++            - field_sets[action]
++            - (
++                {"entity_id"}
++                if action.endswith("_upsert") or action == "validate_room"
++                else set()
++            )
++        ):
++            raise MapCatalogError("SEMANTIC_REQUEST_INVALID")
++        for key in ("map_revision", "expected_revision"):
++            if (
++                isinstance(body[key], bool)
++                or not isinstance(body[key], int)
++                or body[key] < 1
++            ):
++                raise MapCatalogError("SEMANTIC_REQUEST_INVALID")
++        digest = hashlib.sha256(
++            json.dumps(
++                {k: v for k, v in body.items() if k != "presence_token"},
++                sort_keys=True,
++                ensure_ascii=False,
++                separators=(",", ":"),
++            ).encode()
++        ).hexdigest()
++        with self.catalog._connect() as c:
++            c.execute("BEGIN IMMEDIATE")
++            row = self._row(c, map_id)
++            pending = c.execute(
++                "SELECT map_revision FROM map_semantics_keepout_pending WHERE map_id=?",
++                (map_id,),
++            ).fetchone()
++            if pending is not None:
++                if pending[0] != row["source_revision"] or self.keepout_applier is None:
++                    raise MapCatalogError("KEEPOUT_RESTORE_UNCONFIRMED")
++                observation = self._observation(row, now)
++                persisted = json.loads(row["configuration_json"])
++                try:
++                    self.keepout_applier(observation.grid, persisted["keepout_zones"])
++                except Exception as exc:
++                    raise MapCatalogError("KEEPOUT_RESTORE_UNCONFIRMED") from exc
++                c.execute(
++                    "DELETE FROM map_semantics_keepout_pending WHERE map_id=?",
++                    (map_id,),
++                )
++                c.commit()
++                c.execute("BEGIN IMMEDIATE")
++                row = self._row(c, map_id)
++            replay = c.execute(
++                "SELECT digest,result_json FROM map_semantics_requests WHERE map_id=? AND actor_id=? AND idempotency_key=?",
++                (map_id, actor_id, idempotency_key),
++            ).fetchone()
++            if replay:
++                if replay[0] != digest:
++                    raise MapCatalogError("IDEMPOTENCY_CONFLICT")
++                saved = json.loads(replay[1])
++                if request_id is None:
++                    saved.pop("_response", None)
++                return saved
++            revision = self._revision(c, map_id)
++            if row["source_revision"] != body["map_revision"]:
++                raise MapCatalogError(
++                    "MAP_REVISION_CONFLICT", current_revision=row["source_revision"]
++                )
++            if revision != body["expected_revision"]:
++                raise MapCatalogError(
++                    "SEMANTIC_REVISION_CONFLICT", current_revision=revision
++                )
++            observation = self._observation(row, now)
++            configuration = json.loads(row["configuration_json"])
++            original = deepcopy(configuration)
++            kind = (
++                "rooms"
++                if action in ("room_upsert", "room_delete", "validate_room")
++                else (
++                    "keepout_zones" if action.startswith("keepout") else "patrol_routes"
++                )
++            )
++            entries = configuration[kind]
++            entity_id = body.get("entity_id")
++            if entity_id is not None and (
++                not isinstance(entity_id, str)
++                or re.fullmatch(r"(room|keepout|route)_[0-9a-f]{32}", entity_id) is None
++            ):
++                raise MapCatalogError("SEMANTIC_ENTITY_INVALID")
++            existing = (
++                next((x for x in entries if x.get("id") == entity_id), None)
++                if entity_id
++                else None
++            )
++            if entity_id and existing is None:
++                raise MapCatalogError("SEMANTIC_ENTITY_NOT_FOUND")
++            if action.endswith("_delete"):
++                if kind == "rooms" and any(
++                    entity_id in r["room_ids"] for r in configuration["patrol_routes"]
++                ):
++                    raise MapCatalogError("ROOM_REFERENCED_BY_ROUTE")
++                entries.remove(existing)
++            else:
++                name = display_name(body["display_name"])
++                if kind == "rooms" and name == "充电桩":
++                    raise MapCatalogError("ROOM_DOCK_RESERVED")
++                if any(
++                    display_name(x["display_name"]).casefold() == name.casefold()
++                    and x.get("id") != entity_id
++                    for x in entries
++                ):
++                    raise MapCatalogError("SEMANTIC_NAME_CONFLICT")
++                entity = {
++                    "id": entity_id
++                    or f"{ {'rooms':'room','keepout_zones':'keepout','patrol_routes':'route'}[kind]}_{uuid.uuid4().hex}",
++                    "display_name": name,
++                    "map_id": map_id,
++                    "map_revision": row["source_revision"],
++                    "verification": "verified",
++                }
++                if kind == "rooms":
++                    point = position(body["approximate_position"])
++                    candidate = self._candidate(point, observation, configuration)
++                    entity.update(approximate_position=point, target=candidate)
++                    if action == "validate_room":
++                        return {
++                            "candidate": candidate,
++                            "map_id": map_id,
++                            "map_revision": row["source_revision"],
++                            "revision": revision,
++                        }
++                elif kind == "keepout_zones":
++                    entity["polygon"] = polygon_geometry(
++                        body["polygon"], observation.grid
++                    )
++                    if inside(observation.robot_position, entity["polygon"]):
++                        raise MapCatalogError("KEEPOUT_CONTAINS_ROBOT")
++                    if existing:
++                        entries.remove(existing)
++                    entries.append(entity)
++                    for room in configuration["rooms"]:
++                        if room.get("verification") == "verified":
++                            self._candidate(
++                                room["target"], observation, configuration, exact=True
++                            )
++                    entity = None
++                else:
++                    room_ids = body["room_ids"]
++                    if (
++                        not isinstance(room_ids, list)
++                        or not 2 <= len(room_ids) <= 64
++                        or not all(isinstance(x, str) for x in room_ids)
++                        or len(set(room_ids)) != len(room_ids)
++                    ):
++                        raise MapCatalogError("ROUTE_ROOMS_INVALID")
++                    rooms = {
++                        r["id"]: r
++                        for r in configuration["rooms"]
++                        if r.get("verification") == "verified"
++                        and r.get("map_revision") == row["source_revision"]
++                    }
++                    for room_id in room_ids:
++                        if room_id not in rooms:
++                            raise MapCatalogError("ROUTE_ROOM_UNVERIFIED")
++                        self._candidate(
++                            rooms[room_id]["target"],
++                            observation,
++                            configuration,
++                            exact=True,
++                        )
++                    entity["room_ids"] = room_ids
++                if entity is not None:
++                    if existing:
++                        entries.remove(existing)
++                    entries.append(entity)
++            changed = configuration != original
++            if kind == "keepout_zones" and changed:
++                if self.keepout_applier is None:
++                    raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++                # Journal before the ROS side effect; a retry restores the persisted mask first.
++                c.execute(
++                    "INSERT INTO map_semantics_keepout_pending VALUES (?,?)",
++                    (map_id, row["source_revision"]),
++                )
++                c.commit()
++                c.execute("BEGIN IMMEDIATE")
++                try:
++                    self.keepout_applier(
++                        observation.grid, configuration["keepout_zones"]
++                    )
++                    observation = self._observation(row, now)
++                    for room in configuration["rooms"]:
++                        if room.get("verification") == "verified":
++                            self._candidate(
++                                room["target"], observation, configuration, exact=True
++                            )
++                except Exception:
++                    c.rollback()
++                    try:
++                        self.keepout_applier(
++                            observation.grid, original["keepout_zones"]
++                        )
++                    except Exception as exc:
++                        raise MapCatalogError("KEEPOUT_RESTORE_UNCONFIRMED") from exc
++                    c.execute(
++                        "DELETE FROM map_semantics_keepout_pending WHERE map_id=?",
++                        (map_id,),
++                    )
++                    c.commit()
++                    raise
++            try:
++                new_revision = revision + int(changed)
++                c.execute(
++                    "UPDATE map_catalog SET configuration_json=?,updated_at=? WHERE map_id=?",
++                    (
++                        json.dumps(
++                            configuration, ensure_ascii=False, separators=(",", ":")
++                        ),
++                        now.isoformat(),
++                        map_id,
++                    ),
++                )
++                c.execute(
++                    "INSERT INTO map_semantics_versions VALUES (?,?) ON CONFLICT(map_id) DO UPDATE SET revision=excluded.revision",
++                    (map_id, new_revision),
++                )
++                result = self._data(c, self._row(c, map_id))
++                c.execute(
++                    "INSERT INTO map_semantics_requests VALUES (?,?,?,?,?)",
++                    (
++                        map_id,
++                        actor_id,
++                        idempotency_key,
++                        digest,
++                        json.dumps(
++                            {
++                                **result,
++                                "_response": {
++                                    "request_id": request_id or "req_internal_semantic",
++                                    "server_time": now.isoformat(),
++                                },
++                            },
++                            ensure_ascii=False,
++                        ),
++                    ),
++                )
++                c.execute(
++                    "DELETE FROM map_semantics_keepout_pending WHERE map_id=?",
++                    (map_id,),
++                )
++                self.catalog._fault_injector("semantics.before_commit")
++                c.commit()
++            except Exception:
++                if kind == "keepout_zones" and changed:
++                    c.rollback()
++                    try:
++                        persisted = self.catalog.read_configuration(map_id)
++                        self.keepout_applier(
++                            observation.grid, list(persisted.keepout_zones)
++                        )
++                    except Exception as exc:
++                        raise MapCatalogError("KEEPOUT_RESTORE_UNCONFIRMED") from exc
++                    c.execute(
++                        "DELETE FROM map_semantics_keepout_pending WHERE map_id=?",
++                        (map_id,),
++                    )
++                    c.commit()
++                raise
++            if request_id is not None:
++                result["_response"] = {
++                    "request_id": request_id,
++                    "server_time": now.isoformat(),
++                }
++            return result
++
++    def resolve_target(
++        self, *, map_id, entity_id, map_revision, expected_revision, now
++    ):
++        with self.catalog._connect() as c:
++            row = self._row(c, map_id)
++            if (
++                row["source_revision"] != map_revision
++                or self._revision(c, map_id) != expected_revision
++            ):
++                raise MapCatalogError(
++                    "SEMANTIC_REVISION_CONFLICT",
++                    current_revision=self._revision(c, map_id),
++                )
++            if c.execute(
++                "SELECT 1 FROM map_semantics_keepout_pending WHERE map_id=?", (map_id,)
++            ).fetchone():
++                raise MapCatalogError("KEEPOUT_RESTORE_UNCONFIRMED")
++            observation = self._observation(row, now)
++            configuration = json.loads(row["configuration_json"])
++            if entity_id == "charging_dock":
++                dock = self._dock(configuration.get("dock_anchor"), row)
++                if dock is None:
++                    raise MapCatalogError("DOCK_ANCHOR_UNVERIFIED")
++                return {
++                    "kind": "dock",
++                    "entity_id": entity_id,
++                    "display_name": "充电桩",
++                    "target": dock["position"],
++                }
++            room = next(
++                (
++                    r
++                    for r in configuration["rooms"]
++                    if r.get("id") == entity_id
++                    and r.get("verification") == "verified"
++                    and r.get("map_revision") == map_revision
++                ),
++                None,
++            )
++            if room is None:
++                raise MapCatalogError("ROOM_UNVERIFIED")
++            self._candidate(room["target"], observation, configuration, exact=True)
++            return {
++                "kind": "room",
++                "entity_id": entity_id,
++                "display_name": room["display_name"],
++                "target": room["target"],
++            }
+diff --git a/duole_central/navigation_board/ros_semantics.py b/duole_central/navigation_board/ros_semantics.py
+new file mode 100644
+--- /dev/null
++++ b/duole_central/navigation_board/ros_semantics.py
+@@ -0,0 +1,239 @@
++"""Read fresh ROS safety observations and load revisioned keepout masks."""
++
++from datetime import datetime, timezone
++import json
++import math
++from pathlib import Path
++import tempfile
++import time
++
++from duole_central.app_gateway.map_catalog import MapCatalogError
++from duole_central.navigation_board.map_semantics import (
++    Grid,
++    SemanticObservation,
++    inside,
++    same_grid,
++)
++
++
++def grid_from_message(message):
++    info = message.info
++    origin = info.origin
++    q = origin.orientation
++    yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
++    if (
++        message.header.frame_id != "map"
++        or info.width < 1
++        or info.height < 1
++        or info.width * info.height > 16777216
++        or info.resolution <= 0
++        or len(message.data) != info.width * info.height
++    ):
++        raise MapCatalogError("SEMANTIC_COSTMAP_UNTRUSTED")
++    return Grid(
++        info.width,
++        info.height,
++        float(info.resolution),
++        (float(origin.position.x), float(origin.position.y), yaw),
++        tuple(message.data),
++    )
++
++
++class RosSemanticRuntime:
++    def __init__(self, state_directory, map_root, *, module_loader=None):
++        import importlib
++
++        self.load = module_loader or importlib.import_module
++        self.state = Path(state_directory)
++        self.map_root = Path(map_root)
++
++    def _node(self):
++        rclpy = self.load("rclpy")
++        started = not rclpy.ok()
++        if started:
++            rclpy.init(args=None)
++        node = rclpy.create_node("duole_map_semantics")
++        executor = self.load("rclpy.executors").SingleThreadedExecutor()
++        executor.add_node(node)
++        return rclpy, node, executor, started
++
++    @staticmethod
++    def _close(rclpy, node, executor, started):
++        executor.remove_node(node)
++        executor.shutdown()
++        node.destroy_node()
++        if started:
++            rclpy.shutdown()
++
++    def observe(self, map_id, map_revision):
++        handle = None
++        try:
++            selected = json.loads((self.state / "active-map.json").read_text())
++            if (
++                selected["map_id"] != map_id
++                or selected.get("artifact_revision", selected["map_revision"])
++                != map_revision
++            ):
++                raise MapCatalogError(
++                    "MAP_REVISION_CONFLICT", current_revision=map_revision
++                )
++            handle = self._node()
++            rclpy, node, executor, _ = handle
++            grid_type = self.load("nav_msgs.msg").OccupancyGrid
++            pose_type = self.load("geometry_msgs.msg").PoseWithCovarianceStamped
++            qos = self.load("rclpy.qos")
++            retained = qos.QoSProfile(
++                depth=1,
++                reliability=qos.ReliabilityPolicy.RELIABLE,
++                durability=qos.DurabilityPolicy.TRANSIENT_LOCAL,
++            )
++            observed = {}
++
++            def record(name, message):
++                observed[name] = (message, time.monotonic())
++
++            node.create_subscription(
++                grid_type, "/map", lambda msg: record("map", msg), retained
++            )
++            node.create_subscription(
++                grid_type,
++                "/global_costmap/costmap",
++                lambda msg: record("costmap", msg),
++                retained,
++            )
++            node.create_subscription(
++                pose_type, "/amcl_pose", lambda msg: record("pose", msg), retained
++            )
++            deadline = time.monotonic() + 5
++            while time.monotonic() < deadline and len(observed) < 3:
++                executor.spin_once(timeout_sec=0.05)
++            if len(observed) != 3:
++                raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++            now_ns = node.get_clock().now().nanoseconds
++            for name in ("costmap", "pose"):
++                message = observed[name][0]
++                stamp = message.header.stamp
++                age = (now_ns - stamp.sec * 1000000000 - stamp.nanosec) / 1000000000
++                if not 0 <= age <= 2:
++                    raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED")
++            pose = observed["pose"][0]
++            covariance = pose.pose.covariance
++            trusted = pose.header.frame_id == "map" and all(
++                math.isfinite(covariance[i]) and 0 <= covariance[i] <= 0.25
++                for i in (0, 7, 35)
++            )
++            p = pose.pose.pose.position
++            if not math.isfinite(p.x) or not math.isfinite(p.y):
++                trusted = False
++            return SemanticObservation(
++                map_id,
++                map_revision,
++                grid_from_message(observed["map"][0]),
++                grid_from_message(observed["costmap"][0]),
++                {"x_m": p.x, "y_m": p.y},
++                datetime.now(timezone.utc),
++                trusted,
++            )
++        except MapCatalogError:
++            raise
++        except Exception as exc:
++            raise MapCatalogError("SEMANTIC_LOCALIZATION_UNTRUSTED") from exc
++        finally:
++            if handle:
++                self._close(*handle)
++
++    def apply_keepouts(self, grid, zones):
++        # The files belong to this map configuration; no consumer chooses a path.
++        root = self.map_root / "semantic-masks"
++        root.mkdir(parents=True, exist_ok=True)
++        polygons = [z["polygon"] for z in zones]
++        pixels = bytearray()
++        for y in range(grid.height - 1, -1, -1):
++            for x in range(grid.width):
++                pixels.append(
++                    0 if any(inside(grid.point((x, y)), p) for p in polygons) else 254
++                )
++        handle = None
++        try:
++            with tempfile.TemporaryDirectory(dir=root, prefix="mask-") as directory:
++                pgm = Path(directory) / "mask.pgm"
++                yaml = Path(directory) / "mask.yaml"
++                pgm.write_bytes(
++                    f"P5\n{grid.width} {grid.height}\n255\n".encode() + pixels
++                )
++                yaml.write_text(
++                    f"image: mask.pgm\nmode: trinary\nresolution: {grid.resolution}\norigin: {list(grid.origin)}\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n"
++                )
++                handle = self._node()
++                rclpy, node, executor, _ = handle
++                fresh_costmap = []
++                since = node.get_clock().now().nanoseconds
++
++                def observe_costmap(message):
++                    stamp = message.header.stamp
++                    if stamp.sec * 1000000000 + stamp.nanosec >= since:
++                        fresh_costmap[:] = [grid_from_message(message)]
++
++                node.create_subscription(
++                    self.load("nav_msgs.msg").OccupancyGrid,
++                    "/global_costmap/costmap",
++                    observe_costmap,
++                    1,
++                )
++                srv = self.load("nav2_msgs.srv").LoadMap
++                client = node.create_client(srv, "/keepout_filter_mask_server/load_map")
++                if not client.wait_for_service(timeout_sec=2):
++                    raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++                request = srv.Request()
++                request.map_url = str(yaml)
++                future = client.call_async(request)
++                deadline = time.monotonic() + 5
++                while not future.done() and time.monotonic() < deadline:
++                    executor.spin_once(timeout_sec=0.05)
++                if (
++                    not future.done()
++                    or future.result() is None
++                    or future.result().result != 0
++                ):
++                    raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++                expected = Grid(
++                    grid.width,
++                    grid.height,
++                    grid.resolution,
++                    grid.origin,
++                    tuple(
++                        (
++                            100
++                            if any(inside(grid.point((x, y)), p) for p in polygons)
++                            else 0
++                        )
++                        for y in range(grid.height)
++                        for x in range(grid.width)
++                    ),
++                )
++                if not same_grid(grid_from_message(future.result().map), expected):
++                    raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++                deadline = time.monotonic() + 3
++                blocked = [
++                    grid.point((x, y))
++                    for y in range(grid.height)
++                    for x in range(grid.width)
++                    if expected.cells[y * grid.width + x] == 100
++                ]
++
++                def effective():
++                    return bool(fresh_costmap) and all(
++                        not fresh_costmap[0].free(p) for p in blocked
++                    )
++
++                while not effective() and time.monotonic() < deadline:
++                    executor.spin_once(timeout_sec=0.05)
++                if not effective():
++                    raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++        except MapCatalogError:
++            raise
++        except Exception as exc:
++            raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE") from exc
++        finally:
++            if handle:
++                self._close(*handle)
+diff --git a/duole_central/runtime/product_app_session.py b/duole_central/runtime/product_app_session.py
+--- a/duole_central/runtime/product_app_session.py
++++ b/duole_central/runtime/product_app_session.py
+@@ -33,6 +33,8 @@
+     ProductVoiceLiveSessionConfig,
+     _app_runtime_info_for_live_session,
+     _start_battery_state_bridge,
++    _navigation_executor_for_live_session,
++    _start_navigation_status_subscriber,
+ )
+ from duole_central.skills.person_presence.application import UnavailableVisualMonitoringController
+ 
+@@ -69,7 +71,11 @@
+         runtime_info = _app_runtime_info_for_live_session(config)
+         if config.app_manual_mapping_development:
+             runtime_info = replace(runtime_info, real_manual_mapping_development_enabled=True)
++        navigation_executor = _navigation_executor_for_live_session(config)
++        from duole_central.runtime.navigation_readiness import navigation_readiness
++        readiness = navigation_readiness(config.navigation_readiness_path)
+         bundle = ProductRuntimeFactory(
++            navigation_executor=navigation_executor, navigation_ready=readiness,
+             app_runtime_info=runtime_info,
+             app_projection_store=projection,
+             app_projection_refresh_interval_seconds=config.app_projection_refresh_interval_seconds,
+@@ -80,6 +86,12 @@
+             report["validation_errors"] = bundle.validation_errors
+             return report
+         with ExitStack() as lifetime:
++            if navigation_executor is not None:
++                lifetime.callback(navigation_executor.close)
++            status_subscriber = _start_navigation_status_subscriber(config=config, bundle=bundle, progress_callback=None)
++            if status_subscriber is not None:
++                lifetime.callback(status_subscriber.close)
++
+             bridge = _start_battery_state_bridge(
+                 config=ProductVoiceLiveSessionConfig(
+                     battery_state_subscription_enabled=config.enable_battery_state_subscription,
+@@ -96,6 +108,12 @@
+                 raise RuntimeError("app_battery_bridge_start_failed")
+ 
+             if config.app_emergency_stop_database_path:
++                from duole_central.app_gateway.semantic_navigation import SemanticNavigationRuntime
++                bundle.app_gateway_domain_facade.semantic_navigation = SemanticNavigationRuntime(
++                    config.app_emergency_stop_database_path,
++                    executor=bundle.hardware_voice_runtime_adapter.navigation_executor,
++                    coordinator=bundle.task_coordinator,
++                    ready=lambda: bool(config.navigation_command_topic_actions_enabled) and (readiness is None or readiness()))
+                 confirmation = StationaryMotionConfirmationProvider(navigation_idle_checker=lambda: True)
+                 observer = RosMotionVelocityObserver(
+                     RosMotionVelocityObserverConfig(
+diff --git a/duole_central/runtime/product_voice_live_session.py b/duole_central/runtime/product_voice_live_session.py
+--- a/duole_central/runtime/product_voice_live_session.py
++++ b/duole_central/runtime/product_voice_live_session.py
+@@ -996,6 +996,13 @@
+     emergency_stop_supervisor: EmergencyStopSupervisor | None = None
+     emergency_stop_motion_observer: RosMotionVelocityObserver | None = None
+     if str(config.app_emergency_stop_database_path or "").strip():
++        from duole_central.app_gateway.semantic_navigation import SemanticNavigationRuntime
++        if bundle.app_gateway_domain_facade is not None:
++            readiness = navigation_readiness(config.navigation_readiness_path)
++            bundle.app_gateway_domain_facade.semantic_navigation = SemanticNavigationRuntime(
++                config.app_emergency_stop_database_path, executor=runtime.navigation_executor,
++                coordinator=bundle.task_coordinator, ready=lambda: bool(config.navigation_command_topic_actions_enabled) and (readiness is None or readiness()))
++
+         stop_store = EmergencyStopOperationStore(
+             config.app_emergency_stop_database_path
+         )
+diff --git a/tests/app_gateway/test_map_semantics.py b/tests/app_gateway/test_map_semantics.py
+new file mode 100644
+--- /dev/null
++++ b/tests/app_gateway/test_map_semantics.py
+@@ -0,0 +1,597 @@
++from dataclasses import replace
++from datetime import datetime, timedelta, timezone
++from io import BytesIO
++import json
++import sqlite3
++import zipfile
++
++import pytest
++
++from duole_central.app_contract import AppContract
++from duole_central.app_gateway.map_catalog import (
++    MapCatalog,
++    MapCatalogPublication,
++    MapConfigurationBundle,
++    MapQuality,
++    MapCatalogError,
++)
++from duole_central.app_gateway.map_preview import pgm_preview
++from duole_central.navigation_board.map_semantics import (
++    BoardMapSemantics,
++    SemanticObservation,
++    artifact_grid,
++    polygon_geometry,
++)
++from duole_central.navigation_board.map_catalog import BoardMapCatalogService
++from duole_central.app_gateway.navigation_board_map_catalog import (
++    NavigationBoardMapCatalog,
++)
++
++NOW = datetime(2026, 10, 15, 4, 0, tzinfo=timezone.utc)
++
++
++def publication(map_id="map_a", *, active=True, cells=None):
++    width = 24
++    height = 24
++    pixels = bytes(
++        (
++            254
++            if cells is None or cells[(height - 1 - y) * width + x] == 0
++            else 0 if cells[(height - 1 - y) * width + x] == 100 else 205
++        )
++        for y in range(height)
++        for x in range(width)
++    )
++    pgm = f"P5\n{width} {height}\n255\n".encode() + pixels
++    archive = BytesIO()
++    with zipfile.ZipFile(archive, "w") as z:
++        z.writestr("map.pgm", pgm)
++        z.writestr(
++            "map.yaml",
++            "image: map.pgm\nresolution: 0.1\norigin: [0, 0, 0]\nnegate: 0\noccupied_thresh: 0.65\nfree_thresh: 0.196\n",
++        )
++    return MapCatalogPublication(
++        map_id,
++        1,
++        NOW,
++        NOW,
++        archive.getvalue(),
++        pgm_preview(pgm),
++        "unassigned",
++        "unverified",
++        MapQuality(78, 78, 78, 78, 78, ("map_quality_ready",)),
++        MapConfigurationBundle(),
++        active=active,
++    )
++
++
++@pytest.fixture
++def setup(tmp_path):
++    catalog = MapCatalog(tmp_path / "catalog.sqlite3")
++    pub = publication()
++    catalog.commit_generated_map(pub)
++    grid = artifact_grid(pub.artifact)
++    observation = SemanticObservation(
++        "map_a", 1, grid, grid, {"x_m": 0.55, "y_m": 0.55}, NOW, True
++    )
++    state = {"observation": observation, "applied": []}
++    semantics = BoardMapSemantics(
++        catalog,
++        observation_provider=lambda *_: state["observation"],
++        keepout_applier=lambda grid, zones: state["applied"].append(zones.copy()),
++        clock=lambda: NOW,
++    )
++    return catalog, semantics, state
++
++
++def command(semantics, action="room_upsert", key="write_a", revision=1, **changes):
++    fields = (
++        {"display_name": "厨房", "approximate_position": {"x_m": 0.71, "y_m": 0.69}}
++        if action in ("room_upsert", "validate_room")
++        else {}
++    )
++    fields.update(changes)
++    return semantics.execute(
++        map_id="map_a",
++        actor_id="actor_a",
++        idempotency_key=key,
++        now=NOW,
++        body={
++            "action": action,
++            "map_revision": 1,
++            "expected_revision": revision,
++            "presence_token": "present",
++            **fields,
++        },
++    )
++
++
++def test_board_corrects_persists_and_replays_one_stable_room(setup):
++    catalog, semantics, state = setup
++    candidate = command(semantics, "validate_room")
++    assert semantics.read(map_id="map_a")["rooms"] == []
++    result = command(semantics)
++    room = result["rooms"][0]
++    assert room["target"] == candidate["candidate"] == {"x_m": 0.75, "y_m": 0.65}
++    assert room["approximate_position"] != {**room["target"]}
++    assert (
++        room["map_id"] == "map_a"
++        and room["map_revision"] == 1
++        and room["verification"] == "verified"
++    )
++    assert result["revision"] == 2
++    assert command(semantics) == result
++    restarted = BoardMapSemantics(catalog)
++    assert restarted.read(map_id="map_a")["rooms"] == result["rooms"]
++    assert (
++        catalog.read_catalog(now=NOW)["maps"][0]["configuration_summary"]["room_count"]
++        == 1
++    )
++    contract = AppContract.from_openapi("docs/interface_freeze/app_v1/openapi.json")
++    assert not contract.validate_response(
++        "getMapSemantics",
++        200,
++        {
++            "schema_version": "1.0",
++            "request_id": "req_semantics_a",
++            "server_time": NOW.isoformat(),
++            "data": result,
++        },
++    )
++
++
++@pytest.mark.parametrize(
++    "change,code",
++    [
++        ({"localization_trusted": False}, "SEMANTIC_LOCALIZATION_UNTRUSTED"),
++        (
++            {"observed_at": NOW - timedelta(seconds=3)},
++            "SEMANTIC_LOCALIZATION_UNTRUSTED",
++        ),
++        (
++            {"observed_at": NOW + timedelta(seconds=1)},
++            "SEMANTIC_LOCALIZATION_UNTRUSTED",
++        ),
++        ({"map_id": "map_b"}, "MAP_REVISION_CONFLICT"),
++        ({"map_revision": 2}, "MAP_REVISION_CONFLICT"),
++    ],
++)
++def test_untrusted_observation_never_saves_raw_target(setup, change, code):
++    _, semantics, state = setup
++    state["observation"] = replace(state["observation"], **change)
++    with pytest.raises(MapCatalogError, match=code):
++        command(semantics)
++    assert semantics.read(map_id="map_a")["rooms"] == []
++
++
++def test_fresh_observation_after_gateway_request_and_ros_float_resolution_are_valid(
++    setup,
++):
++    _, semantics, state = setup
++    state["observation"] = replace(
++        state["observation"],
++        grid=replace(state["observation"].grid, resolution=0.10000000149),
++    )
++    semantics.execute(
++        map_id="map_a",
++        actor_id="actor_a",
++        idempotency_key="future",
++        now=NOW - timedelta(seconds=1),
++        body={
++            "action": "room_upsert",
++            "map_revision": 1,
++            "expected_revision": 1,
++            "presence_token": "present",
++            "display_name": "厨房",
++            "approximate_position": {"x_m": 0.5, "y_m": 0.5},
++        },
++    )
++    assert semantics.read(map_id="map_a")["revision"] == 2
++
++
++def test_revision_and_idempotency_conflicts_preserve_first_write(setup):
++    _, semantics, _ = setup
++    first = command(semantics)
++    with pytest.raises(MapCatalogError, match="SEMANTIC_REVISION_CONFLICT") as conflict:
++        command(semantics, key="second", display_name="卧室")
++    assert conflict.value.current_revision == 2
++    with pytest.raises(MapCatalogError, match="IDEMPOTENCY_CONFLICT"):
++        command(semantics, display_name="卧室")
++    with pytest.raises(MapCatalogError, match="SEMANTIC_NAME_CONFLICT"):
++        command(semantics, key="duplicate", revision=2)
++    assert semantics.read(map_id="map_a")["rooms"] == first["rooms"]
++
++
++def test_room_edit_keeps_id_and_can_validate_its_own_name(setup):
++    _, semantics, _ = setup
++    first = command(semantics)
++    room = first["rooms"][0]
++    command(
++        semantics,
++        "validate_room",
++        key="edit_validation",
++        revision=2,
++        entity_id=room["id"],
++    )
++    edited = command(
++        semantics, key="edit", revision=2, entity_id=room["id"], display_name="厨房门口"
++    )
++    assert edited["rooms"][0]["id"] == room["id"] and edited["revision"] == 3
++    unchanged = command(
++        semantics,
++        key="nochange",
++        revision=3,
++        entity_id=room["id"],
++        display_name="厨房门口",
++    )
++    assert unchanged["revision"] == 3
++
++
++def test_unsafe_disconnected_and_unknown_cells_do_not_become_verified(setup):
++    _, semantics, state = setup
++    grid = state["observation"].grid
++    # A fresh costmap with no free cells cannot be used to verify a target.
++    state["observation"] = replace(
++        state["observation"], costmap=replace(grid, cells=(-1,) * len(grid.cells))
++    )
++    with pytest.raises(MapCatalogError, match="SEMANTIC_LOCALIZATION_UNTRUSTED"):
++        command(semantics)
++    cells = tuple(
++        100 if x == 10 else 0 for y in range(grid.height) for x in range(grid.width)
++    )
++    state["observation"] = replace(
++        state["observation"], costmap=replace(grid, cells=cells)
++    )
++    with pytest.raises(MapCatalogError, match="ROOM_SAFE_TARGET_NOT_FOUND"):
++        command(semantics, approximate_position={"x_m": 2.2, "y_m": 1.5})
++
++
++@pytest.mark.parametrize(
++    "point",
++    [
++        {"x_m": -1, "y_m": 1},
++        {"x_m": 2.4, "y_m": 1},
++        {"x_m": float("nan"), "y_m": 1},
++        {"x_m": True, "y_m": 1},
++    ],
++)
++def test_invalid_input_rejected(setup, point):
++    with pytest.raises(MapCatalogError):
++        command(setup[1], approximate_position=point)
++
++
++def test_routes_reference_only_current_verified_rooms_in_order(setup):
++    _, semantics, _ = setup
++    first = command(semantics)
++    a = first["rooms"][0]["id"]
++    second = command(
++        semantics,
++        key="room_b",
++        revision=2,
++        display_name="卧室",
++        approximate_position={"x_m": 1.7, "y_m": 1.7},
++    )
++    b = second["rooms"][1]["id"]
++    route = command(
++        semantics,
++        "route_upsert",
++        key="route",
++        revision=3,
++        display_name="巡逻",
++        room_ids=[b, a],
++    )
++    assert route["patrol_routes"][0]["room_ids"] == [b, a]
++    with pytest.raises(MapCatalogError, match="ROOM_REFERENCED_BY_ROUTE"):
++        command(semantics, "room_delete", key="delete", revision=4, entity_id=a)
++    with pytest.raises(MapCatalogError, match="ROUTE_ROOM_UNVERIFIED"):
++        command(
++            semantics,
++            "route_upsert",
++            key="invalid_route",
++            revision=4,
++            display_name="错误",
++            room_ids=[a, "room_" + "0" * 32],
++        )
++    with pytest.raises(MapCatalogError, match="ROUTE_ROOMS_INVALID"):
++        command(
++            semantics,
++            "route_upsert",
++            key="duplicate_route",
++            revision=4,
++            display_name="重复",
++            room_ids=[a, a],
++        )
++
++
++def test_keepouts_apply_before_save_and_cannot_block_verified_targets(setup):
++    _, semantics, state = setup
++    first = command(semantics)
++    polygon = [
++        {"x_m": 1.6, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.8},
++        {"x_m": 1.6, "y_m": 0.8},
++    ]
++    saved = command(
++        semantics,
++        "keepout_upsert",
++        revision=2,
++        key="zone",
++        display_name="储物区",
++        polygon=polygon,
++    )
++    assert len(saved["keepout_zones"]) == len(state["applied"][0]) == 1
++    blocked = [
++        {"x_m": 0.65, "y_m": 0.55},
++        {"x_m": 0.85, "y_m": 0.55},
++        {"x_m": 0.85, "y_m": 0.75},
++        {"x_m": 0.65, "y_m": 0.75},
++    ]
++    with pytest.raises(MapCatalogError, match="ROOM_SAFE_TARGET_NOT_FOUND"):
++        command(
++            semantics,
++            "keepout_upsert",
++            revision=3,
++            key="blocked",
++            display_name="厨房禁行",
++            polygon=blocked,
++        )
++    assert (
++        semantics.read(map_id="map_a")["revision"] == 3 and len(state["applied"]) == 1
++    )
++    attempts = []
++
++    def fail_once(grid, zones):
++        attempts.append(zones)
++        if len(attempts) == 1:
++            raise MapCatalogError("KEEPOUT_RUNTIME_UNAVAILABLE")
++
++    semantics.keepout_applier = fail_once
++    with pytest.raises(MapCatalogError, match="KEEPOUT_RUNTIME_UNAVAILABLE"):
++        command(
++            semantics,
++            "keepout_delete",
++            revision=3,
++            key="remove",
++            entity_id=saved["keepout_zones"][0]["id"],
++        )
++    assert len(semantics.read(map_id="map_a")["keepout_zones"]) == 1
++
++
++@pytest.mark.parametrize(
++    "points",
++    [
++        [(0, 0), (1, 1), (0, 1), (1, 0)],
++        [(0, 0), (0.5, 0.5), (1, 1)],
++        [(0, 0), (1, 0), (1, 1), (0, 0)],
++        [(0, 0), (3, 0), (1, 1)],
++    ],
++)
++def test_invalid_keepout_geometry(setup, points):
++    with pytest.raises(MapCatalogError):
++        polygon_geometry(
++            [{"x_m": x, "y_m": y} for x, y in points], setup[2]["observation"].grid
++        )
++
++
++def test_map_isolation_recycle_restore_and_purge_remove_coordinates(setup):
++    catalog, semantics, _ = setup
++    first = command(semantics)
++    catalog.commit_generated_map(publication("map_b", active=False))
++    assert semantics.read(map_id="map_b")["rooms"] == []
++    with catalog._connect() as c:
++        c.execute("UPDATE map_catalog SET active=0 WHERE map_id=?", ("map_a",))
++    with pytest.raises(MapCatalogError, match="SEMANTIC_ACTIVE_MAP_REQUIRED"):
++        command(semantics, key="inactive", revision=2, display_name="阳台")
++    catalog.trash_map("map_a", expected_revision=1, now=NOW)
++    with pytest.raises(MapCatalogError, match="MAP_NOT_FOUND"):
++        semantics.read(map_id="map_a")
++    catalog.restore_map("map_a", expected_revision=2, now=NOW)
++    assert semantics.read(map_id="map_a")["rooms"] == first["rooms"]
++    catalog.trash_map("map_a", expected_revision=3, now=NOW)
++    catalog.purge_trash(
++        "map_a", expected_revision=4, confirmation_token="purge-map:map_a:4"
++    )
++    with catalog._connect() as c:
++        assert (
++            c.execute("SELECT COUNT(*) FROM map_semantics_requests").fetchone()[0] == 0
++        )
++        assert (
++            c.execute("SELECT COUNT(*) FROM map_semantics_versions").fetchone()[0] == 0
++        )
++
++
++def test_typed_board_gateway_adapter_uses_the_same_configuration(setup):
++    catalog, semantics, _ = setup
++    board_service = BoardMapCatalogService(catalog, semantics=semantics)
++
++    class Board:
++        def invoke_map_catalog(self, *, operation, arguments):
++            response = board_service.handle(
++                {
++                    "schema_version": "1.0",
++                    "action": "map_catalog",
++                    "operation": operation,
++                    "arguments": arguments,
++                }
++            )
++            if response["error"]:
++                raise MapCatalogError(response["error"]["code"])
++            return response["result"]
++
++    adapter = NavigationBoardMapCatalog(Board())
++    result = adapter.write_semantics(
++        map_id="map_a",
++        body={
++            "action": "room_upsert",
++            "map_revision": 1,
++            "expected_revision": 1,
++            "presence_token": "onsite",
++            "display_name": "厨房",
++            "approximate_position": {"x_m": 0.7, "y_m": 0.7},
++        },
++        actor_id="actor_a",
++        idempotency_key="board_write",
++        now=NOW,
++    )
++    assert adapter.read_semantics(map_id="map_a")["rooms"] == result["rooms"]
++    target = adapter.resolve_semantic_target(
++        map_id="map_a",
++        entity_id=result["rooms"][0]["id"],
++        map_revision=1,
++        expected_revision=2,
++        now=NOW,
++    )
++    assert target["target"] == result["rooms"][0]["target"]
++    with pytest.raises(MapCatalogError, match="DOCK_ANCHOR_UNVERIFIED"):
++        adapter.resolve_semantic_target(
++            map_id="map_a",
++            entity_id="charging_dock",
++            map_revision=1,
++            expected_revision=2,
++            now=NOW,
++        )
++
++
++def test_pending_keepout_side_effect_blocks_navigation_and_retry_restores_persisted_mask(
++    setup,
++):
++    catalog, semantics, state = setup
++    room = command(semantics)["rooms"][0]
++    with catalog._connect() as c:
++        c.execute(
++            "INSERT INTO map_semantics_keepout_pending VALUES (?,?)", ("map_a", 1)
++        )
++    with pytest.raises(MapCatalogError, match="KEEPOUT_RESTORE_UNCONFIRMED"):
++        semantics.resolve_target(
++            map_id="map_a",
++            entity_id=room["id"],
++            map_revision=1,
++            expected_revision=2,
++            now=NOW,
++        )
++    replay = command(semantics)
++    assert replay["rooms"][0]["id"] == room["id"]
++    assert state["applied"][-1] == []
++    with catalog._connect() as c:
++        assert not c.execute("SELECT * FROM map_semantics_keepout_pending").fetchall()
++
++
++def test_development_switch_pending_localization_does_not_verify_old_pose_on_new_map(
++    setup,
++):
++    catalog, semantics, _ = setup
++    with catalog._connect() as c:
++        c.execute(
++            "UPDATE map_catalog SET technical_reason='localization_pending' WHERE map_id='map_a'"
++        )
++    with pytest.raises(MapCatalogError, match="SEMANTIC_LOCALIZATION_UNTRUSTED"):
++        command(semantics)
++    assert semantics.read(map_id="map_a")["rooms"] == []
++
++
++def test_idempotent_write_preserves_original_response_identity_and_time(setup):
++    _, semantics, _ = setup
++    body = {
++        "action": "room_upsert",
++        "map_revision": 1,
++        "expected_revision": 1,
++        "presence_token": "onsite",
++        "display_name": "厨房",
++        "approximate_position": {"x_m": 0.7, "y_m": 0.7},
++    }
++    first = semantics.execute(
++        map_id="map_a",
++        body=body,
++        actor_id="actor_a",
++        idempotency_key="replay_receipt",
++        request_id="req_first",
++        now=NOW,
++    )
++    retry = semantics.execute(
++        map_id="map_a",
++        body=body,
++        actor_id="actor_a",
++        idempotency_key="replay_receipt",
++        request_id="req_retry",
++        now=NOW + timedelta(seconds=1),
++    )
++    assert first == retry
++    assert retry["_response"] == {
++        "request_id": "req_first",
++        "server_time": NOW.isoformat(),
++    }
++
++
++def test_failed_mask_restore_keeps_journal_and_refuses_navigation(setup):
++    catalog, semantics, _ = setup
++    polygon = [
++        {"x_m": 1.6, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.8},
++        {"x_m": 1.6, "y_m": 0.8},
++    ]
++    semantics.keepout_applier = lambda *_: (_ for _ in ()).throw(
++        OSError("ROS unavailable")
++    )
++    with pytest.raises(MapCatalogError, match="KEEPOUT_RESTORE_UNCONFIRMED"):
++        command(semantics, "keepout_upsert", display_name="禁行区", polygon=polygon)
++    assert semantics.read(map_id="map_a")["keepout_zones"] == []
++    with catalog._connect() as c:
++        assert (
++            c.execute("SELECT COUNT(*) FROM map_semantics_keepout_pending").fetchone()[
++                0
++            ]
++            == 1
++        )
++
++
++def test_commit_failure_restores_mask_and_leaves_no_partial_configuration(setup):
++    catalog, semantics, state = setup
++
++    def fail(stage):
++        if stage == "semantics.before_commit":
++            raise OSError("disk full")
++
++    catalog._fault_injector = fail
++    polygon = [
++        {"x_m": 1.6, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.3},
++        {"x_m": 2.1, "y_m": 0.8},
++        {"x_m": 1.6, "y_m": 0.8},
++    ]
++    with pytest.raises(OSError, match="disk full"):
++        command(semantics, "keepout_upsert", display_name="禁行区", polygon=polygon)
++    assert state["applied"][-1] == []
++    result = semantics.read(map_id="map_a")
++    assert result["revision"] == 1 and result["keepout_zones"] == []
++    with catalog._connect() as c:
++        assert not c.execute("SELECT * FROM map_semantics_requests").fetchall()
++        assert not c.execute("SELECT * FROM map_semantics_keepout_pending").fetchall()
++
++
++def test_purge_clears_own_materialized_configuration_only(setup):
++    catalog, semantics, _ = setup
++    runtime_root = catalog.database_path.parent / "catalog-runtime"
++    own = runtime_root / "map_a-1-aaaaaaaaaaaaaaaa"
++    other = runtime_root / "map_a-other-1"
++    own.mkdir(parents=True)
++    other.mkdir()
++    (own / "keepout.pgm").write_bytes(b"private mask")
++    (other / "keepout.pgm").write_bytes(b"other map")
++    with catalog._connect() as c:
++        c.execute("UPDATE map_catalog SET active=0 WHERE map_id='map_a'")
++    catalog.trash_map("map_a", expected_revision=1, now=NOW)
++    BoardMapCatalogService(catalog).handle(
++        {
++            "schema_version": "1.0",
++            "action": "map_catalog",
++            "operation": "purge_trash",
++            "arguments": {
++                "map_id": "map_a",
++                "expected_revision": 2,
++                "confirmation_token": "purge-map:map_a:2",
++            },
++        }
++    )
++    assert not own.exists() and other.exists()
+diff --git a/tests/app_gateway/test_map_semantics_guard.py b/tests/app_gateway/test_map_semantics_guard.py
+new file mode 100644
+--- /dev/null
++++ b/tests/app_gateway/test_map_semantics_guard.py
+@@ -0,0 +1,73 @@
++from datetime import datetime, timezone
++
++from duole_central.app_gateway.facade import AppGatewayDomainFacade
++from duole_central.app_gateway.models import AppRuntimeInfo, AppReadRequest
++from duole_central.skills.navigation.application import TaskCoordinator
++from duole_central.skills.navigation.domain import TaskPriority, TaskResource
++
++
++def request(op, actor="actor_a", identifier=None):
++    return AppReadRequest(
++        op,
++        "req_edit_01",
++        datetime.now(timezone.utc),
++        parameters={
++            "operation_id": identifier or "semantic_edit_" + "a" * 32,
++            "actor_id": actor,
++        },
++    )
++
++
++def test_semantic_edits_hold_shared_motion_resource_until_confirmed_release():
++    coordinator = TaskCoordinator()
++    facade = AppGatewayDomainFacade(
++        None,
++        runtime_info=AppRuntimeInfo("robot_a", "机器人", "duole"),
++        task_coordinator=coordinator,
++    )
++    assert facade.query(request("claimMapSemanticsEdit")).data["accepted"]
++    assert facade.query(request("claimMapSemanticsEdit")).data["accepted"]
++    denied = coordinator.start_task(
++        task_id="voice_goal",
++        domain="navigation",
++        task_type="go_to_waypoint",
++        label="前往厨房",
++        priority=TaskPriority.USER_COMMAND,
++        resources=(TaskResource.MOTION,),
++        interruptible=True,
++    )
++    assert not denied.accepted
++    assert facade.query(request("releaseMapSemanticsEdit")).data["accepted"]
++    assert not coordinator.active_tasks()
++
++
++def test_busy_robot_is_not_preempted_to_edit_map():
++    coordinator = TaskCoordinator()
++    coordinator.start_task(
++        task_id="voice_goal",
++        domain="navigation",
++        task_type="go_to_waypoint",
++        label="前往厨房",
++        priority=TaskPriority.USER_COMMAND,
++        resources=(TaskResource.MOTION,),
++        interruptible=True,
++    )
++    facade = AppGatewayDomainFacade(
++        None,
++        runtime_info=AppRuntimeInfo("robot_a", "机器人", "duole"),
++        task_coordinator=coordinator,
++    )
++    assert facade.query(request("claimMapSemanticsEdit")).data["accepted"] is False
++    assert coordinator.active_tasks()[0].task_id == "voice_goal"
++
++
++def test_unconfirmed_edit_can_be_cancelled_by_existing_app_emergency_stop():
++    coordinator = TaskCoordinator()
++    facade = AppGatewayDomainFacade(
++        None,
++        runtime_info=AppRuntimeInfo("robot_a", "机器人", "duole"),
++        task_coordinator=coordinator,
++    )
++    facade.query(request("claimMapSemanticsEdit"))
++    decision = coordinator.cancel_app_motion_tasks(operation_id="stop_" + "b" * 32)
++    assert decision.accepted and not coordinator.active_tasks()
+diff --git a/tests/app_gateway/test_map_semantics_http.py b/tests/app_gateway/test_map_semantics_http.py
+new file mode 100644
+--- /dev/null
++++ b/tests/app_gateway/test_map_semantics_http.py
+@@ -0,0 +1,300 @@
++from datetime import timedelta
++from pathlib import Path
++
++import pytest
++
++from test_map_catalog_http_flow import _pairing_service, _pair, _bound_headers
++from test_map_semantics import NOW, publication
++from duole_central.app_contract import AppContract
++from duole_central.app_gateway.gateway import AppGatewayApplication, AppGatewayConfig
++from duole_central.app_gateway.map_catalog import MapCatalog
++from duole_central.app_gateway.map_management import MapManagementAuthorizationService
++from duole_central.app_gateway.models import AppReadResult
++from duole_central.navigation_board.map_semantics import (
++    BoardMapSemantics,
++    SemanticObservation,
++    artifact_grid,
++)
++
++
++@pytest.fixture
++def http_setup(tmp_path):
++    pairing = _pairing_service(tmp_path, NOW)
++    credentials, key = _pair(
++        pairing, scopes=("robot.status.read", "maps.manage", "navigation.execute")
++    )
++    catalog = MapCatalog(tmp_path / "catalog.sqlite3")
++    pub = publication()
++    catalog.commit_generated_map(pub)
++    grid = artifact_grid(pub.artifact)
++    semantics = BoardMapSemantics(
++        catalog,
++        observation_provider=lambda *_: SemanticObservation(
++            "map_a", 1, grid, grid, {"x_m": 0.5, "y_m": 0.5}, NOW, True
++        ),
++        clock=lambda: NOW,
++    )
++
++    class Adapter:
++        read_semantics = semantics.read
++        write_semantics = semantics.execute
++        resolve_semantic_target = semantics.resolve_target
++
++    authorization = MapManagementAuthorizationService(
++        tmp_path / "presence.sqlite3", robot_id=credentials.robot_id, clock=lambda: NOW
++    )
++
++    class Screen:
++        def present_map_challenge(self, **kwargs):
++            return True
++
++    challenge = authorization.create_displayed_challenge(
++        purpose="map_management", screen=Screen()
++    )
++    presence = authorization.exchange_map_management_challenge(
++        challenge_id=challenge.challenge_id,
++        proof=challenge.short_code,
++        actor_id=credentials.device_session_id,
++        installation_id=credentials.installation_id,
++        controlled_lan_id="lan_home",
++    )
++
++    class Runtime:
++        requests = []
++
++        def query(self, request):
++            if request.operation_id in {
++                "claimMapSemanticsEdit",
++                "releaseMapSemanticsEdit",
++            }:
++                return AppReadResult(
++                    request.operation_id,
++                    request.request_id,
++                    request.requested_at,
++                    {"accepted": True},
++                )
++            self.requests.append(request)
++            return AppReadResult(
++                request.operation_id,
++                request.request_id,
++                request.requested_at,
++                {
++                    "operation_id": "semantic_nav_" + "a" * 32,
++                    "entity_id": request.parameters["target"]["entity_id"],
++                    "display_name": request.parameters["target"]["display_name"],
++                    "status": "accepted",
++                    "reason_code": None,
++                },
++            )
++
++    runtime = Runtime()
++    application = AppGatewayApplication(
++        runtime,
++        config=AppGatewayConfig(engineering_token="legacy"),
++        pairing_service=pairing,
++        map_catalog=Adapter(),
++        map_management_authorization_service=authorization,
++        clock=lambda: NOW,
++        controlled_lan_id_provider=lambda ip: "lan_home" if ip == "127.0.0.1" else None,
++    )
++    return application, credentials, key, authorization, presence, semantics, runtime
++
++
++def request(
++    setup,
++    *,
++    index="01",
++    action="room_upsert",
++    changes=None,
++    peer="127.0.0.1",
++    headers_patch=None,
++):
++    app, credentials, key, _, presence, _, _ = setup
++    path = "/api/v1/navigation/maps/map_a/semantics/" + (
++        "validate-room" if action == "validate_room" else "commands"
++    )
++    body = {
++        "action": action,
++        "map_revision": 1,
++        "expected_revision": 1,
++        "presence_token": presence.token,
++        "display_name": "厨房",
++        "approximate_position": {"x_m": 0.7, "y_m": 0.7},
++    }
++    body.update(changes or {})
++    headers = _bound_headers("req_semantic_" + index, path, body, credentials, key, NOW)
++    headers["If-Match"] = f'"rev-{body["expected_revision"]}"'
++    headers.update(headers_patch or {})
++    return app.handle("POST", path, headers, body=body, peer_ip=peer)
++
++
++def test_signed_onsite_candidate_save_and_id_only_navigation(http_setup):
++    candidate = request(http_setup, action="validate_room")
++    saved = request(http_setup, index="02")
++    assert candidate.status == saved.status == 200
++    room = saved.payload["data"]["rooms"][0]
++    assert candidate.payload["data"]["candidate"] == room["target"]
++    app, credentials, key, _, _, _, runtime = http_setup
++    path = "/api/v1/navigation/maps/map_a/semantic-navigation"
++    body = {"entity_id": room["id"], "map_revision": 1, "expected_revision": 2}
++    result = app.handle(
++        "POST",
++        path,
++        _bound_headers("req_semantic_nav", path, body, credentials, key, NOW),
++        body=body,
++        peer_ip="127.0.0.1",
++    )
++    assert result.status == 200 and result.payload["data"]["status"] == "accepted"
++    assert runtime.requests[-1].parameters["target"]["target"] == room["target"]
++    contract = AppContract.from_openapi("docs/interface_freeze/app_v1/openapi.json")
++    for op, response in [
++        ("validateSemanticRoom", candidate),
++        ("writeMapSemantics", saved),
++        ("navigateToSemanticTarget", result),
++    ]:
++        assert not contract.validate_response(op, response.status, response.payload)
++
++
++def test_write_rejects_no_scope_and_does_not_persist(http_setup, tmp_path):
++    app, _, _, _, _, semantics, _ = http_setup
++    viewer, key = _pair(app.pairing_service, scopes=("robot.status.read",))
++    path = "/api/v1/navigation/maps/map_a/semantics/commands"
++    body = {
++        "action": "room_upsert",
++        "map_revision": 1,
++        "expected_revision": 1,
++        "presence_token": "invalid",
++        "display_name": "厨房",
++        "approximate_position": {"x_m": 0.7, "y_m": 0.7},
++    }
++    headers = _bound_headers("req_no_scope", path, body, viewer, key, NOW)
++    headers["If-Match"] = '"rev-1"'
++    result = app.handle("POST", path, headers, body=body, peer_ip="127.0.0.1")
++    assert result.status == 403 and semantics.read(map_id="map_a")["rooms"] == []
++
++
++@pytest.mark.parametrize(
++    "changes,code",
++    [
++        ({"presence_token": "invalid"}, "map_management_presence_invalid"),
++        ({"map_revision": 2}, "map_revision_conflict"),
++        ({"expected_revision": 2}, "semantic_revision_conflict"),
++        ({"arbitrary_goal": {"x": 1, "y": 1}}, "semantic_request_invalid"),
++    ],
++)
++def test_invalid_presence_binding_revision_and_arbitrary_fields_rejected(
++    http_setup, changes, code
++):
++    result = request(http_setup, changes=changes)
++    assert result.status in (400, 403, 409)
++    assert result.payload["error"]["details"]["reason_code"] == code
++    assert http_setup[5].read(map_id="map_a")["rooms"] == []
++
++
++def test_leaving_lan_invalidates_presence(http_setup):
++    result = request(http_setup, peer="203.0.113.10")
++    assert result.status == 403
++    retried = request(http_setup, index="02")
++    assert (
++        retried.status == 403
++        and retried.payload["error"]["details"]["reason_code"]
++        == "map_management_presence_invalidated"
++    )
++
++
++def test_expired_presence_and_ttl_cannot_save(http_setup):
++    authorization = http_setup[3]
++    authorization._clock = lambda: NOW + timedelta(minutes=16)
++    expired = request(http_setup)
++    assert (
++        expired.status == 403
++        and expired.payload["error"]["details"]["reason_code"]
++        == "map_management_presence_expired"
++    )
++    ttl = request(http_setup, index="02", headers_patch={"X-TTL-Ms": "0"})
++    assert ttl.status == 400
++
++
++def test_read_is_authenticated_and_header_revision_is_required(http_setup):
++    app, credentials, _, _, _, _, _ = http_setup
++    path = "/api/v1/navigation/maps/map_a/semantics"
++    headers = {
++        "X-Request-ID": "req_read_semantics",
++        "X-Client-Version": "android/0.5.0",
++    }
++    assert app.handle("GET", path, headers).status == 401
++    headers["Authorization"] = "Bearer " + credentials.access_token
++    assert app.handle("GET", path, headers).status == 200
++    assert request(http_setup, headers_patch={"If-Match": '"rev-3"'}).status == 400
++
++
++def test_signature_tampering_and_raw_coordinate_navigation_rejected(http_setup):
++    bad_signature = request(
++        http_setup, headers_patch={"X-Installation-Signature": "Yg=="}
++    )
++    assert bad_signature.status in (400, 401)
++    app, credentials, key, _, _, _, runtime = http_setup
++    path = "/api/v1/navigation/maps/map_a/semantic-navigation"
++    body = {
++        "entity_id": "room_" + "a" * 32,
++        "map_revision": 1,
++        "expected_revision": 1,
++        "target": {"x_m": 0, "y_m": 0},
++    }
++    result = app.handle(
++        "POST",
++        path,
++        _bound_headers("req_raw_goal", path, body, credentials, key, NOW),
++        body=body,
++        peer_ip="127.0.0.1",
++    )
++    assert result.status == 400 and not runtime.requests
++
++
++def test_replay_returns_original_http_envelope_and_headers(http_setup):
++    import base64
++    import hashlib
++    import json
++    from cryptography.hazmat.primitives import hashes
++    from cryptography.hazmat.primitives.asymmetric import ec
++    from duole_central.app_gateway.pairing import installation_command_signing_payload
++
++    first = request(http_setup)
++    app, credentials, key, authorization, presence, _, _ = http_setup
++    later = NOW + timedelta(seconds=1)
++    app._clock = lambda: later
++    app.pairing_service._clock = lambda: later
++    authorization._clock = lambda: later
++    path = "/api/v1/navigation/maps/map_a/semantics/commands"
++    body = {
++        "action": "room_upsert",
++        "map_revision": 1,
++        "expected_revision": 1,
++        "presence_token": presence.token,
++        "display_name": "厨房",
++        "approximate_position": {"x_m": 0.7, "y_m": 0.7},
++    }
++    headers = _bound_headers("req_retry_semantic", path, body, credentials, key, later)
++    headers["If-Match"] = '"rev-1"'
++    headers["Idempotency-Key"] = "idem_req_semantic_01"
++    proof = installation_command_signing_payload(
++        robot_id=credentials.robot_id,
++        device_session_id=credentials.device_session_id,
++        request_id=headers["X-Request-ID"],
++        method="POST",
++        path=path,
++        sent_at=headers["X-Sent-At"],
++        idempotency_key=headers["Idempotency-Key"],
++        nonce=headers["X-Installation-Nonce"],
++        body_sha256=hashlib.sha256(
++            json.dumps(
++                body, sort_keys=True, ensure_ascii=False, separators=(",", ":")
++            ).encode()
++        ).hexdigest(),
++    )
++    headers["X-Installation-Signature"] = base64.b64encode(
++        key.sign(proof, ec.ECDSA(hashes.SHA256()))
++    ).decode()
++    second = app.handle("POST", path, headers, body=body, peer_ip="127.0.0.1")
++    assert first.status == second.status == 200
++    assert first.payload == second.payload and first.headers == second.headers
+diff --git a/tests/app_gateway/test_semantic_navigation.py b/tests/app_gateway/test_semantic_navigation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/app_gateway/test_semantic_navigation.py
+@@ -0,0 +1,131 @@
++from datetime import datetime, timedelta, timezone
++
++from duole_central.app_gateway.models import AppReadRequest
++from duole_central.app_gateway.semantic_navigation import SemanticNavigationRuntime
++from duole_central.skills.navigation.application import (
++    TaskCoordinator,
++    TrackingNavigationCommandExecutor,
++    NavigationCommandExecutionResult,
++)
++
++
++def test_navigation_retains_safety_preemption_and_refuses_busy_replacement(tmp_path):
++    from duole_central.skills.navigation.domain import TaskPriority, TaskResource
++
++    service, executor, coordinator, request = setup(tmp_path)
++    assert service.execute(request)["status"] == "accepted"
++    active = coordinator.active_tasks()[0]
++    assert active.domain == "navigation" and active.interruptible
++    safety = coordinator.start_task(
++        task_id="fall_safety",
++        domain="vision_fall",
++        task_type="fall_recovery",
++        label="安全处理",
++        priority=TaskPriority.FALL_SAFETY,
++        resources=(TaskResource.MOTION,),
++        interruptible=False,
++    )
++    assert safety.accepted and safety.preempted_tasks[0].task_id == active.task_id
++    service2, executor2, coordinator2, request2 = setup(tmp_path / "busy")
++    coordinator2.start_task(
++        task_id="voice_goal",
++        domain="navigation",
++        task_type="go_to_waypoint",
++        label="语音导航",
++        priority=TaskPriority.USER_COMMAND,
++        resources=(TaskResource.MOTION,),
++        interruptible=True,
++    )
++    assert service2.execute(request2)["status"] == "failed" and not executor2.commands
++    assert coordinator2.active_tasks()[0].task_id == "voice_goal"
++
++
++def setup(tmp_path, *, success=True):
++    class Executor:
++        commands = []
++
++        def execute_command(self, command):
++            self.commands.append(command)
++            return NavigationCommandExecutionResult(
++                action=command["action"],
++                goal_key=command["goal_key"],
++                attempted=True,
++                success=success,
++                error=None if success else "navigation_unavailable",
++            )
++
++    executor = Executor()
++    coordinator = TaskCoordinator()
++    tracked = TrackingNavigationCommandExecutor(executor, coordinator)
++    service = SemanticNavigationRuntime(
++        tmp_path / "stop.sqlite3",
++        executor=tracked,
++        coordinator=coordinator,
++        ready=lambda: True,
++    )
++    now = datetime.now(timezone.utc)
++    request = AppReadRequest(
++        "navigateToSemanticTarget",
++        "req_nav_01",
++        now,
++        deadline_at=now + timedelta(seconds=30),
++        parameters={
++            "actor_id": "actor_a",
++            "idempotency_key": "idem_a",
++            "map_id": "map_a",
++            "map_revision": 1,
++            "expected_revision": 2,
++            "target": {
++                "kind": "room",
++                "entity_id": "room_" + "a" * 32,
++                "display_name": "厨房",
++                "target": {"x_m": 1.25, "y_m": 0.75},
++            },
++        },
++    )
++    return service, executor, coordinator, request
++
++
++def test_nav_uses_verified_target_once_and_is_owned_by_app_for_stop(tmp_path):
++    service, executor, coordinator, request = setup(tmp_path)
++    result = service.execute(request)
++    assert result["status"] == "accepted"
++    assert executor.commands[0]["waypoint"]["x"] == 1.25
++    assert executor.commands[0]["waypoint"]["y"] == 0.75
++    assert coordinator.active_tasks()[0].metadata["control_owner"] == "app"
++    assert service.execute(request) == result and len(executor.commands) == 1
++    coordinator.cancel_app_motion_tasks(operation_id="stop_test")
++    assert not coordinator.active_tasks()
++
++
++def test_stop_inhibit_and_disabled_readiness_reject_new_motion(tmp_path):
++    service, executor, _, request = setup(tmp_path)
++    service.leases.revoke_all_and_lock(
++        operation_id="stop_" + "a" * 32, revoked_at=request.requested_at
++    )
++    assert service.execute(request)["status"] == "failed" and not executor.commands
++    service2, executor2, _, request2 = setup(tmp_path / "second")
++    service2.ready = lambda: False
++    assert service2.execute(request2)["status"] == "failed" and not executor2.commands
++
++
++def test_failed_dispatch_is_not_arrival_and_cannot_be_replayed_as_motion(tmp_path):
++    service, executor, coordinator, request = setup(tmp_path, success=False)
++    result = service.execute(request)
++    assert result["status"] == "failed" and not coordinator.active_tasks()
++    assert service.execute(request) == result and len(executor.commands) == 1
++
++
++def test_lost_dispatch_ack_stays_uncertain_without_second_motion(tmp_path):
++    service, executor, _, request = setup(tmp_path)
++
++    def lost(command):
++        executor.commands.append(command)
++        raise OSError("lost ack")
++
++    service.executor.execute_command = lost
++    assert service.execute(request)["status"] == "unconfirmed"
++    assert (
++        service.execute(request)["status"] == "unconfirmed"
++        and len(executor.commands) == 1
++    )

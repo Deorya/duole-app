@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "request_id": "req_semantic_fixture_01",
+  "server_time": "2026-10-15T04:00:00+00:00",
+  "data": {
+    "map_id": "map_a",
+    "map_revision": 1,
+    "revision": 2,
+    "active": true,
+    "quality_warning": false,
+    "map": {
+      "map_id": "map_a",
+      "revision": 1,
+      "content_sha256": "f352d6fdba65dc5be604a97daa4e2d269f25b3bb1f5d565282db00b48d13bd62",
+      "width_px": 24,
+      "height_px": 24,
+      "resolution_m_per_px": 0.1,
+      "origin": {
+        "x_m": 0.0,
+        "y_m": 0.0,
+        "yaw_rad": 0.0
+      },
+      "updated_at": "2026-10-15T04:00:00+00:00",
+      "image_resource": {
+        "href": "/api/v1/navigation/maps/map_a/revisions/1/image",
+        "etag": "\"map-1-f352d6fdba65dc5b\"",
+        "content_type": "image/png"
+      }
+    },
+    "rooms": [
+      {
+        "id": "room_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display_name": "厨房",
+        "map_id": "map_a",
+        "map_revision": 1,
+        "verification": "verified",
+        "approximate_position": {
+          "x_m": 0.71,
+          "y_m": 0.69
+        },
+        "target": {
+          "x_m": 0.75,
+          "y_m": 0.65
+        }
+      }
+    ],
+    "keepout_zones": [],
+    "patrol_routes": [],
+    "dock_pose": null
+  }
+}

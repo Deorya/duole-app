@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:duole_app_contract/app_contract.dart';
 import 'package:duole_engineering_app/navigation_map_page.dart';
@@ -7,6 +8,145 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  for (final pending in [false, true]) {
+    testWidgets(
+        'home map renders stored points when localization pending=$pending',
+        (tester) async {
+      final accessibility = tester.ensureSemantics();
+      final semantics = _HomeSemantics();
+      await tester.pumpWidget(MaterialApp(
+          home: NavigationMapPage(
+        reader: _HomeMapReader(),
+        catalogReader: pending ? _HomeCatalog() : null,
+        mapSemanticsReader: semantics,
+      )));
+      await tester.pumpAndSettle();
+      expect(semantics.reads, ['map_a']);
+      await tester.scrollUntilVisible(
+          find.byKey(const Key('home-map-card')), 300);
+      await tester.pumpAndSettle();
+      expect(find.semantics.byLabel('已保存点位：厨房'), findsOneWidget);
+      if (pending) expect(find.text('地图已加载 · 定位待验证'), findsOneWidget);
+      accessibility.dispose();
+    });
+  }
+
+  testWidgets(
+      'save in editor then return immediately refreshes home map points',
+      (tester) async {
+    final accessibility = tester.ensureSemantics();
+    final semantics = _HomeSemantics()..raw['rooms'] = <Object?>[];
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _HomeMapReader(),
+      catalogReader: _HomeCatalog(),
+      mapSemanticsReader: semantics,
+      mapSemanticsManager: semantics,
+    )));
+    await tester.pumpAndSettle();
+    expect(find.semantics.byLabel('已保存点位：厨房'), findsNothing);
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('open-map-semantics')), 300);
+    await tester.tap(find.byKey(const Key('open-map-semantics')));
+    await tester.pump();
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)));
+    await tester.pumpAndSettle();
+    final surface = find.byKey(const Key('semantic-map-surface'));
+    await tester.ensureVisible(surface);
+    await tester.pumpAndSettle();
+    await tester.tapAt(tester.getCenter(surface));
+    await tester.ensureVisible(find.byKey(const Key('semantic-name')));
+    await tester.enterText(find.byKey(const Key('semantic-name')), '厨房');
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('validate-semantic-room')));
+    expect(
+        tester
+            .widget<OutlinedButton>(
+                find.byKey(const Key('validate-semantic-room')))
+            .onPressed,
+        isNotNull);
+    await tester.tap(find.byKey(const Key('validate-semantic-room')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('蓝色点已通过静态地图校验'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('save-semantic-room')));
+    expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('save-semantic-room')))
+            .onPressed,
+        isNotNull);
+    await tester.tap(find.byKey(const Key('save-semantic-room')));
+    await tester.pumpAndSettle();
+    expect(find.text('点位已保存，导航时将检查机器人定位和路径'), findsOneWidget);
+    expect((semantics.raw['rooms']! as List<Object?>).length, 1);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('家庭地图'), findsOneWidget);
+    expect(semantics.reads, ['map_a', 'map_a', 'map_a']);
+    tester
+        .state<ScrollableState>(find.byType(Scrollable).first)
+        .position
+        .jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('home-map-card')), 300);
+    await tester.pumpAndSettle();
+    expect(find.semantics.byLabel('已保存点位：厨房'), findsOneWidget);
+    accessibility.dispose();
+  });
+
+  for (final mismatch in ['map_id', 'map_revision']) {
+    testWidgets(
+        'home map rejects point configuration with mismatched $mismatch',
+        (tester) async {
+      final accessibility = tester.ensureSemantics();
+      final semantics = _HomeSemantics();
+      semantics.raw[mismatch] = mismatch == 'map_id' ? 'map_other' : 9;
+      await tester.pumpWidget(MaterialApp(
+          home: NavigationMapPage(
+        reader: _HomeMapReader(),
+        catalogReader: _HomeCatalog(),
+        mapSemanticsReader: semantics,
+      )));
+      await tester.pumpAndSettle();
+      expect(find.semantics.byLabel('已保存点位：厨房'), findsNothing);
+      await tester.scrollUntilVisible(find.text('点位暂未同步，请下拉刷新'), 300);
+      expect(find.text('点位暂未同步，请下拉刷新'), findsOneWidget);
+      expect(find.byKey(const Key('home-semantic-overlay')), findsNothing);
+      accessibility.dispose();
+    });
+  }
+
+  testWidgets(
+      'failed point refresh clears previous annotations and leaves base map',
+      (tester) async {
+    final accessibility = tester.ensureSemantics();
+    final semantics = _HomeSemantics();
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _HomeMapReader(),
+      catalogReader: _HomeCatalog(),
+      mapSemanticsReader: semantics,
+    )));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+        find.byKey(const Key('home-map-card')), 300);
+    await tester.pumpAndSettle();
+    expect(find.semantics.byLabel('已保存点位：厨房'), findsOneWidget);
+    semantics.fail = true;
+    final refresh = tester
+        .state<RefreshIndicatorState>(find.byType(RefreshIndicator))
+        .show();
+    await tester.pumpAndSettle();
+    await refresh;
+    expect(find.semantics.byLabel('已保存点位：厨房'), findsNothing);
+    await tester.scrollUntilVisible(find.text('点位暂未同步，请下拉刷新'), 300);
+    expect(find.text('点位暂未同步，请下拉刷新'), findsOneWidget);
+    expect(find.byKey(const Key('home-semantic-overlay')), findsNothing);
+    accessibility.dispose();
+    expect(find.text('当前地图：测试地图'), findsOneWidget);
+  });
+
   testWidgets(
       'development switch waits for commit and displays the selected saved map',
       (tester) async {
@@ -43,7 +183,8 @@ void main() {
     expect(find.byKey(const Key('switch-map-map_available')), findsNothing);
   });
 
-  testWidgets('active saved map remains visible when its preview is unavailable',
+  testWidgets(
+      'active saved map remains visible when its preview is unavailable',
       (tester) async {
     final catalog = _SelectionCatalogReader()
       ..active = true
@@ -62,6 +203,30 @@ void main() {
     expect(find.text('当前地图已切换，定位待验证'), findsOneWidget);
     expect(find.text('房间'), findsNothing);
     expect(find.text('巡逻路线'), findsNothing);
+  });
+
+  testWidgets('saved map annotation opens the selected map without switching',
+      (tester) async {
+    final semantics = _RecordingSemanticsReader();
+    final catalog = _PreviewCatalogReader();
+    final switchManager = _RecordingSwitchMapManager();
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _MismatchReader(),
+      catalogReader: catalog,
+      mapSemanticsReader: semantics,
+      mapManagementManager: switchManager,
+    )));
+    await tester.pumpAndSettle();
+    final annotate = find.byKey(const Key('annotate-map-map_available'));
+    await tester.scrollUntilVisible(annotate, 300);
+    await tester.ensureVisible(annotate);
+    await tester.tap(annotate);
+    await tester.pumpAndSettle();
+    expect(semantics.requestedMapId, 'map_available');
+    expect(find.text('点位标注与导航'), findsOneWidget);
+    expect(switchManager.switchedMapId, isNull);
+    expect(switchManager.requestedDisplayPurpose, isNull);
   });
 
   testWidgets('clicking a saved map opens its image without switching maps',
@@ -1476,3 +1641,106 @@ Map<String, Object?> _trashRecordPayload({
         'dock_anchor_present': true,
       },
     };
+
+class _RecordingSemanticsReader implements MapSemanticsReader {
+  String? requestedMapId;
+
+  @override
+  Future<MapSemanticsData> getMapSemantics(String mapId) async {
+    requestedMapId = mapId;
+    throw StateError('test read unavailable');
+  }
+}
+
+Map<String, Object?> _homeSemanticsFixture() => (jsonDecode(
+        File('../../dart/duole_app_contract/test/fixtures/map_semantics.json')
+            .readAsStringSync()) as Map<String, Object?>)['data']!
+    as Map<String, Object?>;
+
+class _HomeSemantics implements MapSemanticsManager {
+  final raw = _homeSemanticsFixture();
+  final reads = <String>[];
+  var fail = false;
+
+  @override
+  Future<MapSemanticsData> getMapSemantics(String mapId) async {
+    reads.add(mapId);
+    if (fail) throw const SocketException('offline');
+    return MapSemanticsData.fromJson(raw);
+  }
+
+  @override
+  Future<SemanticRoomCandidateData> validateSemanticRoom(String mapId,
+          {required int mapRevision,
+          required int expectedRevision,
+          String? presenceToken,
+          required String displayName,
+          required MapPosition approximatePosition,
+          String? entityId}) async =>
+      SemanticRoomCandidateData(
+          mapId: mapId,
+          mapRevision: mapRevision,
+          revision: expectedRevision,
+          candidate: approximatePosition);
+
+  @override
+  Future<MapSemanticsData> writeMapSemantics(String mapId,
+      {required int mapRevision,
+      required int expectedRevision,
+      String? presenceToken,
+      required Map<String, Object?> changes}) async {
+    final point = changes['approximate_position'];
+    raw['rooms'] = [
+      {
+        'id': 'room_${'a' * 32}',
+        'display_name': changes['display_name'],
+        'map_id': mapId,
+        'map_revision': mapRevision,
+        'verification': 'verified',
+        'approximate_position': point,
+        'target': point,
+      }
+    ];
+    raw['revision'] = expectedRevision + 1;
+    return MapSemanticsData.fromJson(raw);
+  }
+}
+
+class _HomeMapReader extends _MismatchReader {
+  @override
+  Future<NavigationMapViewSuccessEnvelope> getNavigationMapView() async {
+    final payload = _payload();
+    (payload['data']! as Map<String, Object?>)['map'] =
+        _homeSemanticsFixture()['map'];
+    return NavigationMapViewSuccessEnvelope.fromJson(payload);
+  }
+
+  @override
+  Future<NavigationMapImageResponse> getNavigationMapImage(NavigationMap map,
+          {String? cachedEtag}) async =>
+      NavigationMapImageResponse(
+          bytes: File(
+                  '../../dart/duole_app_contract/test/fixtures/map_semantics.png')
+              .readAsBytesSync(),
+          etag: map.imageResource['etag']! as String,
+          notModified: false);
+}
+
+class _HomeCatalog extends _PreviewCatalogReader {
+  @override
+  Future<MapCatalogSuccessEnvelope> getMapCatalog() async {
+    final payload = _catalogPayload();
+    final record = _catalogRecord('map_a', '测试地图', 'active', 78,
+        technicalReason: 'localization_pending');
+    record['revision'] = 4;
+    record['source_revision'] = 1;
+    (payload['data']! as Map<String, Object?>)['maps'] = [record];
+    return MapCatalogSuccessEnvelope.fromJson(payload);
+  }
+
+  @override
+  Future<NavigationMapImageResponse> getMapCatalogPreview(
+          MapCatalogRecord map) =>
+      _HomeMapReader().getNavigationMapImage(NavigationMap.fromJson(
+          _homeSemanticsFixture()['map']! as Map<String, Object?>));
+}

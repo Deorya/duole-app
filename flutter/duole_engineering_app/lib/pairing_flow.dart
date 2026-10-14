@@ -68,6 +68,9 @@ class PairedRobotSession {
     this.mapCatalogReader,
     this.mapCatalogManager,
     this.mapManagementManager,
+    this.mapSemanticsReader,
+    this.mapSemanticsManager,
+    this.semanticNavigationCommander,
     this.manualMappingManager,
     this.manualMappingControlTransport,
     this.teleopControlTransport,
@@ -88,6 +91,9 @@ class PairedRobotSession {
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
   final MapManagementManager? mapManagementManager;
+  final MapSemanticsReader? mapSemanticsReader;
+  final MapSemanticsManager? mapSemanticsManager;
+  final SemanticNavigationCommander? semanticNavigationCommander;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final TeleopWebSocketTransport? teleopControlTransport;
@@ -326,6 +332,14 @@ class SecurePairingSessionGateway
       mapManagementManager: credentials.scopes.contains('maps.manage')
           ? mapManagementManager
           : null,
+      mapSemanticsReader: mapManagementManager,
+      mapSemanticsManager: credentials.scopes.contains('maps.manage')
+          ? mapManagementManager
+          : null,
+      semanticNavigationCommander:
+          credentials.scopes.contains('navigation.execute')
+              ? mapManagementManager
+              : null,
       manualMappingManager: credentials.scopes.contains('maps.manage')
           ? mapManagementManager
           : null,

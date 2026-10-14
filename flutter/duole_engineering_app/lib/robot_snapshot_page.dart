@@ -20,6 +20,9 @@ class RobotSnapshotPage extends StatefulWidget {
     this.mapCatalogReader,
     this.mapCatalogManager,
     this.mapManagementManager,
+    this.mapSemanticsReader,
+    this.mapSemanticsManager,
+    this.semanticNavigationCommander,
     this.manualMappingManager,
     this.manualMappingControlTransport,
     this.teleopControlTransport,
@@ -33,6 +36,9 @@ class RobotSnapshotPage extends StatefulWidget {
   final MapCatalogReader? mapCatalogReader;
   final MapCatalogManager? mapCatalogManager;
   final MapManagementManager? mapManagementManager;
+  final MapSemanticsReader? mapSemanticsReader;
+  final MapSemanticsManager? mapSemanticsManager;
+  final SemanticNavigationCommander? semanticNavigationCommander;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? manualMappingControlTransport;
   final TeleopWebSocketTransport? teleopControlTransport;
@@ -266,6 +272,10 @@ class _RobotSnapshotPageState extends State<RobotSnapshotPage> {
                     catalogReader: widget.mapCatalogReader,
                     catalogManager: widget.mapCatalogManager,
                     mapManagementManager: widget.mapManagementManager,
+                    mapSemanticsReader: widget.mapSemanticsReader,
+                    mapSemanticsManager: widget.mapSemanticsManager,
+                    semanticNavigationCommander:
+                        widget.semanticNavigationCommander,
                     manualMappingManager: widget.manualMappingManager,
                     manualMappingControlTransport:
                         widget.manualMappingControlTransport,

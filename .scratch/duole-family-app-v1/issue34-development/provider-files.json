@@ -1,0 +1,23 @@
+[
+  "docs/interface_freeze/app_v1/issue_34_map_semantics.md",
+  "docs/interface_freeze/app_v1/openapi.json",
+  "duole_central/app_gateway/facade.py",
+  "duole_central/app_gateway/gateway.py",
+  "duole_central/app_gateway/map_catalog.py",
+  "duole_central/app_gateway/map_semantics.py",
+  "duole_central/app_gateway/models.py",
+  "duole_central/app_gateway/navigation_board_map_catalog.py",
+  "duole_central/app_gateway/navigation_board_ssh.py",
+  "duole_central/app_gateway/semantic_navigation.py",
+  "duole_central/navigation_board/catalog_switch.py",
+  "duole_central/navigation_board/cli.py",
+  "duole_central/navigation_board/map_catalog.py",
+  "duole_central/navigation_board/map_semantics.py",
+  "duole_central/navigation_board/ros_semantics.py",
+  "duole_central/runtime/product_app_session.py",
+  "duole_central/runtime/product_voice_live_session.py",
+  "tests/app_gateway/test_map_semantics.py",
+  "tests/app_gateway/test_map_semantics_guard.py",
+  "tests/app_gateway/test_map_semantics_http.py",
+  "tests/app_gateway/test_semantic_navigation.py"
+]

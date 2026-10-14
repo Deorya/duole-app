@@ -900,7 +900,9 @@ class EngineeringMapManagementClient
     implements
         MapManagementManager,
         ManualMappingManager,
-        ManualMappingVisualizationManager {
+        ManualMappingVisualizationManager,
+        MapSemanticsManager,
+        SemanticNavigationCommander {
   EngineeringMapManagementClient({
     required Uri robotOrigin,
     required String robotId,
@@ -956,6 +958,238 @@ class EngineeringMapManagementClient
   final PairingCredentialVault _credentialVault;
   final DateTime Function() _clock;
   final Duration commandTtl;
+
+  final Map<String, (String, String)> _semanticPending = {};
+
+  @override
+  Future<MapSemanticsData> getMapSemantics(String mapId) async {
+    final payload = await _semanticRequest(mapId, 'semantics');
+    final data = MapSemanticsSuccessEnvelope.fromJson(payload).data;
+    _checkSemanticBinding(data, mapId);
+    return data;
+  }
+
+  @override
+  Future<SemanticRoomCandidateData> validateSemanticRoom(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    String? presenceToken,
+    required String displayName,
+    required MapPosition approximatePosition,
+    String? entityId,
+  }) async {
+    final body = {
+      'action': 'validate_room',
+      if (entityId != null) 'entity_id': entityId,
+      'map_revision': mapRevision,
+      'expected_revision': expectedRevision,
+      if (presenceToken != null) 'presence_token': presenceToken,
+      'display_name': displayName,
+      'approximate_position': {
+        'x_m': approximatePosition.xM,
+        'y_m': approximatePosition.yM,
+      },
+    };
+    MapSemanticsCommandRequest.fromJson(body);
+    final payload =
+        await _semanticRequest(mapId, 'semantics/validate-room', body);
+    final data = SemanticRoomCandidateSuccessEnvelope.fromJson(payload).data;
+    if (data.mapId != mapId ||
+        data.mapRevision != mapRevision ||
+        data.revision != expectedRevision ||
+        !data.candidate.xM.isFinite ||
+        !data.candidate.yM.isFinite) {
+      throw const FormatException('semantic candidate binding mismatch');
+    }
+    return data;
+  }
+
+  @override
+  Future<MapSemanticsData> writeMapSemantics(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    String? presenceToken,
+    required Map<String, Object?> changes,
+  }) async {
+    if (!const {'room_upsert', 'room_delete'}.contains(changes['action']) &&
+        (presenceToken == null || presenceToken.isEmpty)) {
+      throw ArgumentError(
+          'onsite presence is required for keepouts and routes');
+    }
+    final body = {
+      ...changes,
+      'map_revision': mapRevision,
+      'expected_revision': expectedRevision,
+      if (presenceToken != null) 'presence_token': presenceToken,
+    };
+    MapSemanticsCommandRequest.fromJson(body);
+    if (body['action'] == 'validate_room') {
+      throw ArgumentError('use validateSemanticRoom for a candidate');
+    }
+    final payload = await _semanticRequest(mapId, 'semantics/commands', body);
+    final data = MapSemanticsSuccessEnvelope.fromJson(payload).data;
+    _checkSemanticBinding(data, mapId);
+    if (data.mapRevision != mapRevision || data.revision < expectedRevision) {
+      throw const FormatException('semantic write revision mismatch');
+    }
+    _semanticPending
+        .remove(_semanticPendingKey(mapId, 'semantics/commands', body));
+    return data;
+  }
+
+  @override
+  Future<SemanticNavigationData> navigateToSemanticTarget(
+    String mapId, {
+    required int mapRevision,
+    required int expectedRevision,
+    required String entityId,
+  }) async {
+    final body = {
+      'entity_id': entityId,
+      'map_revision': mapRevision,
+      'expected_revision': expectedRevision,
+    };
+    SemanticNavigationRequest.fromJson(body);
+    final payload = await _semanticRequest(mapId, 'semantic-navigation', body);
+    final data = SemanticNavigationSuccessEnvelope.fromJson(payload).data;
+    if (data.entityId != entityId) {
+      throw const FormatException('semantic navigation target mismatch');
+    }
+    _semanticPending
+        .remove(_semanticPendingKey(mapId, 'semantic-navigation', body));
+    return data;
+  }
+
+  String _semanticPendingKey(
+          String mapId, String suffix, Map<String, Object?> body) =>
+      '$mapId/$suffix ${jsonEncode(_sortedScheduleJson({
+            for (final entry in body.entries)
+              if (entry.key != 'presence_token') entry.key: entry.value,
+          }))}';
+
+  Future<Map<String, Object?>> _semanticRequest(String mapId, String suffix,
+      [Map<String, Object?>? body]) async {
+    if (!RegExp(r'^[A-Za-z0-9._:-]{1,128}$').hasMatch(mapId)) {
+      throw ArgumentError.value(mapId, 'mapId', 'invalid map id');
+    }
+    final path = '/api/v1/navigation/maps/$mapId/$suffix';
+    final isWrite = body != null;
+    final pendingKey =
+        isWrite ? _semanticPendingKey(mapId, suffix, body) : null;
+    final wasPending =
+        pendingKey != null && _semanticPending.containsKey(pendingKey);
+    final ids = isWrite
+        ? _semanticPending.putIfAbsent(
+            pendingKey!, () => (_requestIdFactory(), _idempotencyKeyFactory()))
+        : (_requestIdFactory(), '');
+    final headers = <String, String>{
+      'Authorization': 'Bearer $_accessToken',
+      'X-Request-ID': ids.$1,
+      'X-Client-Version': _clientVersion,
+    };
+    String? canonical;
+    if (isWrite) {
+      canonical = _semanticCanonicalJson(body);
+      final sentAt = _clock().toUtc().toIso8601String();
+      final nonce = _proofNonceFactory();
+      final proof = _installationCommandPayload(
+        robotId: _robotId,
+        deviceSessionId: _deviceSessionId,
+        requestId: ids.$1,
+        method: 'POST',
+        path: path,
+        sentAt: sentAt,
+        idempotencyKey: ids.$2,
+        nonce: nonce,
+        bodySha256: sha256.convert(utf8.encode(canonical)).toString(),
+      );
+      headers.addAll({
+        'Content-Type': 'application/json',
+        'X-Sent-At': sentAt,
+        'X-TTL-Ms': commandTtl.inMilliseconds.toString(),
+        'Idempotency-Key': ids.$2,
+        'X-Installation-Session-ID': _deviceSessionId,
+        'X-Installation-Nonce': nonce,
+        'X-Installation-Signature': await _credentialVault
+            .signInstallationPayload(base64Encode(utf8.encode(proof))),
+        'If-Match': '"rev-${body['expected_revision']}"',
+      });
+    }
+    final response = await _transport.request(
+        isWrite ? 'POST' : 'GET', _robotOrigin.replace(path: path),
+        headers: headers, body: canonical);
+    final payload = _responsePayload(response.body);
+    _verifyRequestIdentity(response, payload, ids.$1);
+    if (response.statusCode != 200) {
+      final envelope = ErrorEnvelope.fromJson(payload);
+      if (response.statusCode >= 400 &&
+          response.statusCode < 500 &&
+          response.statusCode != 408 &&
+          response.statusCode != 429 &&
+          !(wasPending &&
+              (response.statusCode == 401 || response.statusCode == 403)) &&
+          envelope.error.details['reason_code'] !=
+              'keepout_restore_unconfirmed') {
+        _semanticPending.remove(pendingKey);
+      }
+      throw EngineeringApiException(
+          statusCode: response.statusCode, envelope: envelope);
+    }
+    return payload;
+  }
+
+  // Installation proofs on the provider hash sorted Python JSON. Coordinates
+  // introduce floating point values, whose exponent spelling differs from Dart.
+  static String _semanticCanonicalJson(Object? value) {
+    if (value is double) {
+      if (!value.isFinite)
+        throw const FormatException('non-finite map coordinate');
+      final magnitude = value.abs();
+      if (magnitude != 0 && (magnitude < 0.0001 || magnitude >= 1e16)) {
+        final parts = value.toStringAsExponential().split('e');
+        final exponent = int.parse(parts[1]);
+        return '${parts[0]}e${exponent < 0 ? '-' : '+'}${exponent.abs().toString().padLeft(2, '0')}';
+      }
+      return value.toString();
+    }
+    if (value is Map<String, Object?>) {
+      final sorted = SplayTreeMap<String, Object?>.of(value);
+      return '{${sorted.entries.map((entry) => '${jsonEncode(entry.key)}:${_semanticCanonicalJson(entry.value)}').join(',')}}';
+    }
+    if (value is List<Object?>) {
+      return '[${value.map(_semanticCanonicalJson).join(',')}]';
+    }
+    return jsonEncode(value);
+  }
+
+  static void _checkSemanticBinding(MapSemanticsData data, String mapId) {
+    if (data.mapId != mapId ||
+        data.map == null ||
+        data.map!.mapId != mapId ||
+        data.map!.revision != data.mapRevision ||
+        [
+          ...data.rooms.map((r) => (r.mapId, r.mapRevision)),
+          ...data.keepoutZones.map((z) => (z.mapId, z.mapRevision)),
+          ...data.patrolRoutes.map((r) => (r.mapId, r.mapRevision))
+        ].any((binding) =>
+            binding.$1 != mapId || binding.$2 != data.mapRevision) ||
+        (data.dockPose != null &&
+            (data.dockPose!.mapId != mapId ||
+                data.dockPose!.mapRevision != data.mapRevision))) {
+      throw const FormatException('map semantics binding mismatch');
+    }
+    final roomIds = data.rooms.map((r) => r.id).toSet();
+    if (roomIds.length != data.rooms.length ||
+        data.patrolRoutes
+            .any((r) => r.roomIds.any((id) => !roomIds.contains(id))) ||
+        data.rooms.any((r) => !r.target.xM.isFinite || !r.target.yM.isFinite)) {
+      throw const FormatException(
+          'invalid semantic targets or route references');
+    }
+  }
+
   String? _activeMapManagementPresenceToken;
 
   @override
