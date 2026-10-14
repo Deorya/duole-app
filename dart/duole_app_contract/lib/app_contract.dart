@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND.
 
-// contract-sha256: 396c7aa727f137a95dc5cb1a1931697e3bc398de76b889f1c46db3635ea6a3df
+// contract-sha256: c838db0a7cef76c292a3363afe6e802d725e1350440493dbcf75e1a7a59ac9cc
 
 Object? _required(Map<String, Object?> json, String key, String path) {
   if (!json.containsKey(key)) {
@@ -4157,6 +4157,7 @@ class MapCatalogRecord {
   final String mapId;
   final String displayName;
   final int revision;
+  final int? sourceRevision;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String status;
@@ -4171,6 +4172,7 @@ class MapCatalogRecord {
     required this.mapId,
     required this.displayName,
     required this.revision,
+    required this.sourceRevision,
     required this.createdAt,
     required this.updatedAt,
     required this.status,
@@ -4183,11 +4185,12 @@ class MapCatalogRecord {
   });
 
   factory MapCatalogRecord.fromJson(Map<String, Object?> json, {String path = r'$'}) {
-    _rejectUnknownKeys(json, const {'map_id', 'display_name', 'revision', 'created_at', 'updated_at', 'status', 'technical_state', 'technical_reason', 'size_bytes', 'dock_anchor', 'configuration_summary', 'quality'}, path);
+    _rejectUnknownKeys(json, const {'map_id', 'display_name', 'revision', 'source_revision', 'created_at', 'updated_at', 'status', 'technical_state', 'technical_reason', 'size_bytes', 'dock_anchor', 'configuration_summary', 'quality'}, path);
     final result = MapCatalogRecord(
       mapId: _asString(_required(json, 'map_id', path), '$path.map_id'),
       displayName: _asString(_required(json, 'display_name', path), '$path.display_name'),
       revision: _asInt(_required(json, 'revision', path), '$path.revision'),
+      sourceRevision: json.containsKey('source_revision') ? _asInt(_required(json, 'source_revision', path), '$path.source_revision') : null,
       createdAt: _asDateTime(_required(json, 'created_at', path), '$path.created_at'),
       updatedAt: _asDateTime(_required(json, 'updated_at', path), '$path.updated_at'),
       status: _asString(_required(json, 'status', path), '$path.status'),
@@ -4209,6 +4212,9 @@ class MapCatalogRecord {
     }
     if (result.revision < 1) {
       throw FormatException('$path.revision must be at least 1');
+    }
+    if (result.sourceRevision != null && (result.sourceRevision! < 1)) {
+      throw FormatException('$path.source_revision must be at least 1');
     }
     if (!const <Object?>["active", "available", "low_score", "unusable"].contains(result.status)) {
       throw FormatException('$path.status contains an unknown enum value');

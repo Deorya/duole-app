@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'emergency_stop_control.dart';
 import 'mapping_error_text.dart';
 import 'manual_mapping_page.dart';
+import 'saved_map_preview_page.dart';
 
 typedef MapChallengeScanner = Future<String?> Function(
   BuildContext context,
@@ -126,6 +127,7 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                         manualMappingManager: widget.manualMappingManager,
                         controlTransport: widget.manualMappingControlTransport,
                         scanner: widget.mapChallengeScanner,
+                        onChanged: _load,
                       ),
                       const SizedBox(height: 16),
                       _MapCard(view: view, image: _image),
@@ -133,6 +135,10 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                         const SizedBox(height: 16),
                         _MapCatalogSection(
                           catalog: _catalog!,
+                          previewReader: widget.catalogReader
+                                  is MapCatalogPreviewReader
+                              ? widget.catalogReader as MapCatalogPreviewReader
+                              : null,
                           manager: widget.catalogManager,
                           mapManagementManager: widget.mapManagementManager,
                           scanner: widget.mapChallengeScanner,
@@ -161,12 +167,14 @@ class _MappingEntry extends StatelessWidget {
     this.manualMappingManager,
     this.controlTransport,
     required this.scanner,
+    required this.onChanged,
   });
 
   final MapManagementManager? manager;
   final ManualMappingManager? manualMappingManager;
   final ManualMappingWebSocketTransport? controlTransport;
   final MapChallengeScanner? scanner;
+  final Future<void> Function() onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -205,8 +213,8 @@ class _MappingEntry extends StatelessWidget {
     );
   }
 
-  void _open(BuildContext context, MappingChallengePurpose mode) {
-    Navigator.of(context).push(
+  Future<void> _open(BuildContext context, MappingChallengePurpose mode) async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => MappingPreparationPage(
           mode: mode,
@@ -217,6 +225,7 @@ class _MappingEntry extends StatelessWidget {
         ),
       ),
     );
+    await onChanged();
   }
 }
 
@@ -301,8 +310,8 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
           manualManager != null &&
           controlTransport != null &&
           mounted) {
-        await Navigator.of(context).push(
-          MaterialPageRoute<void>(
+        final showCatalog = await Navigator.of(context).push<bool>(
+          MaterialPageRoute<bool>(
             builder: (_) => ManualMappingPage(
               sessionId: sessionId,
               manager: manualManager,
@@ -310,6 +319,7 @@ class _MappingPreparationPageState extends State<MappingPreparationPage> {
             ),
           ),
         );
+        if (showCatalog == true && mounted) Navigator.of(context).pop();
       }
     } catch (error) {
       if (!mounted) return;
@@ -447,6 +457,7 @@ String _guidanceLabel(String code) => switch (code) {
 class _MapCatalogSection extends StatelessWidget {
   const _MapCatalogSection({
     required this.catalog,
+    required this.previewReader,
     required this.manager,
     required this.mapManagementManager,
     required this.scanner,
@@ -454,6 +465,7 @@ class _MapCatalogSection extends StatelessWidget {
   });
 
   final MapCatalogData catalog;
+  final MapCatalogPreviewReader? previewReader;
   final MapCatalogManager? manager;
   final MapManagementManager? mapManagementManager;
   final MapChallengeScanner? scanner;
@@ -479,6 +491,7 @@ class _MapCatalogSection extends StatelessWidget {
                 for (final map in catalog.maps)
                   _CatalogMapTile(
                     map: map,
+                    previewReader: previewReader,
                     liveMapCount: catalog.maps.length,
                     manager: manager,
                     mapManagementManager: mapManagementManager,
@@ -536,6 +549,7 @@ class _MapCatalogSection extends StatelessWidget {
 class _CatalogMapTile extends StatelessWidget {
   const _CatalogMapTile({
     required this.map,
+    required this.previewReader,
     required this.liveMapCount,
     required this.manager,
     required this.mapManagementManager,
@@ -544,6 +558,7 @@ class _CatalogMapTile extends StatelessWidget {
   });
 
   final MapCatalogRecord map;
+  final MapCatalogPreviewReader? previewReader;
   final int liveMapCount;
   final MapCatalogManager? manager;
   final MapManagementManager? mapManagementManager;
@@ -554,6 +569,9 @@ class _CatalogMapTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       key: Key('catalog-map-${map.mapId}'),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => SavedMapPreviewPage(map: map, reader: previewReader),
+      )),
       contentPadding: EdgeInsets.zero,
       leading: Icon(
         map.status == 'active' ? Icons.map : Icons.layers_outlined,
@@ -563,6 +581,8 @@ class _CatalogMapTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(_catalogStatusLabel(map.status)),
+          const Text('点击预览地图'),
+          if (map.dockAnchor.status == 'unverified') const Text('未回桩验证 · 未启用'),
           Text(
             '总分 ${map.quality.overallScore} · '
             '覆盖 ${map.quality.coverageScore} · '

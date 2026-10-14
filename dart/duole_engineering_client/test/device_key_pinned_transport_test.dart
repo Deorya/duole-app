@@ -13,6 +13,9 @@ Future<void> main() async {
   final privateKey = File('${directory.path}/server-key.pem');
   HttpServer? server;
   DeviceKeyPinnedTlsHttpTransport? transport;
+  final pngBytes = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=');
+  final imageBytes = [...pngBytes, ...List<int>.filled(80 * 1024, 0)];
   try {
     _issueCertificate(certificate, privateKey);
     final fingerprint = deviceKeyFingerprintFromCertificateDer(
@@ -27,6 +30,18 @@ Future<void> main() async {
       context,
     );
     server.listen((request) async {
+      if (request.method == 'GET' && request.uri.path.endsWith('/image')) {
+        request.response.headers.set('Content-Type', 'image/png');
+        request.response.add(
+            request.uri.path.contains('/map_small/') ? pngBytes : imageBytes);
+        await request.response.close();
+        return;
+      }
+      if (request.uri.path == '/api/v1/pairing/large-probe') {
+        request.response.write('a' * (80 * 1024));
+        await request.response.close();
+        return;
+      }
       final body = await utf8.decoder.bind(request).join();
       final expectedBody = '{"probe":true}';
       if (request.method != 'POST' ||
@@ -89,6 +104,35 @@ Future<void> main() async {
     );
     if (mappingResponse.statusCode != HttpStatus.accepted) {
       throw StateError('mapping start did not use its bounded long timeout');
+    }
+
+    final smallImageResponse = await transport.get(
+      Uri.parse(
+          'https://127.0.0.1:${server.port}/api/v1/navigation/maps/map_small/revisions/1/image'),
+      headers: const {'X-Request-ID': 'req_paired_small_image_01'},
+    );
+    if (smallImageResponse.bodyBytes.join(',') != pngBytes.join(',')) {
+      throw StateError('paired PNG response was decoded as UTF-8 text');
+    }
+    final imageResponse = await transport.get(
+      Uri.parse(
+          'https://127.0.0.1:${server.port}/api/v1/navigation/maps/map_saved/revisions/1/image'),
+      headers: const {'X-Request-ID': 'req_paired_binary_image_01'},
+    );
+    if (imageResponse.bodyBytes.length != imageBytes.length ||
+        imageResponse.bodyBytes[0] != 137 ||
+        imageResponse.bodyBytes[1] != 80) {
+      throw StateError('paired PNG response was decoded as text or truncated');
+    }
+    try {
+      await transport.get(
+          Uri.parse(
+              'https://127.0.0.1:${server.port}/api/v1/pairing/large-probe'),
+          headers: const {});
+      throw StateError(
+          'ordinary pairing response lost its original size bound');
+    } on FormatException catch (error) {
+      if (error.message != 'pairing_response_too_large') rethrow;
     }
 
     try {

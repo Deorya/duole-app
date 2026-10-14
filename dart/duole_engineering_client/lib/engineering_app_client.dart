@@ -211,6 +211,10 @@ abstract interface class MapCatalogReader {
   Future<MapCatalogSuccessEnvelope> getMapCatalog();
 }
 
+abstract interface class MapCatalogPreviewReader {
+  Future<NavigationMapImageResponse> getMapCatalogPreview(MapCatalogRecord map);
+}
+
 abstract interface class MapCatalogManager {
   Future<MapCatalogRecordSuccessEnvelope> renameMap(
     String mapId, {
@@ -488,6 +492,7 @@ class EngineeringAppApi
         RobotSnapshotReader,
         ScheduleReader,
         NavigationMapReader,
+        MapCatalogPreviewReader,
         MapCatalogReader {
   EngineeringAppApi({
     required Uri robotOrigin,
@@ -601,6 +606,56 @@ class EngineeringAppApi
         requiresCredential: true,
       ),
     );
+  }
+
+  @override
+  Future<NavigationMapImageResponse> getMapCatalogPreview(
+      MapCatalogRecord map) async {
+    final sourceRevision = map.sourceRevision ?? map.revision;
+    final requestId = _requestIdFactory();
+    final response = await _transport.get(
+      _robotOrigin.replace(
+        path:
+            '/api/v1/navigation/maps/${map.mapId}/revisions/$sourceRevision/image',
+      ),
+      headers: {
+        'Authorization': 'Bearer $_engineeringToken',
+        'X-Request-ID': requestId,
+        'X-Client-Version': _clientVersion,
+      },
+    );
+    if (_header(response.headers, 'X-Request-ID') != requestId) {
+      throw EngineeringProtocolException(
+        reasonCode: 'response_request_id_mismatch',
+        requestId: requestId,
+      );
+    }
+    if (response.statusCode != 200) {
+      final payload = jsonDecode(response.body);
+      if (payload is! Map<String, Object?>) {
+        throw const FormatException(r'$ must be an object');
+      }
+      throw EngineeringApiException(
+        statusCode: response.statusCode,
+        envelope: ErrorEnvelope.fromJson(payload),
+      );
+    }
+    final etag = _header(response.headers, 'ETag');
+    final bytes = response.bodyBytes;
+    const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+    if (_header(response.headers, 'Content-Type') != 'image/png' ||
+        etag == null ||
+        !RegExp('^"map-$sourceRevision-[a-f0-9]{16}"\$').hasMatch(etag) ||
+        bytes.length < 33 ||
+        bytes.length > 2097152 ||
+        List.generate(8, (i) => bytes[i]).join(',') != signature.join(',')) {
+      throw EngineeringProtocolException(
+        reasonCode: 'navigation_image_invalid',
+        requestId: requestId,
+      );
+    }
+    return NavigationMapImageResponse(
+        bytes: bytes, etag: etag, notModified: false);
   }
 
   @override

@@ -739,6 +739,18 @@ class _ManualMappingPageState extends State<ManualMappingPage>
                     ),
                   const SizedBox(height: 16),
                   if (!_sessionEnded) _terminalActions(session),
+                  if (_sessionEnded &&
+                      const {
+                        'dock_verified_saved',
+                        'unverified_saved',
+                        'immediate_stop_saved',
+                        'interrupted_saved',
+                      }.contains(session.outcome))
+                    FilledButton(
+                      key: const Key('manual-mapping-show-catalog'),
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('返回地图资料库'),
+                    ),
                   if (_commandError != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 12),

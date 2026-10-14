@@ -7,6 +7,93 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('clicking a saved map opens its image without switching maps',
+      (tester) async {
+    final catalog = _PreviewCatalogReader();
+    final manager = _RecordingCatalogManager();
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _MismatchReader(),
+      catalogReader: catalog,
+      catalogManager: manager,
+    )));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('备用地图'), 300);
+    await tester.ensureVisible(find.text('备用地图'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('备用地图'));
+    await tester.pumpAndSettle();
+    expect(find.text('备用地图 · 地图预览'), findsOneWidget);
+    expect(catalog.requestedMap?.mapId, 'map_available');
+    expect(find.bySemanticsLabel('备用地图的已保存地图'), findsOneWidget);
+    expect(find.text('双指缩放，拖动查看'), findsOneWidget);
+    expect(manager.renamedMapId, isNull);
+    expect(manager.trashedMapId, isNull);
+    final viewer = find.byKey(const Key('saved-map-preview-viewer'));
+    final center = tester.getCenter(viewer);
+    final left =
+        await tester.startGesture(center - const Offset(40, 0), pointer: 1);
+    final right =
+        await tester.startGesture(center + const Offset(40, 0), pointer: 2);
+    await tester.pump();
+    await left.moveTo(center - const Offset(100, 0));
+    await right.moveTo(center + const Offset(100, 0));
+    await tester.pump();
+    final transform = tester.widget<Transform>(
+        find.descendant(of: viewer, matching: find.byType(Transform)).first);
+    expect(transform.transform.getMaxScaleOnAxis(), greaterThan(1));
+    await left.up();
+    await right.up();
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('saved map preview failure can retry the same map',
+      (tester) async {
+    final catalog = _PreviewCatalogReader()..fail = true;
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _MismatchReader(),
+      catalogReader: catalog,
+    )));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('备用地图'), 300);
+    await tester.ensureVisible(find.text('备用地图'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('备用地图'));
+    await tester.pumpAndSettle();
+    expect(find.text('地图预览暂不可用'), findsOneWidget);
+    catalog.fail = false;
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(catalog.requests, 2);
+    expect(catalog.requestedMap?.mapId, 'map_available');
+    expect(find.bySemanticsLabel('备用地图的已保存地图'), findsOneWidget);
+    expect(find.text('地图预览暂不可用'), findsNothing);
+  });
+
+  testWidgets('returning from mapping reloads saved unverified catalog maps',
+      (tester) async {
+    final catalog = _SavedCatalogReader();
+    await tester.pumpWidget(MaterialApp(
+      home: NavigationMapPage(
+        reader: _MismatchReader(),
+        catalogReader: catalog,
+        mapManagementManager: _BlockedMapManagementManager(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(catalog.reads, 1);
+    await tester.tap(find.byKey(const Key('manual-mapping-entry')));
+    await tester.pumpAndSettle();
+    catalog.saved = true;
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(catalog.reads, 2);
+    await tester.scrollUntilVisible(find.text('新保存地图'), 300);
+    expect(find.text('新保存地图'), findsOneWidget);
+    expect(find.text('未回桩验证 · 未启用'), findsOneWidget);
+  });
+
   testWidgets(
     'mapping buttons stay clickable and blocked preparation has no bypass',
     (tester) async {
@@ -915,6 +1002,44 @@ class _CatalogReader implements MapCatalogReader {
   @override
   Future<MapCatalogSuccessEnvelope> getMapCatalog() async =>
       MapCatalogSuccessEnvelope.fromJson(_catalogPayload());
+}
+
+class _PreviewCatalogReader extends _CatalogReader
+    implements MapCatalogPreviewReader {
+  MapCatalogRecord? requestedMap;
+  int requests = 0;
+  bool fail = false;
+
+  @override
+  Future<NavigationMapImageResponse> getMapCatalogPreview(
+      MapCatalogRecord map) async {
+    requestedMap = map;
+    requests += 1;
+    if (fail) throw Exception('机器人连接暂时中断');
+    return NavigationMapImageResponse(
+      bytes: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),
+      etag: '"map-1-0123456789abcdef"',
+      notModified: false,
+    );
+  }
+}
+
+class _SavedCatalogReader implements MapCatalogReader {
+  var reads = 0;
+  var saved = false;
+
+  @override
+  Future<MapCatalogSuccessEnvelope> getMapCatalog() async {
+    reads += 1;
+    final payload = _catalogPayload();
+    final data = payload['data']! as Map<String, Object?>;
+    final record =
+        _catalogRecord('manual_mapping_saved', '新保存地图', 'available', 76);
+    record['dock_anchor'] = {'anchor_id': 'unassigned', 'status': 'unverified'};
+    data['maps'] = saved ? [record] : <Object?>[];
+    return MapCatalogSuccessEnvelope.fromJson(payload);
+  }
 }
 
 class _LastMapCatalogReader implements MapCatalogReader {

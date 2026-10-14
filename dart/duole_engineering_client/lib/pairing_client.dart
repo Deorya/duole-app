@@ -115,14 +115,20 @@ class DeviceKeyPinnedTlsHttpTransport implements PairedRobotHttpTransport {
       request.add(encodedBody);
     }
     final response = await request.close().timeout(requestTimeout);
-    final responseBody = await _readPairingBody(response, requestTimeout);
+    final isMapImage = normalizedMethod == 'GET' &&
+        RegExp(r'^/api/v1/navigation/maps/[A-Za-z0-9._:-]{1,128}/revisions/[1-9][0-9]{0,18}/image$')
+            .hasMatch(uri.path) &&
+        response.headers.contentType?.mimeType == 'image/png';
+    final responseBody = await _readPairedResponseBytes(
+        response, requestTimeout,
+        maximumBytes: isMapImage ? 2 * 1024 * 1024 : 64 * 1024);
     final responseHeaders = <String, String>{};
     response.headers.forEach((name, values) {
       responseHeaders[name.toLowerCase()] = values.join(',');
     });
     return EngineeringHttpResponse(
       statusCode: response.statusCode,
-      body: responseBody,
+      bodyBytes: responseBody,
       headers: Map.unmodifiable(responseHeaders),
     );
   }
@@ -663,8 +669,10 @@ Map<String, Object?> _patchJson(SchedulePatch patch) {
         'weekdays': patch.recurrence!.weekdays
       },
     if (patch.confirmationPolicy != null)
-      'confirmation_policy': patch.confirmationPolicy == ScheduleConfirmationPolicy.noNotification
-          ? 'no_notification' : patch.confirmationPolicy!.name,
+      'confirmation_policy':
+          patch.confirmationPolicy == ScheduleConfirmationPolicy.noNotification
+              ? 'no_notification'
+              : patch.confirmationPolicy!.name,
     if (patch.payload != null)
       'payload': {
         'reminder_lead_minutes': patch.payload!.reminderLeadMinutes,
@@ -2133,11 +2141,11 @@ String _refreshableComponentWire(RefreshableComponent value) => switch (value) {
         throw const FormatException('force_refresh_component_unknown'),
     };
 
-Future<String> _readPairingBody(
+Future<List<int>> _readPairedResponseBytes(
   HttpClientResponse response,
-  Duration timeout,
-) async {
-  const maximumBytes = 64 * 1024;
+  Duration timeout, {
+  required int maximumBytes,
+}) async {
   final bytes = <int>[];
   await for (final chunk in response.timeout(timeout)) {
     if (bytes.length + chunk.length > maximumBytes) {
@@ -2145,5 +2153,5 @@ Future<String> _readPairingBody(
     }
     bytes.addAll(chunk);
   }
-  return utf8.decode(bytes);
+  return bytes;
 }

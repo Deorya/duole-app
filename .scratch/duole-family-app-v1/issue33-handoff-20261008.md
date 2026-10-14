@@ -1,5 +1,87 @@
 # Issue 33 接手记录（2026-10-08）
 
+## 最新续接状态：2026-10-15，v2015已部署，保存地图图形预览已在平板显示，保留读图服务
+
+- 用户反馈无法点击预览，补齐条目点击和SavedMapPreviewPage。复用既有认证PNG图像接口，
+  板端从已提交PGM生成预览；目录增加可选source_revision，与重命名使用的CAS版本分离。
+  预览最长边1024、PNG不超过2MiB；旧保存文件可直接读取，无需重新建图，不启用地图。
+- 平板曾安装v2014/phaseA11，真机点击暴露DeviceKeyPinnedTlsHttpTransport把PNG当UTF-8读取。
+  最小修复为保留bodyBytes，只有既有GET图像资源允许2MiB，其他响应64KiB及TLS指纹/超时不变。
+  配对交换/刷新、真正TLS二进制读取及目录预览客户端回归通过，最终已安装核验v2015/phaseA12。
+- 本次64项目录/保存/图像回归及新增无效回包3项通过，预览专属14项、Flutter页面18项通过，
+  合同检查通过，Dart/Flutter analyze无问题。额外SSH32项通过，3项capsys日志捕获失败在
+  修改前模块同样复现，未动其共享改动。现有其他共享WIP与新增docx均保留，未提交。
+- 真实保存地图manual_mapping_83a49a89e34240b48c2fd4d8fab62d5b的板端/Gateway图像200，
+  248×106、1262bytes，ETag map-1-3e578db346bf7b8b；最终平板实际显示黑白灰地图、78分、
+  未回桩验证/未启用及保存时间，点击入口、App渲染已验证。v2015首次读取出现503，重试后恢复，
+  不宣称稳定性或503根因已确定。未运行新的SLAM/运动会话，issue33完整验收仍PARTIAL_HIL。
+- **当前读图服务保留运行**，方便用户继续查看：Product PID3327146、Gateway PID3328227，
+  /tmp/issue33-session/app-read.sock与172.22.205.44:8443仍有效。Gateway使用原正式只读入口配置，
+  未开启开发建图标志；导航active，建图/Runtime inactive。用户要求收尾时只停止这两个自有进程。
+- 本轮证据：`flutter/duole_engineering_app/build/issue33-phaseA-local-20260927/session-20260929/issue30-33-preview-check-20261014T163859Z/`，
+  有processes.json、gateway-preview-verification.json、preview-ui-v2015-redacted.xml、preview-result.json；
+  原始地图与PNG不写入普通日志/证据包，临时检查截图已删除。
+  APK：`build/issue30-33-preview-local-20261015/issue30-33-map-preview-v2015.apk`（96532225bytes）。
+  精确板端回滚：`/home/ztl/duole-issue31-nav-ws/runtime/issue33/map-preview-before-20261014T163710Z/`，
+  保留两个原map_catalog.py，新增map_preview.py记录为原先不存在；原v2013 APK仍在上轮local目录。
+
+## 最新续接状态：2026-10-15，v2013已部署，真实立即停止保存/登记/资料库展示联动通过
+
+- 用户明确授权“部署并测试”且回复“已准备好”。对当前板端源码派生最小补丁，67项相关
+  回归通过后部署4个已有文件和3个新资料库文件，保留Guard、ROS/QoS、Runtime热修及selector。
+  平板14:35581保留配对升级并核验v2013/phaseA10，Gateway使用本轮Provider源码。
+- 正式`./scripts/start_product_voice_board_session.sh --app-only`启动
+  `manual_mapping_83a49a89e34240b48c2fd4d8fab62d5b`，准备页八项满足，电量80%。
+  UTC15:50:06监控就绪，15:54:43绑定会话，15:55:47首条输入，本轮无首段监控缺口。
+  真人操控，109条板端意图全applied，接收跨度10.812s，可见位姿移动约1.85m；
+  松手停车确认725ms，monitor未中止或代操作保存。
+- UTC2026-10-14 15:56:06.380329终态`immediate_stop_saved`。真实YAML/PGM/metadata
+  与SQLite artifact逐字节一致，map_id等于session_id、revision1、名称“地图1”、
+  总分78、分项19/100/100/93、27108bytes；临时快照删除。既有活动选择恢复，
+  新地图未启用、未回桩验证，持久SLAM回执completed/saved=true。
+- 新进程板端目录重读成功，真实TLS Gateway `GET /api/v1/navigation/map-catalog` 返回200；
+  App家庭地图资料库显示同名、总分78、27.1KB和“未回桩验证 · 未启用”。
+  用户反馈“保存成功，我已经点进地图信息页面”。本轮保存/登记/资料库摘要展示联动PASS。
+- 当前展示是资料库条目和评分摘要，没有新增保存地图大图预览；本次未走普通
+  “结束并保存未验证地图”。issue33整体仍PARTIAL_HIL：普通结束、重复稳定性、碰撞恢复、
+  完整停止矩阵及阶段B安全验收未覆盖，不用短段开发配置验收替代正式门。
+- Product/Gateway/monitor已停止，8443/Runtime IPC/Guard socket关闭；导航active，
+  建图/Runtime/Guard inactive，收尾70%、静止、无占用。保留部署和地图，未提交共享WIP，
+  未自动再测或回滚。
+- 原始证据：`flutter/duole_engineering_app/build/issue33-phaseA-local-20260927/session-20260929/issue30-33-linkage-hil-20261014T1549Z/`，
+  含`hil-result.json`、`board-save-verification.json`、板端/Gateway目录、脱敏界面与监控。
+  精确板端回滚：`/home/ztl/duole-issue31-nav-ws/runtime/issue33/map-catalog-before-20261014T154528Z/`，
+  `files-before.json`标识4个原文件和3个原先不存在的新文件；原v2012 APK：
+  本地`build/issue30-33-local-20261014/deployment/tablet-before-v2012.apk`，派生与部署文件也在deployment目录。
+
+## 最新续接状态：2026-10-14，issue 30/33 保存、登记、展示联动软件完成，待部署与现场验收
+
+- 用户确认 issue 33 手动建图可用，并要求完成两个 issue 的真实保存、登记和展示联动。
+  本轮未启动真实会话，未操作平板或导航板运行状态。
+- 根因：REAL `NavigationBoardManualMappingSlam.save` 只消费保存回执；CLI 创建的 Gateway
+  `MapCatalog` 未连接任何板端来源。现以板端 `BoardManualMappingMapStore` 完成真实文件与
+  同板 SQLite 目录登记，REAL Gateway 使用 `NavigationBoardMapCatalog` 读取摘要及转发
+  既有 revision 绑定管理动作。App 在成功保存后可返回资料库，并自动刷新、标注未回桩验证。
+- 最终保存先捕获最新 SLAM 快照；保存/登记失败不返回成功。保存回执持久化后可重放，
+  重复登记保留用户名称和回收站状态；成功提交后清理临时快照，永久删除同时移除保存文件副本。
+  地图不自动启用，原活动选择恢复，地图 BLOB 不经过 Gateway/App 公共接口。
+- 本次软件结果：隔离 Provider 相关 `192 passed`，Flutter 两个页面 `54 passed`，
+  Flutter analyze 零问题。Provider 11 个任务文件已应用，并逐文件确认与已验证副本一致；
+  既有共享 WIP 未暂存或提交。源码验证副本及补丁在 `/tmp/duole-map-linkage-20261014/`。
+- `mapping_operations.status=started` 是启动请求状态，合同只包含 accepted/started/failed；
+  会话结束以 session phase/outcome 为准，本轮未把历史的 started 记录改为新合同状态。
+- 本地 ARM64 APK v2013 / `0.1.0-phaseA10` 构建成功，实际 manifest 版本与包内“返回地图资料库”、
+  “未回桩验证 · 未启用”均已核实。产物为
+  `flutter/duole_engineering_app/build/issue30-33-local-20261014/issue30-33-map-catalog-v2013.apk`；
+  同目录 `build-apk.sh` 复用上一版 ARM64 构建参数：`~/.gradle` 缓存、离线 Gradle、ARM64 AAPT2
+  及排除 SDK 空 CMake 占位任务。本轮没有升级 Android/Flutter 依赖；产物未登记或安装。
+- 下一步在明确设备部署授权后，按当前板端实际文件派生最小补丁，保留现有 Guard、Runtime/CLI、
+  ROS/QoS 与开发配置热修，并保存精确回滚文件。需要板端 `navigation_board/{agent.py,cli.py,
+  manual_mapping_map_store.py,manual_mapping_slam_runtime.py,map_catalog.py}` 与资料库的
+  `app_gateway/map_catalog.py`（及存在可导入的 package）；Gateway 使用本轮 Provider 源码。
+  安装本地新 APK 后，在操作员准备好时经正式 Product App-only 入口验证正常结束保存，
+  并确认 App 名称/map_id/评分/未验证状态及原活动选择。真实验收尚未执行。
+
 ## 最新续接状态：2026-10-14，v2012已部署，近路由器复测操控中地图/位姿更新，用户结束测试
 
 - 用户同意修复并部署测试。App v2012 / phaseA9恢复按压期间500ms地图/状态轮询，

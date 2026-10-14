@@ -1176,6 +1176,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(terminal.label), findsOneWidget);
+      expect(
+        find.byKey(const Key('manual-mapping-show-catalog')),
+        terminal.outcome.endsWith('_saved') ? findsOneWidget : findsNothing,
+      );
     });
   }
 
