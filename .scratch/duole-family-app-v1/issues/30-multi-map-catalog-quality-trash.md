@@ -6,7 +6,9 @@ Implementation: complete-2026-08-25
 
 Acceptance: accepted-2026-08-25
 
-REAL integration: verified-2026-10-15 — v2015 已安装；真实保存、资料库登记、评分/容量展示及点击保存地图的图形预览已贯通。平板已显示“地图 1”的真实平面图，支持缩放拖动；普通结束保存路径尚未实测。
+REAL integration: verified-2026-10-15 — v2016 已安装；真实保存、资料库登记、评分/容量展示、图形预览及保存地图开发切换已贯通。平板当前显示已启用的“地图 1”；普通结束保存路径尚未实测。
+
+Map switch integration: real-verified-2026-10-15 — 正式 Product/Gateway 与平板入口完成 my_map3 → “地图 1”；Nav2 当前地图与保存文件逐格一致，目录和 selector 已提交，App 重开及点击大图通过。当前定位待验证、导航不可用；在桩等条件与完整稳定性验收后补。
 
 Type: AFK
 
@@ -42,6 +44,33 @@ User stories covered: 177–180, 183–184
 - [13 实现地图、机器人位姿、房间与巡逻路线只读视图](13-map-pose-rooms-routes-readonly.md)
 
 ## Comments
+
+### 2026-10-15 v2016 部署与“地图 1”真实切换验收通过
+
+- 用户回复“已准备好”后，保留正式 Product App-only 会话，部署板端 4 个切换相关已有文件及 1 个新模块、保留实际 ROS 定位补丁，启用显式开发模式；平板保留原配对升级至 v2016 / 0.1.0-phaseA13。部署文件的本次相关回归 39 项通过。
+- 通过平板“家庭地图 → 多地图资料库 → 切换到此地图”发起唯一一次真实请求，安装签名、maps.manage 和受控局域网校验沿用。操作 map_switch_0d5f026c597241208707e887af363f5d 从 loading 到 committed，原选择 my_map3 / map_revision 2，目标 manual_mapping_83a49a89e34240b48c2fd4d8fab62d5b / “地图 1”。
+- 真实资料库当前 active=1、CAS revision 2、source revision 1、technical_reason=localization_pending；active-map.json 与同 operation 的板端提交回执一致。Nav2 /map 发布 248×106、0.05m 分辨率，坐标及所有栅格与板端保存 PGM/YAML 转换结果一致；/keepout_filter_mask 同几何且全部为空白可通行蒙版。原地图文件保持可回滚。
+- 真实 TLS Gateway 目录与图像读取均返回 200；当前图像 248×106 / 1262 bytes，ETag 与切换前同一 source revision 的保存预览一致，未将原始栅格或图像保存到普通证据包。
+- App 实际显示“当前地图：地图 1”、保存图、“当前启用”“未回桩验证 · 已启用”和 78 分。退出并重开地图页仍正确；点击当前地图进入大图预览，状态、分项评分与保存时间一致。平板最终停留在当前地图页。
+- 本轮仅验收真实加载、选择提交与展示，不执行导航或行驶指令。当前 navigation_available=false / map_localization_pending；在桩、共同桩锚、现场扫码、真实定位、导航恢复及完整重启/稳定性 HIL 继续按下条记录后补。
+- 保留 Product PID 3327146、开发切换 Gateway PID 3768250，原端口 172.22.205.44:8443 与 IPC 不变；实际当前地图为“地图 1”。精确地图回滚目标 my_map3 / map_revision 2 / artifact_revision 1；板端源码、目录数据库及 selector 回滚保存于 runtime/issue33/map-switch-before-20261014T181427Z/，本地原 v2015 安装包为 activation-20261014T181427Z/tablet-before-v2015.apk。
+- 本轮证据在 build/issue30-map-switch-local-20261015/activation-20261014T181427Z/：real-switch-result.json、switch-operation-observations.json、board-current-map-verification.json、gateway-current-map-verification.json、tablet-switch-committed-redacted.xml、tablet-active-map-preview-redacted.xml。本轮开发切换与展示 PASS，不把延后的完整验收称为完成。
+- 用户后续要求“结束吧”：Gateway PID3768250、Product PID3327146 已按顺序正常退出，IPC socket 已清理、8443 无监听；“地图 1”目录及 selector 保留，导航板服务仍 active，建图 Runtime/Guard inactive。收尾结果为同目录 shutdown-result.json。手动建图脚本的 socket 占用已解除，脚本缺少 map-switch-development 参数的问题尚未修改。
+
+### 2026-10-15 优先完成保存地图切换，其他条件暂缓
+
+- 用户指定切换目标为刚保存的“地图 1”，并要求“先做切换功能，其他限制不予处理，记录下来，后期补上”。本轮范围为保存地图加载、当前地图提交、切换进度和当前地图图像展示。
+- 板端直接从同一资料库读取已提交 YAML/PGM；图像及运行文件使用 source revision，目录操作使用 CAS revision。没有配置禁行区的保存地图生成同尺寸、同坐标的空 mask；已配置禁行区的地图须保留原 mask。
+- 切换使用已有私有板端入口和签名 API，成功才提交目录 active 状态及 active-map.json。加载失败恢复原选择；丢回包和提交后 selector 写入失败可按同一 operation 重试，不重复递增 revision、不假报切换失败。重复保存登记和重命名不会抹掉当前选择或改变地图文件身份。
+- App 通过“切换到此地图”进入进度页，查询至提交成功后刷新“当前地图：地图 1”、真实保存图和“未回桩验证 · 已启用”。定位状态明确显示“地图已加载 · 定位待验证”；不绘制旧地图位姿，不展示旧房间及路线。预览临时失败仍保留当前地图名称，可再次点击查看。
+- 该路径只在显式开发模式启用：App 构建参数 DUOLE_MAP_SWITCH_DEVELOPMENT=true；Gateway --map-switch-development 使用独立操作数据库；板端须启用 state/map-switch-development.enabled。正式默认切换条件保留，现有配对签名、maps.manage 及受控局域网边界沿用。
+- **后续补齐，当前不作为开发切换的前置条件**：BMS 充电/静止/任务占用检查、在桩与共同充电桩锚点验证、现场扫码 presence、切换后真实定位及导航恢复、导航读模型的位姿/房间/路线绑定、并发操作现场验收、完整切换及重启稳定性 HIL。
+- 切换过程中及结束后保持运动抑制，目录 navigation_available=false / map_localization_pending。未把加载成功标成可导航，未修改移动停车 <=1s 红线或保护参数。
+- 本次软件验证覆盖保存文件→typed SSH→开发切换→目录/selector 提交、失败恢复、断线重试、提交后补写、重命名和重复登记；Flutter 验证等待提交、当前图展示及图像不可用时的当前选择展示。使用隔离文件和替身 ROS，不能代替真实设备验收。
+- 本次相关 Provider 回归 123 项通过，之后补充的两张保存地图往返切换通过（切换专属 11 项）；Flutter 页面 20 项通过，Flutter analyze 无问题，Provider 合同检查通过，两个仓库 diff --check 通过。v2016 / 0.1.0-phaseA13 本地 ARM64 APK 已构建并核验版本及最终界面代码，位于 build/issue30-map-switch-local-20261015/issue30-map-switch-v2016.apk（96539005 bytes）；验证摘要为同目录 software-result.json。
+- 打包核对曾发现本次增量缓存未含最后界面修改；仅隔离本次生成的 kernel/stamp 并强制重新编译，最终包内代码已与页面测试版本一致。中间包均未部署，原 v2015 制品和现场服务保留。
+- 本轮没有安装 v2016、启用板端 marker、替换运行 Gateway 或实际切换导航地图。此前 v2015 的保存/图像真机证据仅适用于前述已验收功能。后续真机目标为 manual_mapping_83a49a89e34240b48c2fd4d8fab62d5b / “地图 1”；需现场配合后执行。
+- 板端只读核对：当前 selector 为 my_map3 / map_revision 2 / artifact_revision 1；“地图 1”目录 revision 1 / source_revision 1、loadable、unverified、未启用；开发 marker 未启用。后续真实切换的明确地图回滚目标是上述 my_map3，部署前仍须保留当时源码和 v2015 安装包。
 
 ### 2026-10-15 保存地图点击预览补齐，v2015真机验证
 

@@ -1,5 +1,16 @@
 # Issue 33 接手记录（2026-10-08）
 
+## 最新续接状态：2026-10-15，v2016已部署，“地图 1”真实切换与展示通过
+
+- 用户要求优先完成切换、其他限制记录后补，随后明确回复“已准备好”。本轮经保留的正式 Product App-only 会话、Gateway 和平板资料库入口完成真实切换；没有新的建图或行驶请求。
+- v2016 / phaseA13 保留配对升级；板端部署切换相关 4 个已有文件和 1 个新模块，实际 ROS 定位热修保留，相关 39 项回归通过。App 构建、Gateway 参数及板端 marker 显式启用切换开发模式；正式默认条件未改。
+- 当前选择已从 my_map3 / map_revision 2 切为 manual_mapping_83a49a89e34240b48c2fd4d8fab62d5b / “地图 1”，目录 CAS revision 2、source revision 1。唯一请求 map_switch_0d5f026c597241208707e887af363f5d 已 committed；板端回执、目录和 selector 一致。
+- Nav2 当前 /map 的 248×106 栅格与保存文件逐格一致，分辨率与坐标一致；空 keepout 蒙版也匹配。Gateway 目录及保存图像返回 200。App 显示当前地图、保存图、78 分及“未回桩验证 · 已启用”；重开页面、点击大图预览均通过，平板最终留在当前地图页。
+- 定位仍待验证，navigation_available=false / map_localization_pending，开发路径不释放运动抑制。后补在桩/BMS/共同桩锚、扫码 presence、真实定位与导航、并发及完整重启/稳定性 HIL，详见 issue 30；issue 33 原有完整验收缺口仍保留。
+- **当前服务已关闭**：用户随后明确要求“结束吧”，已先正常关闭开发切换 Gateway PID3768250，再关闭 Product PID3327146；两者均通过 SIGINT 正常退出，IPC /tmp/issue33-session/app-read.sock 已清理，8443 无监听。“地图 1”仍为当前选择，导航板服务 active，建图 Runtime/Guard inactive。验收时的 processes.json 为历史记录；当前收尾结果见同目录 shutdown-result.json。
+- 结果：`flutter/duole_engineering_app/build/issue30-map-switch-local-20261015/activation-20261014T181427Z/real-switch-result.json`；同目录保存板端/Gateway核对、操作记录及脱敏界面，不保存地图像素到普通证据包。
+- 精确回滚：导航地图 my_map3 / map_revision 2 / artifact_revision 1；板端源码、目录数据库和 selector 在 `runtime/issue33/map-switch-before-20261014T181427Z/`；原 v2015 安装包在上述 activation 目录的 tablet-before-v2015.apk。本轮开发切换与展示 PASS，未提交共享 WIP。
+
 ## 最新续接状态：2026-10-15，v2015已部署，保存地图图形预览已在平板显示，保留读图服务
 
 - 用户反馈无法点击预览，补齐条目点击和SavedMapPreviewPage。复用既有认证PNG图像接口，

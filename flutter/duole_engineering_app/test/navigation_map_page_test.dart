@@ -7,6 +7,63 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets(
+      'development switch waits for commit and displays the selected saved map',
+      (tester) async {
+    final catalog = _SelectionCatalogReader();
+    final manager = _DeferredSwitchManager(catalog);
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _MismatchReader(),
+      catalogReader: catalog,
+      mapManagementManager: manager,
+      developmentMapSwitch: true,
+    )));
+    await tester.pumpAndSettle();
+    final button = find.byKey(const Key('switch-map-map_available'));
+    await tester.scrollUntilVisible(button, 300);
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pump(const Duration(milliseconds: 150));
+    await tester.pump();
+    expect(find.text('正在加载地图'), findsOneWidget);
+    expect(manager.scannedPayload, isNull);
+    expect(manager.requestedDisplayPurpose, isNull);
+    expect(manager.presenceToken, 'development_map_switch');
+    await tester.pumpAndSettle();
+    expect(manager.queries, 3);
+    expect(catalog.active, isTrue);
+    await tester.scrollUntilVisible(find.text('当前地图：地图 1'), -300);
+    expect(find.text('当前地图：地图 1'), findsOneWidget);
+    expect(find.bySemanticsLabel('当前地图地图 1'), findsOneWidget);
+    expect(find.text('地图已加载 · 定位待验证'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('未回桩验证 · 已启用'), 300);
+    expect(find.text('未回桩验证 · 已启用'), findsOneWidget);
+    expect(find.byKey(const Key('switch-map-map_available')), findsNothing);
+  });
+
+  testWidgets('active saved map remains visible when its preview is unavailable',
+      (tester) async {
+    final catalog = _SelectionCatalogReader()
+      ..active = true
+      ..fail = true;
+    await tester.pumpWidget(MaterialApp(
+        home: NavigationMapPage(
+      reader: _MismatchReader(),
+      catalogReader: catalog,
+      developmentMapSwitch: true,
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text('当前地图：地图 1'), findsOneWidget);
+    expect(find.text('点击查看当前地图'), findsOneWidget);
+    expect(find.text('地图已加载 · 定位待验证'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('当前地图已切换，定位待验证'), 300);
+    expect(find.text('当前地图已切换，定位待验证'), findsOneWidget);
+    expect(find.text('房间'), findsNothing);
+    expect(find.text('巡逻路线'), findsNothing);
+  });
+
   testWidgets('clicking a saved map opens its image without switching maps',
       (tester) async {
     final catalog = _PreviewCatalogReader();
@@ -1022,6 +1079,71 @@ class _PreviewCatalogReader extends _CatalogReader
       etag: '"map-1-0123456789abcdef"',
       notModified: false,
     );
+  }
+}
+
+class _SelectionCatalogReader extends _PreviewCatalogReader {
+  bool active = false;
+
+  @override
+  Future<MapCatalogSuccessEnvelope> getMapCatalog() async {
+    final payload = _catalogPayload();
+    final data = payload['data']! as Map<String, Object?>;
+    final record = _catalogRecord(
+        'map_available', '地图 1', active ? 'active' : 'available', 78);
+    record['dock_anchor'] = {'anchor_id': 'unassigned', 'status': 'unverified'};
+    if (active) {
+      record['revision'] = 2;
+      record['technical_reason'] = 'localization_pending';
+    }
+    data['maps'] = [record];
+    data['navigation'] = {
+      'state': active ? 'mapped' : 'unmapped',
+      'navigation_available': false,
+      'reason_code': active ? 'map_localization_pending' : 'no_active_map'
+    };
+    return MapCatalogSuccessEnvelope.fromJson(payload);
+  }
+}
+
+class _DeferredSwitchManager extends _RecordingSwitchMapManager {
+  _DeferredSwitchManager(this.catalog);
+  final _SelectionCatalogReader catalog;
+  int queries = 0;
+
+  @override
+  Future<MapSwitchOperationSuccessEnvelope> getMapSwitch(
+      String operationId) async {
+    final result = await super.getMapSwitch(operationId);
+    queries += 1;
+    if (queries >= 3) {
+      catalog.active = true;
+      return result;
+    }
+    final op = result.data;
+    return MapSwitchOperationSuccessEnvelope.fromJson({
+      'schema_version': result.schemaVersion,
+      'request_id': result.requestId,
+      'server_time': result.serverTime.toIso8601String(),
+      'data': {
+        'operation_id': op.operationId,
+        'robot_id': op.robotId,
+        'actor_id': op.actorId,
+        'request_id': op.requestId,
+        'idempotency_key': op.idempotencyKey,
+        'status': 'loading',
+        'original_map_id': op.originalMapId,
+        'original_map_revision': op.originalMapRevision,
+        'target_map_id': op.targetMapId,
+        'target_map_revision': op.targetMapRevision,
+        'requested_at': op.requestedAt.toIso8601String(),
+        'expires_at': op.expiresAt.toIso8601String(),
+        'updated_at': op.updatedAt.toIso8601String(),
+        'audit_summary_sha256': op.auditSummarySha256,
+        'failure_reason': null,
+        'revision': queries + 1,
+      },
+    });
   }
 }
 

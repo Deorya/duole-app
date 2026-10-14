@@ -10,6 +10,7 @@ import 'emergency_stop_control.dart';
 import 'mapping_error_text.dart';
 import 'manual_mapping_page.dart';
 import 'saved_map_preview_page.dart';
+import 'map_switch_progress_page.dart';
 
 typedef MapChallengeScanner = Future<String?> Function(
   BuildContext context,
@@ -28,6 +29,8 @@ class NavigationMapPage extends StatefulWidget {
     this.mapChallengeScanner,
     this.onTaskRequested,
     this.emergencyStopCommander,
+    this.developmentMapSwitch =
+        const bool.fromEnvironment('DUOLE_MAP_SWITCH_DEVELOPMENT'),
   });
 
   final NavigationMapReader reader;
@@ -39,6 +42,7 @@ class NavigationMapPage extends StatefulWidget {
   final MapChallengeScanner? mapChallengeScanner;
   final VoidCallback? onTaskRequested;
   final EmergencyStopCommander? emergencyStopCommander;
+  final bool developmentMapSwitch;
 
   @override
   State<NavigationMapPage> createState() => _NavigationMapPageState();
@@ -50,6 +54,8 @@ class _NavigationMapPageState extends State<NavigationMapPage>
   NavigationMapImageResponse? _image;
   MapCatalogData? _catalog;
   Object? _error;
+  MapCatalogRecord? _activeSavedMap;
+  NavigationMapImageResponse? _activeSavedImage;
 
   @override
   void initState() {
@@ -84,16 +90,34 @@ class _NavigationMapPageState extends State<NavigationMapPage>
     try {
       final envelope = await widget.reader.getNavigationMapView();
       final map = envelope.data.map;
-      final image =
-          map == null ? null : await widget.reader.getNavigationMapImage(map);
       final catalog = widget.catalogReader == null
           ? null
           : (await widget.catalogReader!.getMapCatalog()).data;
+      final activeSaved = catalog?.maps
+          .where((m) =>
+              m.status == 'active' &&
+              m.technicalReason == 'localization_pending')
+          .firstOrNull;
+      final image = map == null || activeSaved != null
+          ? null
+          : await widget.reader.getNavigationMapImage(map);
+      NavigationMapImageResponse? activeImage;
+      if (activeSaved != null &&
+          widget.catalogReader is MapCatalogPreviewReader) {
+        try {
+          activeImage = await (widget.catalogReader as MapCatalogPreviewReader)
+              .getMapCatalogPreview(activeSaved);
+        } catch (_) {
+          /* Keep the active selection visible when its image is unavailable. */
+        }
+      }
       if (!mounted) return;
       setState(() {
         _view = envelope.data;
         _image = image;
         _catalog = catalog;
+        _activeSavedMap = activeSaved;
+        _activeSavedImage = activeImage;
         _error = null;
       });
     } catch (error) {
@@ -130,11 +154,22 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                         onChanged: _load,
                       ),
                       const SizedBox(height: 16),
-                      _MapCard(view: view, image: _image),
+                      if (_activeSavedMap != null)
+                        _ActiveSavedMapCard(
+                            map: _activeSavedMap!,
+                            image: _activeSavedImage,
+                            reader:
+                                widget.catalogReader is MapCatalogPreviewReader
+                                    ? widget.catalogReader
+                                        as MapCatalogPreviewReader
+                                    : null)
+                      else
+                        _MapCard(view: view, image: _image),
                       if (_catalog != null) ...[
                         const SizedBox(height: 16),
                         _MapCatalogSection(
                           catalog: _catalog!,
+                          developmentMapSwitch: widget.developmentMapSwitch,
                           previewReader: widget.catalogReader
                                   is MapCatalogPreviewReader
                               ? widget.catalogReader as MapCatalogPreviewReader
@@ -146,14 +181,22 @@ class _NavigationMapPageState extends State<NavigationMapPage>
                         ),
                       ],
                       const SizedBox(height: 16),
-                      _TaskGate(
-                        view: view,
-                        onTaskRequested: widget.onTaskRequested,
-                      ),
-                      const SizedBox(height: 16),
-                      _RoomSection(rooms: view.rooms),
-                      const SizedBox(height: 16),
-                      _RouteSection(routes: view.patrolRoutes),
+                      if (_activeSavedMap != null)
+                        const Card(
+                            child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Text('当前地图已切换，定位待验证')))
+                      else
+                        _TaskGate(
+                          view: view,
+                          onTaskRequested: widget.onTaskRequested,
+                        ),
+                      if (_activeSavedMap == null) ...[
+                        const SizedBox(height: 16),
+                        _RoomSection(rooms: view.rooms),
+                        const SizedBox(height: 16),
+                        _RouteSection(routes: view.patrolRoutes),
+                      ],
                     ],
                   ),
                 ),
@@ -457,6 +500,7 @@ String _guidanceLabel(String code) => switch (code) {
 class _MapCatalogSection extends StatelessWidget {
   const _MapCatalogSection({
     required this.catalog,
+    required this.developmentMapSwitch,
     required this.previewReader,
     required this.manager,
     required this.mapManagementManager,
@@ -465,6 +509,7 @@ class _MapCatalogSection extends StatelessWidget {
   });
 
   final MapCatalogData catalog;
+  final bool developmentMapSwitch;
   final MapCatalogPreviewReader? previewReader;
   final MapCatalogManager? manager;
   final MapManagementManager? mapManagementManager;
@@ -491,6 +536,7 @@ class _MapCatalogSection extends StatelessWidget {
                 for (final map in catalog.maps)
                   _CatalogMapTile(
                     map: map,
+                    developmentMapSwitch: developmentMapSwitch,
                     previewReader: previewReader,
                     liveMapCount: catalog.maps.length,
                     manager: manager,
@@ -549,6 +595,7 @@ class _MapCatalogSection extends StatelessWidget {
 class _CatalogMapTile extends StatelessWidget {
   const _CatalogMapTile({
     required this.map,
+    required this.developmentMapSwitch,
     required this.previewReader,
     required this.liveMapCount,
     required this.manager,
@@ -558,6 +605,7 @@ class _CatalogMapTile extends StatelessWidget {
   });
 
   final MapCatalogRecord map;
+  final bool developmentMapSwitch;
   final MapCatalogPreviewReader? previewReader;
   final int liveMapCount;
   final MapCatalogManager? manager;
@@ -582,7 +630,10 @@ class _CatalogMapTile extends StatelessWidget {
         children: [
           Text(_catalogStatusLabel(map.status)),
           const Text('点击预览地图'),
-          if (map.dockAnchor.status == 'unverified') const Text('未回桩验证 · 未启用'),
+          if (map.dockAnchor.status == 'unverified')
+            Text('未回桩验证 · ${map.status == 'active' ? '已启用' : '未启用'}'),
+          if (map.technicalReason == 'localization_pending')
+            const Text('定位待验证'),
           Text(
             '总分 ${map.quality.overallScore} · '
             '覆盖 ${map.quality.coverageScore} · '
@@ -610,8 +661,9 @@ class _CatalogMapTile extends StatelessWidget {
                   IconButton(
                     key: Key('switch-map-${map.mapId}'),
                     tooltip: '切换到此地图',
-                    onPressed:
-                        scanner == null ? null : () => _switchMap(context),
+                    onPressed: scanner == null && !developmentMapSwitch
+                        ? null
+                        : () => _switchMap(context),
                     icon: const Icon(Icons.swap_horiz),
                   ),
                 if (manager != null) ...[
@@ -639,33 +691,33 @@ class _CatalogMapTile extends StatelessWidget {
 
   Future<void> _switchMap(BuildContext context) async {
     try {
-      await mapManagementManager!.requestMapChallengeDisplay(
-        MappingChallengePurpose.mapManagement,
-      );
-      if (!context.mounted) return;
-      final qrPayload = await scanner!(
-        context,
-        MappingChallengePurpose.mapManagement,
-      );
-      if (qrPayload == null || !context.mounted) return;
-      final presence =
-          await mapManagementManager!.exchangeMapManagementPresence(qrPayload);
+      var presenceToken = 'development_map_switch';
+      if (!developmentMapSwitch) {
+        await mapManagementManager!
+            .requestMapChallengeDisplay(MappingChallengePurpose.mapManagement);
+        if (!context.mounted) return;
+        final qrPayload =
+            await scanner!(context, MappingChallengePurpose.mapManagement);
+        if (qrPayload == null || !context.mounted) return;
+        final presence = await mapManagementManager!
+            .exchangeMapManagementPresence(qrPayload);
+        presenceToken = presence.data.token;
+      }
       final accepted = await mapManagementManager!.switchMap(
         targetMapId: map.mapId,
         expectedTargetRevision: map.revision,
-        presenceToken: presence.data.token,
+        presenceToken: presenceToken,
       );
-      MapSwitchOperationSuccessEnvelope? recovered;
-      try {
-        recovered = await mapManagementManager!.getMapSwitch(
-          accepted.data.operationId,
-        );
-      } on Object {
-        // The accepted operation remains recoverable by ID/event after a
-        // transient read failure; do not misreport it as rejected.
-      }
       if (!context.mounted) return;
-      if (recovered?.data.status == MapSwitchStatus.committed) {
+      final recovered = await Navigator.of(context)
+          .push<MapSwitchOperation>(MaterialPageRoute(
+        builder: (_) => MapSwitchProgressPage(
+            manager: mapManagementManager!,
+            operation: accepted.data,
+            displayName: map.displayName),
+      ));
+      if (!context.mounted) return;
+      if (recovered?.status == MapSwitchStatus.committed) {
         await onChanged();
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -673,20 +725,20 @@ class _CatalogMapTile extends StatelessWidget {
         );
         return;
       }
-      if (recovered?.data.status == MapSwitchStatus.rolledBack) {
+      if (recovered?.status == MapSwitchStatus.rolledBack) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('地图切换失败，已恢复原地图')),
         );
         return;
       }
-      if (recovered?.data.status == MapSwitchStatus.failed) {
+      if (recovered?.status == MapSwitchStatus.failed) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('地图切换失败，请查看机器人状态后重试')),
         );
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('地图切换已受理，正在等待机器人完成定位与提交')),
+        const SnackBar(content: Text('地图切换已受理，可稍后刷新查看结果')),
       );
     } on EngineeringApiException catch (error) {
       if (!context.mounted) return;
@@ -1032,6 +1084,45 @@ String _formatBytes(int value) {
     return '${(value / 1000000).toStringAsFixed(1)} MB';
   }
   return '${(value / 1000000000).toStringAsFixed(1)} GB';
+}
+
+class _ActiveSavedMapCard extends StatelessWidget {
+  const _ActiveSavedMapCard(
+      {required this.map, required this.image, required this.reader});
+  final MapCatalogRecord map;
+  final NavigationMapImageResponse? image;
+  final MapCatalogPreviewReader? reader;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => SavedMapPreviewPage(map: map, reader: reader))),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('当前地图：${map.displayName}',
+                    style: Theme.of(context).textTheme.titleMedium)),
+            if (image != null)
+              SizedBox(
+                height: 320,
+                child: Image.memory(Uint8List.fromList(image!.bytes),
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.none,
+                    semanticLabel: '当前地图${map.displayName}',
+                    errorBuilder: (_, __, ___) =>
+                        const Center(child: Text('点击重新查看地图'))),
+              )
+            else
+              const Padding(
+                  padding: EdgeInsets.all(24), child: Text('点击查看当前地图')),
+            const Padding(
+                padding: EdgeInsets.all(16), child: Text('地图已加载 · 定位待验证')),
+          ]),
+        ),
+      );
 }
 
 class _MapCard extends StatelessWidget {

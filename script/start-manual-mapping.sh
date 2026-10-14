@@ -140,6 +140,7 @@ try:
         "--private-key", str(tls_key), "--host", args.host, "--port", str(args.port),
         "--robot-id", "DUOLE-RK3588-ENG-01", "--robot-display-name", "多乐机器人",
         "--app-runtime-mode", "REAL", "--manual-mapping-session-control-development",
+        "--map-switch-development",
         "--navigation-board-host", "ztl@172.22.205.19",
         "--navigation-board-identity-file", str(nav_key),
         "--navigation-board-known-hosts-file", str(known_hosts),
